@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SearchHeader } from "@/components/Company/SearchHeader";
 import { ProfileCard } from "@/components/profile/ProfileCard";
-import { FullProfileModal } from "@/components/Company/FullProfileModal";
+import CandidateProfilePreviewModal from "@/components/candidate/CandidateProfilePreviewModal";
 import CandidateUnlockModal from "@/components/unlock/CandidateUnlockModal";
-import { useProfiles } from "@/hooks/useProfiles";
 import {
   Search as SearchIcon,
   Filter,
@@ -23,10 +22,6 @@ import {
   Briefcase,
   Coins,
   Heart,
-  Eye,
-  Download,
-  Phone,
-  Mail,
   Users
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -68,64 +63,38 @@ interface SearchFilters {
   jobSearchType: string[];
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 24;
+
+const parseJsonField = (field: any) => {
+  if (field === null || field === undefined) return null;
+  if (typeof field === "string") {
+    try {
+      return JSON.parse(field);
+    } catch {
+      return field;
+    }
+  }
+  return field;
+};
 
 export default function CompanySearch() {
-  const navigate = useNavigate();
-  const { company, useToken, hasUsedToken } = useCompany();
+  const { company } = useCompany();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
   const [unlockedProfiles, setUnlockedProfiles] = useState<Set<string>>(new Set());
   const [savedMatches, setSavedMatches] = useState<Profile[]>([]);
-  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
-  const [isFullProfileModalOpen, setIsFullProfileModalOpen] = useState(false);
+  const [previewProfile, setPreviewProfile] = useState<any>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [unlockModalData, setUnlockModalData] = useState<{
     open: boolean;
     profile: Profile | null;
   }>({ open: false, profile: null });
   const [currentPage, setCurrentPage] = useState(1);
 
-  const handleUnlockFromPreview = (profile: Profile) => {
-    setIsFullProfileModalOpen(false);
-    setUnlockModalData({ open: true, profile });
-  };
-
-  const handleMarkUnsuitable = async (profile: Profile, reason?: string) => {
-    if (!company?.id || !user?.id) return;
-    
-    try {
-      const { error } = await supabase.from('company_activity').insert([{
-        type: 'candidate_marked_unsuitable',
-        company_id: company.id,
-        actor_user_id: user.id,
-        payload: {
-          candidate_id: profile.id,
-          reason: reason || 'Keine Angabe',
-          filters_at_time: JSON.parse(JSON.stringify(filters)),
-          timestamp: new Date().toISOString()
-        } as any
-      }]);
-      
-      if (error) throw error;
-
-      toast({ 
-        title: "Feedback gespeichert",
-        description: "Wir werden Ihre Empfehlungen entsprechend anpassen." 
-      });
-      
-      // Entferne Profil aus aktueller Liste
-      setProfiles(profiles.filter(p => p.id !== profile.id));
-      setIsFullProfileModalOpen(false);
-    } catch (error) {
-      console.error('Error marking unsuitable:', error);
-      toast({ 
-        title: "Fehler", 
-        description: "Feedback konnte nicht gespeichert werden.",
-        variant: "destructive" 
-      });
-    }
-  };
   const [filters, setFilters] = useState<SearchFilters>({
     keywords: "",
     targetGroup: "",
@@ -287,19 +256,73 @@ export default function CompanySearch() {
   };
 
   const handlePreviewProfile = async (profile: Profile) => {
+    setPreviewOpen(true);
+    setLoadingPreview(true);
+
+    setPreviewProfile({
+      ...profile,
+      is_unlocked: isProfileUnlocked(profile.id),
+    });
+
     if (company && user) {
       try {
         await supabase.from('company_activity').insert({
           company_id: company.id,
           type: 'profile_view',
           actor_user_id: user.id,
-          payload: { profile_id: profile.id }
+          payload: { profile_id: profile.id },
         });
-      } catch (e) {
-        console.error('Failed to log profile view', e);
+      } catch (error) {
+        console.error('Failed to log profile view', error);
       }
     }
-    navigate(`/company/profile/${profile.id}`);
+
+    try {
+      const { data: fullProfile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', profile.id)
+        .single();
+
+      if (error) throw error;
+
+      const parsedProfile = {
+        ...fullProfile,
+        berufserfahrung: parseJsonField(fullProfile.berufserfahrung) || [],
+        schulbildung: parseJsonField(fullProfile.schulbildung) || [],
+        faehigkeiten: parseJsonField(fullProfile.faehigkeiten) || [],
+        sprachkenntnisse: parseJsonField(fullProfile.sprachkenntnisse) || [],
+        sprachen: parseJsonField(fullProfile.sprachen) || [],
+        languages: parseJsonField(fullProfile.languages) || [],
+      };
+
+      let isUnlocked = isProfileUnlocked(profile.id);
+      if (!isUnlocked && company?.id) {
+        const { data: unlockData } = await supabase
+          .from('company_candidates')
+          .select('unlocked_at')
+          .eq('company_id', company.id)
+          .eq('candidate_id', parsedProfile.user_id || parsedProfile.id)
+          .not('unlocked_at', 'is', null)
+          .maybeSingle();
+
+        isUnlocked = !!unlockData;
+      }
+
+      setPreviewProfile({
+        ...parsedProfile,
+        is_unlocked: isUnlocked,
+      });
+    } catch (error) {
+      console.error('Error loading profile preview:', error);
+      toast({
+        title: 'Fehler',
+        description: 'Profil konnte nicht geladen werden.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingPreview(false);
+    }
   };
 
   const handleUnlockProfile = async (profile: Profile) => {
@@ -512,7 +535,7 @@ export default function CompanySearch() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
               {profiles.map((profile) => {
                 const unlocked = isProfileUnlocked(profile.id);
                 const matchPercentage = calculateMatchPercentage(profile);
@@ -524,7 +547,8 @@ export default function CompanySearch() {
                       id: profile.id,
                       name: profile.vorname, // Only first name for anonymity
                       avatar_url: null, // No avatar for anonymity
-                      role: profile.branche,
+                      industry: profile.branche || undefined,
+                      occupation: profile.headline || undefined,
                       city: profile.ort,
                       fs: true, // Default for search results
                       seeking: Array.isArray(profile.job_search_preferences) && profile.job_search_preferences.length > 0
@@ -535,10 +559,7 @@ export default function CompanySearch() {
                     }}
                     variant="search"
                     onUnlock={() => handleUnlockProfile(profile)}
-                    onView={() => {
-                      setSelectedProfile(profile);
-                      setIsFullProfileModalOpen(true);
-                    }}
+                    onView={() => handlePreviewProfile(profile)}
                     onToggleFavorite={() => handleSaveMatch(profile)}
                   />
                 );
@@ -613,18 +634,26 @@ export default function CompanySearch() {
         </Card>
       )}
 
-      {/* Full Profile Modal */}
-      <FullProfileModal
-        isOpen={isFullProfileModalOpen}
-        onClose={() => {
-          setIsFullProfileModalOpen(false);
-          setSelectedProfile(null);
+      <CandidateProfilePreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        profile={previewProfile}
+        isUnlocked={!!previewProfile?.is_unlocked}
+        isLoading={loadingPreview}
+        onUnlockSuccess={() => {
+          loadUnlockedProfiles();
+          loadProfiles();
+          if (previewProfile?.id) {
+            const profileId = previewProfile.id;
+            setPreviewOpen(false);
+            navigate(`/company/profile/${profileId}`, {
+              state: {
+                from: { pathname: location.pathname, search: location.search },
+                label: "Kandidatensuche",
+              },
+            });
+          }
         }}
-        profile={selectedProfile}
-        isUnlocked={selectedProfile ? isProfileUnlocked(selectedProfile.id) : false}
-        showUnlockButton={true}
-        onUnlock={() => selectedProfile && handleUnlockFromPreview(selectedProfile)}
-        onMarkUnsuitable={(reason) => selectedProfile && handleMarkUnsuitable(selectedProfile, reason)}
       />
 
       {/* Unlock Modal */}
@@ -643,10 +672,19 @@ export default function CompanySearch() {
           contextApplication={null}
           contextType="none"
           onSuccess={() => {
+            const profileId = unlockModalData.profile?.id;
             loadUnlockedProfiles();
             loadProfiles();
             toast({ title: "Kandidat freigeschaltet!" });
             setUnlockModalData({ open: false, profile: null });
+            if (profileId) {
+              navigate(`/company/profile/${profileId}`, {
+                state: {
+                  from: { pathname: location.pathname, search: location.search },
+                  label: "Kandidatensuche",
+                },
+              });
+            }
           }}
         />
       )}

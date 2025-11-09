@@ -11,9 +11,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { setApplicationStatus, unlockCandidate } from "@/lib/api/applications";
 import type { ApplicationStatus } from "@/utils/applicationStatus";
-import { MapPin, Briefcase, Mail, Phone, User, Calendar } from "lucide-react";
+import { MapPin, Briefcase, Mail, Phone, Calendar } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
+import CandidateProfilePreviewModal from "@/components/candidate/CandidateProfilePreviewModal";
 
 interface JobApplicationTabsProps {
   jobId: string;
@@ -26,6 +27,18 @@ interface JobApplicationTabsProps {
   };
 }
 
+const parseJsonField = (field: any) => {
+  if (field === null || field === undefined) return null;
+  if (typeof field === "string") {
+    try {
+      return JSON.parse(field);
+    } catch {
+      return field;
+    }
+  }
+  return field;
+};
+
 export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabsProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,6 +48,19 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
   const [activeTab, setActiveTab] = useState(statusParam);
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [previewProfile, setPreviewProfile] = useState<any>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [selectedApplicationInfo, setSelectedApplicationInfo] = useState<{
+    id: string;
+    candidateId?: string;
+    jobId?: string | null;
+    jobTitle?: string | null;
+    jobCity?: string | null;
+    status?: string | null;
+    createdAt?: string | null;
+  } | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
 
   // Sync URL with tab
   useEffect(() => {
@@ -61,6 +87,7 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
           *,
           candidates (
             id,
+            user_id,
             full_name,
             email,
             phone,
@@ -109,8 +136,96 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
     }
   };
 
-  const handleViewProfile = (candidateId: string) => {
-    navigate(`/company/candidates/${candidateId}?job=${jobId}`);
+  const openPreview = async (application: any) => {
+    const candidate = application.candidates;
+    const candidateId = candidate?.id || application.candidate_id;
+    const isUnlocked = ["unlocked", "interview", "offer", "hired"].includes(application.status);
+
+    setPreviewOpen(true);
+    setLoadingPreview(true);
+    setSelectedApplicationInfo({
+      id: application.id,
+      candidateId,
+      jobId: application.job_id,
+      jobTitle: job?.title || null,
+      jobCity: job?.city || null,
+      status: application.status,
+      createdAt: application.created_at,
+    });
+
+    setPreviewProfile({
+      ...candidate,
+      id: candidateId,
+      user_id: candidate?.user_id || candidateId,
+      is_unlocked: isUnlocked,
+    });
+
+    try {
+      const { data: fullProfile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", candidateId)
+        .single();
+
+      if (error) throw error;
+
+      const parsedProfile = {
+        ...fullProfile,
+        berufserfahrung: parseJsonField(fullProfile.berufserfahrung) || [],
+        schulbildung: parseJsonField(fullProfile.schulbildung) || [],
+        faehigkeiten: parseJsonField(fullProfile.faehigkeiten) || [],
+        sprachkenntnisse: parseJsonField(fullProfile.sprachkenntnisse) || [],
+        sprachen: parseJsonField(fullProfile.sprachen) || [],
+        languages: parseJsonField(fullProfile.languages) || [],
+      };
+
+      setPreviewProfile({
+        ...parsedProfile,
+        is_unlocked: isUnlocked,
+      });
+    } catch (error) {
+      console.error("Error loading profile preview:", error);
+      toast({
+        title: "Fehler",
+        description: "Profil konnte nicht geladen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleRejectFromPreview = async ({ reasonShort, reasonCustom }: { reasonShort: string; reasonCustom?: string }) => {
+    if (!selectedApplicationInfo) return;
+
+    try {
+      setIsRejecting(true);
+      await setApplicationStatus({
+        applicationId: selectedApplicationInfo.id,
+        newStatus: "rejected",
+        reasonShort,
+        reasonCustom,
+      });
+
+      toast({
+        title: "Bewerbung abgelehnt",
+        description: "Der Kandidat wurde in die entsprechende Spalte verschoben.",
+      });
+
+      setPreviewOpen(false);
+      setPreviewProfile(null);
+      setSelectedApplicationInfo(null);
+      refetch();
+    } catch (error: any) {
+      console.error("Error rejecting application:", error);
+      toast({
+        title: "Fehler",
+        description: error?.message || "Die Bewerbung konnte nicht abgelehnt werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRejecting(false);
+    }
   };
 
   const handleUnlock = async (application: any) => {
@@ -133,6 +248,13 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
         title: "Profil freigeschaltet",
         description: "Sie können nun die Kontaktdaten einsehen.",
       });
+
+      if (selectedApplicationInfo?.id === selectedCandidate.id) {
+        setSelectedApplicationInfo((prev) =>
+          prev ? { ...prev, status: "unlocked" } : prev
+        );
+        setPreviewProfile((prev: any) => (prev ? { ...prev, is_unlocked: true } : prev));
+      }
 
       setShowUnlockModal(false);
       setSelectedCandidate(null);
@@ -255,13 +377,13 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-12 w-12">
-                            <AvatarImage src={candidate.profile_image} />
+                            <AvatarImage src={candidate.profile_image || undefined} />
                             <AvatarFallback className="bg-primary/10 text-primary">
-                              {getInitials(candidate.full_name)}
+                              {getInitials(candidate.full_name || "")}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <h3 className="font-semibold text-base">{candidate.full_name}</h3>
+                            <h3 className="font-semibold text-base">{candidate.full_name || "Unbekannter Kandidat"}</h3>
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <MapPin className="h-3 w-3" />
                               {candidate.city || "Kein Ort"}
@@ -289,6 +411,15 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
                           {app.status === "rejected" && "Abgelehnt"}
                         </Badge>
                       </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mb-3"
+                        onClick={() => openPreview(app)}
+                      >
+                        Profil ansehen
+                      </Button>
                       
                       {candidate.bio_short && (
                         <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
@@ -338,8 +469,7 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
                       </div>
                     </CardHeader>
                     
-                    <CardContent className="pt-0">
-                      {/* Buttons based on status */}
+                    <CardContent className="pt-0 space-y-2">
                       {app.status === "new" && (
                         <div className="flex gap-2">
                           <Button
@@ -358,7 +488,7 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
                           </Button>
                         </div>
                       )}
-                      
+
                       {app.status === "unlocked" && (
                         <div className="flex gap-2">
                           <Button
@@ -370,31 +500,17 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
                           </Button>
                           <Button
                             onClick={() => handleReject(app.id)}
-                            className="bg-[#EF4444] hover:bg-[#dc2626] text-white"
+                            variant="destructive"
                             size="sm"
                           >
                             Absagen
                           </Button>
                         </div>
                       )}
-                      
+
                       {app.status === "interview" && (
-                        <Button
-                          disabled
-                          className="w-full bg-[#22C55E] hover:bg-[#16a34a]"
-                          size="sm"
-                        >
+                        <Button disabled className="w-full" size="sm">
                           Gespräch geplant
-                        </Button>
-                      )}
-                      
-                      {app.status === "rejected" && (
-                        <Button
-                          disabled
-                          className="w-full bg-[#EF4444] hover:bg-[#dc2626] text-white"
-                          size="sm"
-                        >
-                          Abgelehnt
                         </Button>
                       )}
 
@@ -409,12 +525,14 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
                       )}
 
                       {app.status === "hired" && (
-                        <Button
-                          disabled
-                          className="w-full bg-[#22C55E] hover:bg-[#16a34a]"
-                          size="sm"
-                        >
+                        <Button disabled className="w-full" size="sm">
                           Eingestellt
+                        </Button>
+                      )}
+
+                      {app.status === "rejected" && (
+                        <Button disabled variant="destructive" className="w-full" size="sm">
+                          Abgelehnt
                         </Button>
                       )}
                     </CardContent>
@@ -425,6 +543,22 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
           )}
         </TabsContent>
       </Tabs>
+
+      <CandidateProfilePreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        profile={previewProfile}
+        isUnlocked={!!previewProfile?.is_unlocked}
+        isLoading={loadingPreview}
+        applicationInfo={selectedApplicationInfo}
+        onUnlockSuccess={() => {
+          setPreviewProfile((prev: any) => (prev ? { ...prev, is_unlocked: true } : prev));
+          setSelectedApplicationInfo((prev) => (prev ? { ...prev, status: "unlocked" } : prev));
+          refetch();
+        }}
+        onRejectApplication={handleRejectFromPreview}
+        isRejecting={isRejecting}
+      />
 
       {/* Unlock Modal */}
       <Dialog open={showUnlockModal} onOpenChange={setShowUnlockModal}>
@@ -437,49 +571,29 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={selectedCandidate.candidates.profile_image} />
+                  <AvatarImage src={selectedCandidate.candidates?.profile_image || undefined} />
                   <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                    {getInitials(selectedCandidate.candidates.full_name)}
+                    {getInitials(selectedCandidate.candidates?.full_name || "")}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="font-semibold text-lg">{selectedCandidate.candidates.full_name}</h3>
+                  <h3 className="font-semibold text-lg">{selectedCandidate.candidates?.full_name}</h3>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <MapPin className="h-3 w-3" />
-                    {selectedCandidate.candidates.city}
+                    {selectedCandidate.candidates?.city || "Kein Ort"}
                   </div>
                 </div>
               </div>
-              
-              {selectedCandidate.candidates.bio_short && (
+
+              {selectedCandidate.candidates?.bio_short && (
                 <div>
                   <h4 className="font-medium text-sm mb-1">Über mich</h4>
-                  <p className="text-sm text-muted-foreground">{selectedCandidate.candidates.bio_short}</p>
-                </div>
-              )}
-              
-              {selectedCandidate.candidates.skills && selectedCandidate.candidates.skills.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-sm mb-2">Skills</h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedCandidate.candidates.skills.map((skill: string) => (
-                      <Badge key={skill} variant="outline" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {selectedCandidate.candidates.experience_years !== undefined && (
-                <div>
-                  <h4 className="font-medium text-sm mb-1">Berufserfahrung</h4>
                   <p className="text-sm text-muted-foreground">
-                    {selectedCandidate.candidates.experience_years} Jahre
+                    {selectedCandidate.candidates.bio_short}
                   </p>
                 </div>
               )}
-              
+
               <div className="bg-muted p-3 rounded-lg">
                 <p className="text-sm text-muted-foreground">
                   Nach dem Freischalten erhalten Sie Zugriff auf die vollständigen Kontaktdaten dieses Kandidaten.

@@ -1,40 +1,50 @@
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { UnifiedCandidateCard } from "@/components/candidate/UnifiedCandidateCard";
-import { ProfileManagementPanel } from "@/components/candidate/ProfileManagementPanel";
+import CandidateProfilePreviewModal from "@/components/candidate/CandidateProfilePreviewModal";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { searchCandidates, unlockCandidate } from "@/lib/api/applications";
 import { toast } from "@/hooks/use-toast";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { supabase } from "@/integrations/supabase/client";
+
+const parseJsonField = (field: any) => {
+  if (!field) return null;
+  if (typeof field === "string") {
+    try {
+      return JSON.parse(field);
+    } catch {
+      return field;
+    }
+  }
+  return field;
+};
 
 export default function CandidateSearch() {
   const { company } = useCompany();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
   const { data: candidates, isLoading, refetch } = useQuery({
     queryKey: ["search-candidates", company?.id, searchQuery],
     queryFn: async () => {
       if (!company?.id) return [];
-      
+
       const result = await searchCandidates({
         companyId: company.id,
         searchText: searchQuery || undefined,
         limit: 50,
         offset: 0,
       });
-      
+
       return result;
     },
     enabled: !!company?.id,
@@ -55,6 +65,12 @@ export default function CandidateSearch() {
       });
 
       refetch();
+      navigate(`/company/profile/${candidateId}`, {
+        state: {
+          from: { pathname: location.pathname, search: location.search },
+          label: "Kandidatensuche",
+        },
+      });
     } catch (error: any) {
       toast({
         title: "Fehler",
@@ -64,23 +80,71 @@ export default function CandidateSearch() {
     }
   };
 
-  const handleViewProfile = (profile: any) => {
-    setSelectedProfile(profile);
-    setPanelOpen(true);
+  const handleViewProfile = async (profile: any) => {
+    setPreviewOpen(true);
+    setLoadingProfile(true);
+
+    setSelectedProfile({
+      ...profile,
+      is_unlocked: profile.is_unlocked || false,
+    });
+
+    try {
+      const { data: fullProfile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", profile.id)
+        .single();
+
+      if (error) throw error;
+
+      const parsedProfile = {
+        ...fullProfile,
+        berufserfahrung: parseJsonField(fullProfile.berufserfahrung) || [],
+        schulbildung: parseJsonField(fullProfile.schulbildung) || [],
+        faehigkeiten: parseJsonField(fullProfile.faehigkeiten) || [],
+        sprachkenntnisse: parseJsonField(fullProfile.sprachkenntnisse) || [],
+        sprachen: parseJsonField(fullProfile.sprachen) || [],
+        languages: parseJsonField(fullProfile.languages) || [],
+      };
+
+      let isUnlocked = profile.is_unlocked || false;
+      if (!isUnlocked && company?.id) {
+        const { data: unlockData } = await supabase
+          .from("company_candidates")
+          .select("unlocked_at")
+          .eq("company_id", company.id)
+          .eq("candidate_id", parsedProfile.user_id || parsedProfile.id)
+          .not("unlocked_at", "is", null)
+          .maybeSingle();
+
+        isUnlocked = !!unlockData;
+      }
+
+      setSelectedProfile({
+        ...parsedProfile,
+        is_unlocked: isUnlocked,
+      });
+    } catch (error: any) {
+      console.error("Error loading profile:", error);
+      toast({
+        title: "Fehler",
+        description: "Profil konnte nicht geladen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingProfile(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1600px] mx-auto px-6 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Kandidatensuche</h1>
-          <p className="text-muted-foreground">
-            Finden Sie passende Kandidaten für Ihre offenen Stellen
-          </p>
+          <p className="text-muted-foreground">Finden Sie passende Kandidaten für Ihre offenen Stellen</p>
         </div>
 
-        {/* Search Bar */}
         <Card className="mb-6">
           <CardContent className="p-6">
             <div className="flex gap-3">
@@ -101,21 +165,18 @@ export default function CandidateSearch() {
           </CardContent>
         </Card>
 
-        {/* Results */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         ) : !candidates || candidates.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                Keine Kandidaten gefunden. Versuchen Sie eine andere Suche.
-              </p>
+              <p className="text-muted-foreground">Keine Kandidaten gefunden. Versuchen Sie eine andere Suche.</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {candidates.map((candidate: any) => (
               <UnifiedCandidateCard
                 key={candidate.id}
@@ -140,26 +201,26 @@ export default function CandidateSearch() {
         )}
       </div>
 
-      {/* Profile Panel */}
-      <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
-        <SheetContent className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>Kandidatenprofil</SheetTitle>
-            <SheetDescription>
-              Detaillierte Informationen zum Kandidaten
-            </SheetDescription>
-          </SheetHeader>
-          {selectedProfile && (
-            <div className="mt-6">
-              <ProfileManagementPanel
-                profile={selectedProfile}
-                isUnlocked={selectedProfile.is_unlocked}
-                onUnlock={() => handleUnlock(selectedProfile.id)}
-              />
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      <CandidateProfilePreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        profile={selectedProfile}
+        isUnlocked={selectedProfile?.is_unlocked}
+        isLoading={loadingProfile}
+        onUnlockSuccess={() => {
+          refetch();
+          if (selectedProfile?.id) {
+            const profileId = selectedProfile.id;
+            setPreviewOpen(false);
+            navigate(`/company/profile/${profileId}`, {
+              state: {
+                from: { pathname: location.pathname, search: location.search },
+                label: "Kandidatensuche",
+              },
+            });
+          }
+        }}
+      />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { MapPin, Mail, Phone, Calendar, Briefcase, GraduationCap, Award, User, CheckCircle, XCircle, AlertTriangle, Download } from "lucide-react";
+import { MapPin, Mail, Phone, Calendar, Briefcase, GraduationCap, Award, User, XCircle, AlertTriangle, Download } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { WeitereDokumenteSection } from "@/components/linkedin/right-rail/WeitereDokumenteSection";
@@ -43,7 +43,6 @@ interface FullProfileModalProps {
   isUnlocked: boolean;
   applicationId?: string;
   currentStage?: string;
-  onStageChange?: (newStage: string) => void;
   onArchive?: (reason?: string) => void;
   onUnlock?: () => void;
   onMarkUnsuitable?: (reason?: string) => void;
@@ -65,7 +64,6 @@ export function FullProfileModal({
   isUnlocked,
   applicationId,
   currentStage,
-  onStageChange,
   onArchive,
   onUnlock,
   onMarkUnsuitable,
@@ -115,24 +113,32 @@ export function FullProfileModal({
 
   const getStageLabel = (stage: string) => {
     const labels: Record<string, string> = {
-      new: 'Neu',
-      interview: 'Interview geplant',
-      offer: 'Angebot gemacht',
-      hired: 'Eingestellt',
-      rejected: 'Abgelehnt'
+      FREIGESCHALTET: 'Freigeschaltet',
+      INTERVIEW_GEPLANT: 'Interview geplant',
+      INTERVIEW_DURCHGEFÜHRT: 'Interview durchgeführt',
+      ANGEBOT_GESENDET: 'Angebot gesendet',
+      EINGESTELLT: 'Eingestellt',
+      ABGESAGT: 'Abgesagt',
+      ABGELEHNT: 'Abgelehnt',
+      ON_HOLD: 'On Hold',
     };
-    return labels[stage] || stage;
+    const key = stage.toUpperCase();
+    return labels[key] || stage;
   };
 
   const getStageVariant = (stage: string): "default" | "secondary" | "destructive" | "outline" => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      new: 'secondary',
-      interview: 'default',
-      offer: 'default',
-      hired: 'default',
-      rejected: 'destructive'
+      FREIGESCHALTET: 'secondary',
+      INTERVIEW_GEPLANT: 'default',
+      INTERVIEW_DURCHGEFÜHRT: 'default',
+      ANGEBOT_GESENDET: 'default',
+      EINGESTELLT: 'default',
+      ABGESAGT: 'destructive',
+      ABGELEHNT: 'destructive',
+      ON_HOLD: 'outline',
     };
-    return variants[stage] || 'secondary';
+    const key = stage.toUpperCase();
+    return variants[key] || 'secondary';
   };
 
   return (
@@ -412,71 +418,34 @@ export function FullProfileModal({
               
               {/* Actions based on stage */}
               <div className="space-y-2">
-                {companyCandidate.stage === 'new' && (
-                  <>
-                    <Button 
-                      className="w-full bg-emerald-600 hover:bg-emerald-700"
-                      onClick={() => onStageChange?.('interview')}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Interview planen
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      className="w-full border-red-600 text-red-600 hover:bg-red-50"
-                      onClick={() => setShowArchiveDialog(true)}
-                    >
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Absagen
-                    </Button>
-                  </>
-                )}
-                {companyCandidate.stage === 'interview' && (
-                  <>
-                    <Button 
-                      className="w-full"
-                      onClick={() => onStageChange?.('offer')}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Angebot machen
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      className="w-full border-red-600 text-red-600 hover:bg-red-50"
-                      onClick={() => setShowArchiveDialog(true)}
-                    >
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Absagen
-                    </Button>
-                  </>
-                )}
-                {companyCandidate.stage === 'offer' && (
-                  <>
-                    <Button 
-                      className="w-full bg-green-600 hover:bg-green-700"
-                      onClick={() => onStageChange?.('hired')}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Als eingestellt markieren
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      className="w-full border-red-600 text-red-600 hover:bg-red-50"
-                      onClick={() => setShowArchiveDialog(true)}
-                    >
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Absagen
-                    </Button>
-                  </>
-                )}
-                {companyCandidate.stage === 'hired' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Aktionen</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-muted-foreground">
+                    <p>
+                      Weitere Schritte wie Interview-Planung oder Angebote kannst du direkt im Profil durchführen.
+                    </p>
+                    {companyCandidate.stage !== 'ABGELEHNT' && companyCandidate.stage !== 'ABGESAGT' && (
+                      <Button
+                        variant="outline"
+                        className="w-full border-red-600 text-red-600 hover:bg-red-50"
+                        onClick={() => setShowArchiveDialog(true)}
+                      >
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Absagen
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+                {companyCandidate.stage === 'EINGESTELLT' && (
                   <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-sm text-green-800 font-medium">
                       ✓ Kandidat wurde eingestellt
                     </p>
                   </div>
                 )}
-                {companyCandidate.stage === 'rejected' && (
+                {companyCandidate.stage === 'ABGELEHNT' && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                     <p className="text-sm text-red-800 font-medium">
                       Kandidat wurde abgelehnt

@@ -28,7 +28,7 @@ type ApplicationContext = {
   status?: string | null;
 };
 
-type Job = { id: string; title: string; is_active: boolean };
+type Job = { id: string; title: string; is_active: boolean | null; status?: string | null };
 
 export type CandidateUnlockModalProps = {
   open: boolean;
@@ -57,10 +57,18 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
   const [loading, setLoading] = useState(false);
   const [unlockType, setUnlockType] = useState<UnlockType>(contextApplication ? "bewerbung" : "initiativ");
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(contextApplication?.job_id ?? null);
   const [notes, setNotes] = useState("");
   const [alreadyUnlocked, setAlreadyUnlocked] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (jobsLoading) return;
+    if (!selectedJobId) return;
+    if (jobs.some((job) => job.id === selectedJobId)) return;
+    setSelectedJobId(null);
+  }, [jobs, jobsLoading, selectedJobId]);
 
   const candidateName = candidate.full_name || 
     (candidate.vorname && candidate.nachname ? `${candidate.vorname} ${candidate.nachname}` : null) ||
@@ -116,17 +124,25 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
         }
 
         // Fetch active jobs
+        setJobsLoading(true);
+
         const { data: jobsList, error: jobsError } = await supabase
           .from("job_posts")
-          .select("id, title, is_active")
+          .select("id, title, is_active, status")
           .eq("company_id", companyId)
-          .eq("is_active", true)
           .order("title", { ascending: true });
 
         if (jobsError) throw jobsError;
         
-        console.log("🔍 Loaded jobs:", jobsList?.length || 0, jobsList);
-        setJobs(jobsList || []);
+        const filteredJobs = (jobsList || []).filter((job) => {
+          if (!job) return false;
+          if (job.is_active === true) return true;
+          const normalizedStatus = typeof job.status === "string" ? job.status.toLowerCase() : "";
+          return normalizedStatus === "published" || normalizedStatus === "active" || normalizedStatus === "online";
+        });
+
+        console.log("🔍 Loaded jobs:", filteredJobs.length, filteredJobs);
+        setJobs(filteredJobs);
 
         if (!jobsList?.length) {
           console.log("⚠️ No active jobs found, defaulting to initiativ");
@@ -135,6 +151,8 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
         }
       } catch (e: any) {
         toast.error(e.message || "Fehler beim Laden");
+      } finally {
+        setJobsLoading(false);
       }
     })();
   }, [open, companyId, candidate.id]);
@@ -353,13 +371,18 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
     <div className="space-y-2">
       <Label>
         Stelle (optional)
-        {jobs.length === 0 && (
+        {!jobsLoading && jobs.length === 0 && (
           <span className="ml-2 text-xs text-amber-600 font-normal">
             ⚠️ Keine aktiven Stellen vorhanden
           </span>
         )}
       </Label>
-      {jobs.length > 0 ? (
+      {jobsLoading ? (
+        <div className="rounded-md border border-muted p-3 text-sm text-muted-foreground flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Stellen werden geladen...</span>
+        </div>
+      ) : jobs.length > 0 ? (
         <>
           <Select onValueChange={(v) => setSelectedJobId(v === "none" ? null : v)} value={selectedJobId || "none"}>
             <SelectTrigger>

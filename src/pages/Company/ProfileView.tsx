@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Lock, CheckCircle2, UserCheck, Clock, Download } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Lock, CheckCircle2, UserCheck, Clock, Download, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { unlockService } from "@/services/unlockService";
@@ -17,11 +18,148 @@ import { WeitereDokumenteSection } from "@/components/linkedin/right-rail/Weiter
 import { ContactInfoCard } from "@/components/linkedin/right-rail/ContactInfoCard";
 import { AdCard } from "@/components/linkedin/right-rail/AdCard";
 import CandidateUnlockModal from "@/components/unlock/CandidateUnlockModal";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+import { CandidateStatus, changeCandidateStatus } from "@/lib/api/candidates";
+import { useAuth } from "@/hooks/useAuth";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { MultiSelect, Option as MultiSelectOption } from "@/components/ui/multi-select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
+type CandidateNote = {
+  id: string;
+  content: string;
+  createdAt: string;
+  authorId?: string | null;
+  authorName?: string | null;
+};
+
+type CandidateMeta = {
+  id: string;
+  status: CandidateStatus;
+  stage?: string | null;
+  origin?: string | null;
+  interview_date?: string | null;
+  notes?: string | null;
+  linked_job_ids?: string[] | null;
+  unlocked_at?: string | null;
+  last_active_status?: CandidateStatus | null;
+};
+
+const STATUS_LABELS: Record<CandidateStatus, string> = {
+  FREIGESCHALTET: "Freigeschaltet",
+  INTERVIEW_GEPLANT: "Interview geplant",
+  INTERVIEW_DURCHGEFÜHRT: "Interview durchgeführt",
+  ABGESAGT: "Abgesagt",
+  ANGEBOT_GESENDET: "Angebot gesendet",
+  EINGESTELLT: "Eingestellt",
+  ABGELEHNT: "Abgelehnt",
+  ON_HOLD: "On Hold",
+};
+
+type ActionOption = {
+  key: string;
+  label: string;
+  status: CandidateStatus;
+  requiresDate?: "planned" | "completed";
+  variant?: "primary" | "outline" | "destructive";
+};
+
+const normalizeNote = (value: unknown, index: number): CandidateNote | null => {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return {
+      id: `legacy-${index}-${trimmed.length}`,
+      content: trimmed,
+      createdAt: "",
+    };
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const contentRaw = record.content ?? record.note ?? record.text ?? record.body;
+    const content = typeof contentRaw === "string" ? contentRaw.trim() : Array.isArray(contentRaw) ? contentRaw.join("\n") : String(contentRaw ?? "");
+    if (!content) return null;
+
+    const createdAtRaw = record.createdAt ?? record.created_at ?? record.timestamp ?? record.date;
+    const createdAt = typeof createdAtRaw === "string" ? createdAtRaw : createdAtRaw ? String(createdAtRaw) : "";
+
+    const authorIdRaw = record.authorId ?? record.author_id;
+    const authorNameRaw = record.authorName ?? record.author ?? record.author_email ?? record.authorEmail;
+
+    return {
+      id: (typeof record.id === "string" && record.id) || `note-${index}-${content.length}`,
+      content,
+      createdAt,
+      authorId: typeof authorIdRaw === "string" ? authorIdRaw : authorIdRaw ? String(authorIdRaw) : null,
+      authorName: typeof authorNameRaw === "string" ? authorNameRaw : authorNameRaw ? String(authorNameRaw) : null,
+    };
+  }
+
+  return null;
+};
+
+const parseCandidateNotes = (raw: unknown): CandidateNote[] => {
+  if (!raw) return [];
+
+  let base: unknown[] = [];
+
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        base = parsed;
+      } else if (parsed && typeof parsed === "object") {
+        base = Object.values(parsed as Record<string, unknown>);
+      } else {
+        base = [trimmed];
+      }
+    } catch {
+      base = trimmed
+        .split(/\n{2,}/)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    }
+  } else if (Array.isArray(raw)) {
+    base = raw;
+  } else if (typeof raw === "object") {
+    base = Object.values(raw as Record<string, unknown>);
+  }
+
+  return base
+    .map((entry, index) => normalizeNote(entry, index))
+    .filter((note): note is CandidateNote => !!note)
+    .sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+};
+
+const createNoteId = () => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `note-${Date.now()}`;
+};
 
 export default function ProfileView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { company } = useCompany();
+  const { user } = useAuth();
   
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -30,14 +168,484 @@ export default function ProfileView() {
   const [following, setFollowing] = useState(false);
   const [applications, setApplications] = useState<any[]>([]);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
+  const [candidateMeta, setCandidateMeta] = useState<CandidateMeta | null>(null);
+  const [linkedJobs, setLinkedJobs] = useState<Array<{ id: string; title: string; city?: string | null }>>([]);
+  const [jobOptions, setJobOptions] = useState<MultiSelectOption[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [updatingJobs, setUpdatingJobs] = useState(false);
+  const [plannedAt, setPlannedAt] = useState("");
+  const [completedAt, setCompletedAt] = useState("");
+  const [newNote, setNewNote] = useState("");
+  const [addingNote, setAddingNote] = useState(false);
+  const [metaAccordionValue, setMetaAccordionValue] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!id || !company) return;
-    loadProfile();
-    checkUnlockState();
-    checkFollowState();
-    loadApplications();
-  }, [id, company]);
+  const navigationState = location.state as
+    | {
+        from?: { pathname: string; search?: string };
+        label?: string;
+      }
+    | undefined;
+  const backPath = navigationState?.from
+    ? `${navigationState.from.pathname}${navigationState.from.search ?? ""}`
+    : "/company/search";
+  const backLabel = navigationState?.label ?? "Kandidatensuche";
+  const candidateStatus: CandidateStatus = candidateMeta?.status ?? "FREIGESCHALTET";
+  const isOnHold = candidateStatus === "ON_HOLD";
+  const resumeStatus: CandidateStatus = candidateMeta?.last_active_status ?? "FREIGESCHALTET";
+  const toInputDateTime = (value?: string | null) => {
+    if (!value) return "";
+    try {
+      return format(new Date(value), "yyyy-MM-dd'T'HH:mm");
+    } catch {
+      return "";
+    }
+  };
+
+  const formattedUnlockDate = useMemo(() => {
+    if (!candidateMeta?.unlocked_at) return null;
+    try {
+      return format(new Date(candidateMeta.unlocked_at), "dd.MM.yyyy", { locale: de });
+    } catch (error) {
+      console.error("Error formatting unlock date:", error);
+      return candidateMeta.unlocked_at;
+    }
+  }, [candidateMeta?.unlocked_at]);
+
+  const currentStageLabel = STATUS_LABELS[candidateStatus];
+
+  const notesList = useMemo(() => parseCandidateNotes(candidateMeta?.notes ?? null), [candidateMeta?.notes]);
+  const jobBadgeData = useMemo(() => {
+    if (selectedJobIds.length === 0) return [] as Array<{ id: string; label: string }>;
+    return selectedJobIds.map((jobId) => {
+      const linked = linkedJobs.find((job) => job.id === jobId);
+      if (linked) {
+        return {
+          id: jobId,
+          label: linked.city ? `${linked.title} · ${linked.city}` : linked.title,
+        };
+      }
+      const option = jobOptions.find((opt) => opt.value === jobId);
+      return {
+        id: jobId,
+        label: option?.label ?? jobId,
+      };
+    });
+  }, [selectedJobIds, linkedJobs, jobOptions]);
+
+  const summaryJobsCount = jobBadgeData.length;
+  const summaryNotesCount = notesList.length;
+
+  const formatNoteDate = useCallback((value: string) => {
+    if (!value) return "Datum unbekannt";
+    try {
+      return format(new Date(value), "dd.MM.yyyy HH:mm", { locale: de });
+    } catch {
+      return value;
+    }
+  }, []);
+
+  const loadCandidateMeta = useCallback(async () => {
+    if (!company?.id || !id) return;
+    try {
+      const { data, error } = await supabase
+        .from("company_candidates")
+        .select("id, status, stage, origin, interview_date, last_active_status, notes, linked_job_ids, unlocked_at")
+        .eq("company_id", company.id)
+        .eq("candidate_id", id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        const statusValue = (data.status as CandidateStatus) ?? "FREIGESCHALTET";
+        const lastActive = data.last_active_status as CandidateStatus | null;
+        setCandidateMeta({
+          id: data.id,
+          status: statusValue,
+          stage: data.stage,
+          origin: data.origin,
+          interview_date: data.interview_date,
+          notes: data.notes,
+          linked_job_ids: data.linked_job_ids as string[] | null,
+          unlocked_at: data.unlocked_at,
+          last_active_status: lastActive,
+        });
+      } else {
+        setCandidateMeta(null);
+      }
+
+      const jobIds = Array.isArray(data?.linked_job_ids)
+        ? (data?.linked_job_ids as unknown[])
+            .map((value) => {
+              if (typeof value === "string") return value;
+              if (typeof value === "number") return String(value);
+              if (value && typeof value === "object" && "id" in (value as Record<string, unknown>)) {
+                const possibleId = (value as Record<string, unknown>).id;
+                return typeof possibleId === "string" ? possibleId : possibleId ? String(possibleId) : null;
+              }
+              return null;
+            })
+            .filter((entry): entry is string => !!entry)
+        : [];
+
+      setSelectedJobIds(jobIds);
+
+      if (jobIds.length > 0) {
+        const { data: jobDetails, error: jobsError } = await supabase
+          .from("job_posts")
+          .select("id, title, city")
+          .in("id", jobIds);
+
+        if (jobsError) throw jobsError;
+        setLinkedJobs(jobDetails || []);
+      } else {
+        setLinkedJobs([]);
+      }
+    } catch (error) {
+      console.error("Error loading candidate meta:", error);
+      setLinkedJobs([]);
+      setSelectedJobIds([]);
+    }
+  }, [company?.id, id]);
+
+  const updateCandidateRecord = useCallback(
+    async (payload: Record<string, unknown>) => {
+      if (!company?.id || !id) {
+        throw new Error("Missing company or candidate id");
+      }
+
+      const timestamp = new Date().toISOString();
+      const { error } = await supabase
+        .from("company_candidates")
+        .update({
+          ...payload,
+          updated_at: timestamp,
+          last_touched_at: timestamp,
+        })
+        .eq("company_id", company.id)
+        .eq("candidate_id", id);
+
+      if (error) {
+        throw error;
+      }
+    },
+    [company?.id, id]
+  );
+
+  const loadJobs = useCallback(async () => {
+    if (!company?.id) return;
+
+    setJobsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("job_posts")
+        .select("id, title, city, is_active, status")
+        .eq("company_id", company.id)
+        .order("title", { ascending: true });
+
+      if (error) throw error;
+
+      const activeJobs = (data || []).filter((job) => {
+        if (!job) return false;
+        if (job.is_active === true) return true;
+        const status = typeof job.status === "string" ? job.status.toLowerCase() : "";
+        return status === "published" || status === "active" || status === "online";
+      });
+
+      setJobOptions(
+        activeJobs.map((job) => ({
+          value: job.id,
+          label: job.city ? `${job.title} · ${job.city}` : job.title,
+        }))
+      );
+    } catch (error) {
+      console.error("Error loading job options:", error);
+      toast.error("Aktive Stellen konnten nicht geladen werden");
+    } finally {
+      setJobsLoading(false);
+    }
+  }, [company?.id]);
+
+  const handleStatusChange = async (
+    nextStatus: CandidateStatus,
+    meta: Record<string, unknown> = {},
+    options: { silent?: boolean } = {}
+  ) => {
+    if (!candidateMeta?.id) return;
+    setStatusUpdating(true);
+    try {
+      await changeCandidateStatus({
+        companyCandidateId: candidateMeta.id,
+        nextStatus,
+        meta,
+        silent: options.silent ?? false,
+      });
+      await loadCandidateMeta();
+      toast.success(`Status: ${STATUS_LABELS[nextStatus]}`);
+    } catch (error: any) {
+      console.error("Error changing status", error);
+      toast.error(error?.message || "Status konnte nicht aktualisiert werden");
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleToggleHold = async () => {
+    if (statusUpdating || !candidateMeta?.id) return;
+    if (isOnHold) {
+      await handleStatusChange(resumeStatus);
+    } else {
+      await handleStatusChange("ON_HOLD");
+    }
+  };
+
+  const availableActions = useMemo<ActionOption[]>(() => {
+    switch (candidateStatus) {
+      case "FREIGESCHALTET":
+        return [
+          {
+            key: "plan",
+            label: "Interview planen",
+            status: "INTERVIEW_GEPLANT",
+            requiresDate: "planned",
+            variant: "primary",
+          },
+          {
+            key: "reject",
+            label: "Unpassend",
+            status: "ABGELEHNT",
+            variant: "destructive",
+          },
+        ];
+      case "INTERVIEW_GEPLANT":
+        return [
+          {
+            key: "conducted",
+            label: "Interview hat stattgefunden",
+            status: "INTERVIEW_DURCHGEFÜHRT",
+            requiresDate: "completed",
+            variant: "primary",
+          },
+          {
+            key: "cancel",
+            label: "Absagen",
+            status: "ABGESAGT",
+            variant: "destructive",
+          },
+        ];
+      case "INTERVIEW_DURCHGEFÜHRT":
+        return [
+          {
+            key: "offer",
+            label: "Angebot senden",
+            status: "ANGEBOT_GESENDET",
+            variant: "primary",
+          },
+          {
+            key: "decline",
+            label: "Unpassend",
+            status: "ABGELEHNT",
+            variant: "destructive",
+          },
+        ];
+      case "ANGEBOT_GESENDET":
+        return [
+          {
+            key: "hire",
+            label: "Eingestellt",
+            status: "EINGESTELLT",
+            variant: "primary",
+          },
+          {
+            key: "reject",
+            label: "Abgelehnt",
+            status: "ABGELEHNT",
+            variant: "destructive",
+          },
+        ];
+      case "ON_HOLD":
+        return [
+          {
+            key: "resume",
+            label: `Fortsetzen (${STATUS_LABELS[resumeStatus]})`,
+            status: resumeStatus,
+            variant: "primary",
+          },
+          {
+            key: "reject",
+            label: "Unpassend",
+            status: "ABGELEHNT",
+            variant: "destructive",
+          },
+        ];
+      default:
+        return [];
+    }
+  }, [candidateStatus, resumeStatus]);
+
+  const runAction = async (action: ActionOption) => {
+    if (statusUpdating) return;
+
+    if (action.requiresDate === "planned") {
+      if (!plannedAt) {
+        toast.error("Bitte Interviewtermin auswählen.");
+        return;
+      }
+      await handleStatusChange(action.status, {
+        planned_at: new Date(plannedAt).toISOString(),
+      });
+      if (!completedAt) {
+        setCompletedAt(plannedAt);
+      }
+      return;
+    }
+
+    if (action.requiresDate === "completed") {
+      const value = completedAt || plannedAt;
+      if (!value) {
+        toast.error("Bitte Datum und Uhrzeit des Interviews angeben.");
+        return;
+      }
+      await handleStatusChange(action.status, {
+        interview_date: new Date(value).toISOString(),
+      });
+      return;
+    }
+
+    await handleStatusChange(action.status);
+  };
+
+  const isActionDisabled = (action: ActionOption) => {
+    if (statusUpdating) return true;
+    if (action.requiresDate === "planned") {
+      return !plannedAt;
+    }
+    if (action.requiresDate === "completed") {
+      return !(completedAt || plannedAt);
+    }
+    return false;
+  };
+
+  const renderActionButtons = (placement: "main" | "notes") => {
+    if (availableActions.length === 0) {
+      return placement === "main" ? (
+        <p className="mt-3 text-sm text-muted-foreground">Keine weiteren Aktionen notwendig.</p>
+      ) : null;
+    }
+
+    return (
+      <div className={`${placement === "main" ? "mt-4" : "mt-2"} flex flex-wrap gap-2`}>
+        {availableActions.map((action) => {
+          let variant: "default" | "outline" | "destructive" = "outline";
+          if (action.variant === "destructive") variant = "destructive";
+          else if (action.variant === "primary") variant = "default";
+
+          return (
+            <Button
+              key={`${placement}-${action.key}`}
+              size="sm"
+              variant={variant}
+              onClick={() => runAction(action)}
+              disabled={isActionDisabled(action)}
+            >
+              {action.label}
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const handleJobAssignmentChange = async (values: string[]) => {
+    setSelectedJobIds(values);
+    setUpdatingJobs(true);
+    try {
+      await updateCandidateRecord({ linked_job_ids: values });
+      await loadCandidateMeta();
+      toast.success("Stellenzuordnung aktualisiert");
+    } catch (error) {
+      console.error("Error updating job assignment:", error);
+      toast.error("Stellenzuordnung konnte nicht gespeichert werden");
+    } finally {
+      setUpdatingJobs(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    const trimmed = newNote.trim();
+    if (!trimmed) return;
+
+    setAddingNote(true);
+    try {
+      const newEntry: CandidateNote = {
+        id: createNoteId(),
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+        authorId: user?.id ?? null,
+        authorName: (user?.user_metadata?.name as string | undefined) || user?.email || user?.id || null,
+      };
+
+      const updatedNotes = [newEntry, ...notesList];
+      await updateCandidateRecord({ notes: JSON.stringify(updatedNotes) });
+      setCandidateMeta((prev) => (prev ? { ...prev, notes: JSON.stringify(updatedNotes) } : prev));
+      setNewNote("");
+      toast.success("Notiz hinzugefügt");
+    } catch (error) {
+      console.error("Error adding note:", error);
+      toast.error("Notiz konnte nicht gespeichert werden");
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
+useEffect(() => {
+  if (!id || !company) return;
+  loadProfile();
+  checkUnlockState();
+  checkFollowState();
+  loadApplications();
+  loadCandidateMeta();
+}, [id, company, loadCandidateMeta]);
+
+useEffect(() => {
+  if (!candidateMeta) {
+    setPlannedAt("");
+    setCompletedAt("");
+    return;
+  }
+
+  if (candidateMeta.status === "INTERVIEW_GEPLANT") {
+    const inputValue = toInputDateTime(candidateMeta.interview_date);
+    setPlannedAt(inputValue);
+    setCompletedAt(inputValue);
+  } else {
+    setPlannedAt("");
+    if (candidateMeta.interview_date) {
+      setCompletedAt(toInputDateTime(candidateMeta.interview_date));
+    } else {
+      setCompletedAt("");
+    }
+  }
+}, [candidateMeta]);
+
+useEffect(() => {
+  loadJobs();
+}, [loadJobs]);
+
+useEffect(() => {
+  if (linkedJobs.length === 0) return;
+  setJobOptions((prev) => {
+    const missing = linkedJobs
+      .filter((job) => job.id && !prev.some((option) => option.value === job.id))
+      .map((job) => ({
+        value: job.id,
+        label: job.city ? `${job.title} · ${job.city}` : job.title,
+      }));
+    return missing.length > 0 ? [...prev, ...missing] : prev;
+  });
+}, [linkedJobs]);
 
   const loadProfile = async () => {
     try {
@@ -181,8 +789,8 @@ export default function ProfileView() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <p className="text-lg text-muted-foreground">Profil nicht gefunden</p>
-        <Button onClick={() => navigate('/company/search')}>
-          Zurück zur Suche
+        <Button onClick={() => navigate(backPath)}>
+          Zurück zu {backLabel}
         </Button>
       </div>
     );
@@ -191,15 +799,193 @@ export default function ProfileView() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-6 px-4 max-w-7xl">
+        <nav className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => navigate(backPath)}
+            className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {backLabel}
+          </button>
+          <ChevronRight className="h-3 w-3" />
+          <span className="text-foreground font-medium">
+            {profile?.vorname || profile?.full_name || "Profil"}
+          </span>
+        </nav>
+
+        {isUnlocked && (
+          <Accordion
+            type="single"
+            collapsible
+            value={metaAccordionValue ?? undefined}
+            onValueChange={(value) => setMetaAccordionValue(value ?? null)}
+            className="mb-6 rounded-lg border bg-card"
+          >
+            <AccordionItem value="meta">
+              <AccordionTrigger className="flex flex-col items-start gap-1 px-4 py-4 text-left">
+                <span className="text-sm font-medium text-foreground">Recruiting-Aktivitäten</span>
+                <span className="text-xs text-muted-foreground">
+                  Status: {currentStageLabel}
+                  {formattedUnlockDate ? ` • Freigeschaltet am ${formattedUnlockDate}` : ""}
+                  {` • Stellen: ${summaryJobsCount}`}
+                  {` • Notizen: ${summaryNotesCount}`}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 pt-0">
+                <div className="space-y-6">
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Aktueller Status</p>
+                      <p className="text-lg font-semibold text-foreground">{currentStageLabel}</p>
+                      {isOnHold && (
+                        <Badge variant="outline" className="text-xs">
+                          Vorher: {STATUS_LABELS[resumeStatus]}
+                        </Badge>
+                      )}
+                      {candidateMeta?.origin && (
+                        <p className="text-sm text-muted-foreground">
+                          Herkunft: {candidateMeta.origin === "BEWERBER" ? "Bewerbung" : candidateMeta.origin}
+                        </p>
+                      )}
+                      {candidateMeta?.interview_date && (
+                        <p className="text-sm text-muted-foreground">
+                          Interviewtermin: {format(new Date(candidateMeta.interview_date), "dd.MM.yyyy HH:mm", { locale: de })}
+                        </p>
+                      )}
+                      {formattedUnlockDate && (
+                        <p className="text-xs text-muted-foreground">Freigeschaltet am {formattedUnlockDate}</p>
+                      )}
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          variant={isOnHold ? "secondary" : "outline"}
+                          onClick={handleToggleHold}
+                          disabled={statusUpdating}
+                        >
+                          {isOnHold ? "On Hold aufheben" : "On Hold"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border bg-card p-4 lg:col-span-2">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Nächste Aktion</p>
+
+                      {candidateStatus === "FREIGESCHALTET" && (
+                        <div className="mt-3 space-y-2">
+                          <Label htmlFor="planned-at">Interviewtermin (optional)</Label>
+                          <Input
+                            id="planned-at"
+                            type="datetime-local"
+                            value={plannedAt}
+                            onChange={(event) => setPlannedAt(event.target.value)}
+                            disabled={statusUpdating}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Termin kann später angepasst werden. Ohne Angabe wird nur der Status geändert.
+                          </p>
+                        </div>
+                      )}
+
+                      {candidateStatus === "INTERVIEW_GEPLANT" && (
+                        <div className="mt-3 space-y-2">
+                          <Label htmlFor="completed-at">Interviewdatum</Label>
+                          <Input
+                            id="completed-at"
+                            type="datetime-local"
+                            value={completedAt}
+                            onChange={(event) => setCompletedAt(event.target.value)}
+                            disabled={statusUpdating}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Pflichtfeld: tatsächliches Datum des Interviews.
+                          </p>
+                        </div>
+                      )}
+
+                      {renderActionButtons("main")}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-lg border bg-card p-4 space-y-3">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Stellenzuordnung</p>
+                      <MultiSelect
+                        options={jobOptions}
+                        selected={selectedJobIds}
+                        onChange={handleJobAssignmentChange}
+                        placeholder={jobsLoading ? "Stellen werden geladen..." : "Stellen auswählen"}
+                      />
+                      {jobsLoading && (
+                        <p className="text-xs text-muted-foreground">Aktive Stellen werden geladen ...</p>
+                      )}
+                      {!jobsLoading && jobBadgeData.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {jobBadgeData.map((job) => (
+                            <Badge key={job.id} variant="secondary" className="px-2 py-1 text-xs">
+                              {job.label}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {!jobsLoading && jobBadgeData.length === 0 && (
+                        <p className="text-xs text-muted-foreground">Noch keiner Stelle zugeordnet.</p>
+                      )}
+                      {updatingJobs && (
+                        <p className="text-xs text-muted-foreground">Speichere Zuordnung ...</p>
+                      )}
+                    </div>
+
+                    <div className="rounded-lg border bg-card p-4 space-y-3">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Notizen</p>
+                      {summaryNotesCount === 0 ? (
+                        <p className="text-sm text-muted-foreground">Noch keine Notizen hinterlegt.</p>
+                      ) : (
+                        <div className="max-h-64 space-y-3 overflow-auto pr-1">
+                          {notesList.map((note) => (
+                            <div key={note.id} className="rounded-md border bg-muted/40 p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                                <span>{formatNoteDate(note.createdAt)}</span>
+                                {note.authorName && <span>{note.authorName}</span>}
+                              </div>
+                              <p className="mt-2 whitespace-pre-line text-sm text-foreground">{note.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <Textarea
+                        value={newNote}
+                        onChange={(event) => setNewNote(event.target.value)}
+                        placeholder="Neue Notiz hinzufügen..."
+                        rows={3}
+                      />
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        {renderActionButtons("notes")}
+                        <Button
+                          size="sm"
+                          onClick={handleAddNote}
+                          disabled={addingNote || !newNote.trim()}
+                        >
+                          {addingNote ? "Speichere..." : "Notiz hinzufügen"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        )}
+
         {/* Header with Back Button */}
         <div className="flex items-center justify-between mb-6">
           <Button
             variant="ghost"
-            onClick={() => navigate('/company/candidates')}
+            onClick={() => navigate(backPath)}
             className="gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            Zurück zur Kandidatensuche
+            Zurück zu {backLabel}
           </Button>
           
           {/* Follow Button - only show if unlocked */}
@@ -364,6 +1150,7 @@ export default function ProfileView() {
               setIsUnlocked(true);
               await loadProfile();
               await checkUnlockState();
+              await loadCandidateMeta();
               toast.success("Profil freigeschaltet!");
               setUnlockModalOpen(false);
             }}

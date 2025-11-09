@@ -31,58 +31,66 @@ export function CompanyProfileHeader({
   return (
     <>
       {/* Cover Image */}
-      <div className="relative h-48 md:h-64 lg:h-80 w-full">
-        <img 
-          src={company.header_image || "/placeholder.svg"} 
-          alt={`${company.name} Cover`}
-          className="w-full h-full object-cover"
-        />
-        {isOwner && onCoverUpload && (
-          <Button 
-            variant="secondary" 
-            size="sm"
-            className="absolute top-4 right-4"
-            onClick={onCoverUpload}
-          >
-            <Camera className="h-4 w-4 mr-2" />
-            Cover ändern
-          </Button>
-        )}
-      </div>
-      
-      {/* Logo & Info Section */}
-      <div className="max-w-6xl mx-auto px-6 -mt-16 relative">
-        <div className="flex flex-col items-center">
-          {/* Logo (overlapping) */}
+      <div className="relative w-full">
+        <div className="relative h-48 w-full overflow-hidden md:h-64 lg:h-80">
+          <img 
+            src={company.header_image || "/placeholder.svg"} 
+            alt={`${company.name} Cover`}
+            className="h-full w-full object-cover"
+          />
+          {isOwner && onCoverUpload && (
+            <Button 
+              variant="secondary" 
+              size="sm"
+              className="absolute right-4 top-4"
+              onClick={onCoverUpload}
+            >
+              <Camera className="mr-2 h-4 w-4" />
+              Cover ändern
+            </Button>
+          )}
+        </div>
+
+        <div className="absolute left-1/2 bottom-0 z-10 flex -translate-x-1/2 translate-y-1/2 flex-col items-center">
           <div className="relative">
-            <Avatar className="h-32 w-32 ring-4 ring-background shadow-lg">
-              <AvatarImage src={company.logo_url || undefined} />
-              <AvatarFallback className="text-3xl">{company.name[0]}</AvatarFallback>
-            </Avatar>
+            <div className="flex h-36 w-36 items-center justify-center rounded-full border-4 border-white bg-white shadow-xl">
+              <Avatar className="h-28 w-28">
+                <AvatarImage src={company.logo_url || undefined} className="object-contain" />
+                <AvatarFallback className="text-3xl font-semibold text-muted-foreground">
+                  {company.name[0]}
+                </AvatarFallback>
+              </Avatar>
+            </div>
             {isOwner && onLogoUpload && (
               <Button 
                 variant="secondary" 
                 size="icon"
-                className="absolute -bottom-2 -right-2 rounded-full h-10 w-10"
+                className="absolute -bottom-2 -right-2 rounded-full h-10 w-10 shadow-md"
                 onClick={onLogoUpload}
               >
                 <Camera className="h-4 w-4" />
               </Button>
             )}
           </div>
-          
+        </div>
+      </div>
+
+      {/* Logo & Info Section */}
+      <div className="max-w-6xl mx-auto px-6 pt-24">
+        <div className="flex flex-col items-center text-center">
+           
           {/* Company Name */}
-          <h1 className="text-3xl font-bold mt-4 text-center">
+          <h1 className="text-3xl font-bold">
             {company.name}
           </h1>
           
           {/* Tagline / Summary */}
-          <p className="text-muted-foreground text-center mt-2 max-w-2xl">
+          <p className="mt-2 max-w-2xl text-muted-foreground">
             {company.description?.slice(0, 150) || "Innovative Lösungen für die Zukunft"}
           </p>
           
           {/* Location & Industry */}
-          <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
             {company.main_location && (
               <div className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
