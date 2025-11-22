@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useJobForm } from "@/contexts/JobFormContext";
 import { Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 
 const INDUSTRIES = [
   'IT & Technologie',
@@ -25,6 +26,10 @@ const INDUSTRIES = [
 export function JobFormStep1({ isEditMode = false }: { isEditMode?: boolean }) {
   const { formData, setFormData, nextStep } = useJobForm();
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const { company } = useCompany();
+  const [locations, setLocations] = useState<
+    { id: string; name: string; city: string | null; postal_code: string | null }[]
+  >([]);
   
   const form = useForm({
     defaultValues: {
@@ -35,6 +40,27 @@ export function JobFormStep1({ isEditMode = false }: { isEditMode?: boolean }) {
       start_date: formData.start_date,
     },
   });
+
+  // Lade verfügbare Standorte der Firma für das Dropdown
+  useEffect(() => {
+    if (!company?.id) return;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("company_locations")
+        .select("id, name, city, postal_code")
+        .eq("company_id", company.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Error loading company locations for job form", error);
+        return;
+      }
+
+      setLocations((data || []) as any);
+    })();
+  }, [company?.id]);
 
   const handleAISuggest = async () => {
     const title = form.watch('title');
@@ -158,14 +184,45 @@ export function JobFormStep1({ isEditMode = false }: { isEditMode?: boolean }) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Standort</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="z.B. Berlin"
-                    disabled={isEditMode}
-                    {...field}
-                    className="text-base h-12"
-                  />
-                </FormControl>
+                {locations.length > 0 ? (
+                  <FormControl>
+                    <Select
+                      disabled={isEditMode}
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <SelectTrigger className="h-12">
+                        <SelectValue placeholder="Standort auswählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((loc) => {
+                          const labelParts = [];
+                          if (loc.name) labelParts.push(loc.name);
+                          const cityLine = [loc.postal_code, loc.city]
+                            .filter(Boolean)
+                            .join(" ");
+                          if (cityLine) labelParts.push(cityLine);
+                          const label = labelParts.join(" • ");
+
+                          return (
+                            <SelectItem key={loc.id} value={loc.name || cityLine || loc.id}>
+                              {label || "Unbenannter Standort"}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                ) : (
+                  <FormControl>
+                    <Input
+                      placeholder="z.B. Berlin"
+                      disabled={isEditMode}
+                      {...field}
+                      className="text-base h-12"
+                    />
+                  </FormControl>
+                )}
                 <FormMessage />
               </FormItem>
             )}

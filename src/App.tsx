@@ -67,9 +67,11 @@ const CompanyProfile = lazy(() => import("./pages/Company/Profile"));
 const CompanySearch = lazy(() => import("./pages/Company/Search"));
 const CompanyNotifications = lazy(() => import("./pages/Company/Notifications"));
 const CompanySettings = lazy(() => import("./pages/Company/Settings"));
+const CompanySettingsLocations = lazy(() => import("./pages/Company/SettingsLocations"));
 const CompanyPosts = lazy(() => import("./pages/Company/Posts"));
 const CompanyProfileView = lazy(() => import("./pages/Company/ProfileView"));
 const CompanyBilling = lazy(() => import("./pages/Company/Billing"));
+const CompanyBillingV2 = lazy(() => import("./pages/Company/BillingV2"));
 const CompanyUnlocked = lazy(() => import("./pages/Company/Unlocked"));
 const CompanyComingSoon = lazy(() => import("./pages/Company/ComingSoon"));
 const CompanyFeed = lazy(() => import("./pages/Company/Feed"));
@@ -110,7 +112,18 @@ const CreateAdmin = lazy(() => import("./pages/Admin/CreateAdmin"));
 const AdminLogin = lazy(() => import("./pages/Admin/Login"));
 const PendingVerifications = lazy(() => import("./pages/Admin/PendingVerifications"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000, // 2 Minuten - Daten sind 2 Min "frisch"
+      cacheTime: 5 * 60 * 1000, // 5 Minuten - Cache bleibt 5 Min erhalten
+      refetchOnWindowFocus: false, // Kein Refetch beim Tab-Wechsel
+      refetchOnMount: false, // Kein Refetch beim Remount wenn Daten noch fresh sind
+      retry: 1, // Nur 1 Retry bei Fehlern
+    },
+  },
+});
+const FEATURE_BILLING_V2 = import.meta.env.NEXT_PUBLIC_FEATURE_BILLING_V2 === "1";
 
 // Protected route for company pages
 function CompanyProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -135,25 +148,24 @@ function CompanyProtectedRoute({ children }: { children: React.ReactNode }) {
 
       try {
         console.log('🔍 Checking company user for:', user.id, 'Email:', user.email);
-        
-        // SIMPLIFIED: Check user metadata only
-        const hasIsCompanyMeta = user.user_metadata?.is_company === true || 
-                                user.user_metadata?.is_company === 'true';
-        
-        console.log('📊 User metadata is_company:', hasIsCompanyMeta);
-        
-        // If user has is_company metadata, they are a company user
-        // No need to check company_users table - that's for team structure, not access
+
+        // SIMPLIFIED: Check user metadata only (previous working behaviour)
+        const hasIsCompanyMeta =
+          user.user_metadata?.is_company === true ||
+          user.user_metadata?.is_company === "true";
+
+        console.log("📊 User metadata is_company:", hasIsCompanyMeta);
+
         if (hasIsCompanyMeta) {
-          console.log('✅ User has is_company metadata - granting company access');
-          setUserType('company');
+          console.log("✅ User has is_company metadata - granting company access");
+          setUserType("company");
         } else {
-          console.log('❌ User is NOT company user (no metadata)');
-          setUserType('not_company');
+          console.log("❌ User is NOT company user (no metadata)");
+          setUserType("not_company");
         }
       } catch (error) {
-        console.error('❌ Error checking company access:', error);
-        setUserType('not_company');
+        console.error("❌ Error checking company access:", error);
+        setUserType("not_company");
       }
       setIsLoading(false);
     }
@@ -194,6 +206,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isAuthRoute = location.pathname === '/auth';
   const isCvRoute = location.pathname.startsWith('/cv-generator') || location.pathname.startsWith('/cv-layout-selector');
   const isLegalRoute = ['/impressum','/datenschutz','/agb','/ueber-uns'].includes(location.pathname);
+  const isJobsPage = location.pathname === '/community/jobs' || location.pathname === '/jobs';
   // Show TopNavBar ONLY in the portal (app) sections, not on marketing/login/landing
   const portalPrefixes = [
     '/dashboard',
@@ -224,7 +237,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           ? "flex-1 bg-black" 
           : isCompanyRoute 
             ? "flex-1 bg-white" 
-            : showTopNav
+            : showTopNav && !isJobsPage
               ? "flex-1 pt-12 md:pt-14 bg-white"
               : "flex-1 bg-white"
       }>
@@ -255,8 +268,9 @@ const App = () => {
     );
   }
 
-  // Show error screen if Supabase initialization failed
-  if (error) {
+  // Show error screen only for critical errors (not timeouts)
+  // Timeouts are handled gracefully and don't block the app
+  if (error && !error.includes('timeout') && !error.includes('aborted')) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
@@ -348,6 +362,14 @@ const App = () => {
                 <Route path="search" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySearch /></Suspense>} />
                 <Route path="unlocked" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyUnlocked /></Suspense>} />
                 <Route path="billing" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyBilling /></Suspense>} />
+                <Route
+                  path="billing-v2"
+                  element={
+                    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+                      <CompanyBillingV2 />
+                    </Suspense>
+                  }
+                />
                 <Route path="notifications" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyNotifications /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettings /></Suspense>} />
                 <Route path="matching-profile" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><MatchingProfilePage /></Suspense>} />
@@ -378,6 +400,7 @@ const App = () => {
                 <Route path="insights/engagement" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
                 <Route path="insights/followers" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
 
+                <Route path="settings/locations" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsLocations /></Suspense>} />
                 <Route path="settings/team" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
                 <Route path="settings/notifications" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
 

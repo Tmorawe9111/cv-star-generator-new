@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,25 +15,29 @@ import {
   Settings as SettingsIcon, 
   Users, 
   Target, 
-  CreditCard, 
   Bell,
   Plus,
-  Trash2,
-  Coins,
-  Package
+  Trash2
 } from "lucide-react";
-import { TagPicker, TagType } from "@/components/company/matching/TagPicker";
 import { BranchSelector } from "@/components/Company/BranchSelector";
-import { EmploymentRequestsCard } from "@/components/company/EmploymentRequestsCard";
-import { CompanyPeople } from "@/components/company/CompanyPeople";
+import { EmploymentRequestsCard } from "@/components/Company/EmploymentRequestsCard";
+import { CompanyPeople } from "@/components/Company/CompanyPeople";
+import { BillingOverview } from "@/components/billing/BillingOverview";
+import { LocationAutocomplete } from "@/components/Company/LocationAutocomplete";
+import { saveCompanyLocation } from "@/lib/location-utils";
 
 interface TeamMember {
   id: string;
-  user_id: string;
+  user_id: string | null;
   role: string;
-  invited_at: string;
+  invited_at: string | null;
   accepted_at: string | null;
-  // Would need profile data from join
+  profile?: {
+    vorname?: string | null;
+    nachname?: string | null;
+    email?: string | null;
+    avatar_url?: string | null;
+  } | null;
 }
 
 interface CompanySettings {
@@ -47,7 +52,9 @@ interface CompanySettings {
 }
 
 export default function CompanySettings() {
-  const { company, updateCompany, loading } = useCompany();
+  const navigate = useNavigate();
+  const FEATURE_BILLING_V2 = import.meta.env.NEXT_PUBLIC_FEATURE_BILLING_V2 === "1";
+  const { company, updateCompany, loading, refetch } = useCompany();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [settings, setSettings] = useState<CompanySettings>({
     target_industries: [],
@@ -63,22 +70,11 @@ export default function CompanySettings() {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  type SelectedByType = Record<TagType, string[]>;
-  const [selectedTags, setSelectedTags] = useState<SelectedByType>({
-    profession: [],
-    target_group: [],
-    benefit: [],
-    must: [],
-    nice: [],
-    work_env: [],
-  });
-  const [savingTags, setSavingTags] = useState(false);
 
   useEffect(() => {
     if (company) {
       loadTeamMembers();
       loadCompanySettings();
-      loadCompanyTags();
     }
   }, [company]);
 
@@ -88,11 +84,40 @@ export default function CompanySettings() {
     try {
       const { data, error } = await supabase
         .from('company_users')
-        .select('*')
-        .eq('company_id', company.id);
+        .select('id, user_id, role, invited_at, accepted_at')
+        .eq('company_id', company.id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTeamMembers(data || []);
+      const rows = (data as TeamMember[]) || [];
+
+      const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter(Boolean))) as string[];
+      let profileMap = new Map<string, TeamMember['profile']>();
+
+      if (userIds.length > 0) {
+        const { data: profileRows, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, vorname, nachname, email, avatar_url')
+          .in('id', userIds);
+
+        if (!profilesError && profileRows) {
+          profileMap = new Map(
+            profileRows.map((profile: any) => [profile.id, {
+              vorname: profile.vorname ?? null,
+              nachname: profile.nachname ?? null,
+              email: profile.email ?? null,
+              avatar_url: profile.avatar_url ?? null,
+            }])
+          );
+        }
+      }
+
+      const enriched = rows.map((row) => ({
+        ...row,
+        profile: row.user_id ? profileMap.get(row.user_id) ?? null : null,
+      }));
+
+      setTeamMembers(enriched);
     } catch (error) {
       console.error('Error loading team members:', error);
     }
@@ -109,9 +134,16 @@ export default function CompanySettings() {
         .single();
 
       if (data) {
+        // Initialize target_industries from company.industry if available, otherwise from settings
+        const industriesFromCompany = company?.industry 
+          ? (Array.isArray(company.industry) ? company.industry : [company.industry])
+          : [];
+        
         setSettings({
-          target_industries: Array.isArray(data.target_industries) 
+          target_industries: Array.isArray(data.target_industries) && data.target_industries.length > 0
             ? data.target_industries.map(String) 
+            : industriesFromCompany.length > 0
+            ? industriesFromCompany.map(String)
             : [],
           target_locations: Array.isArray(data.target_locations) 
             ? data.target_locations.map(String) 
@@ -127,63 +159,29 @@ export default function CompanySettings() {
                 email_team: true,
               },
         });
+      } else if (company?.industry) {
+        // If no settings exist yet, initialize from company.industry
+        const industriesFromCompany = Array.isArray(company.industry) 
+          ? company.industry 
+          : [company.industry];
+        setSettings(prev => ({
+          ...prev,
+          target_industries: industriesFromCompany.map(String),
+        }));
       }
     } catch (error) {
       console.error('Error loading company settings:', error);
     }
   };
 
-  // Profil-Tags laden und speichern
-  const loadCompanyTags = async () => {
-    if (!company) return;
-    try {
-      const { data: tagLinks } = await supabase
-        .from('company_tags')
-        .select('tag_id')
-        .eq('company_id', company.id);
-      const ids = (tagLinks || []).map((r: any) => r.tag_id);
-      if (!ids.length) {
-        setSelectedTags({ profession: [], target_group: [], benefit: [], must: [], nice: [], work_env: [] });
-        return;
-      }
-      const { data: vocab } = await supabase
-        .from('vocab_tags')
-        .select('id,type')
-        .in('id', ids);
-      const next: SelectedByType = { profession: [], target_group: [], benefit: [], must: [], nice: [], work_env: [] };
-      (vocab || []).forEach((t: any) => { (next as any)[t.type]?.push(t.id); });
-      setSelectedTags(next);
-    } catch (e) {
-      console.error('Error loading company tags:', e);
-    }
-  };
-
-  const saveCompanyTags = async () => {
-    if (!company) return;
-    setSavingTags(true);
-    try {
-      // Clear and re-insert selections
-      await supabase.from('company_tags').delete().eq('company_id', company.id);
-      const allIds = Object.values(selectedTags).flat();
-      if (allIds.length) {
-        const inserts = allIds.map((id) => ({ company_id: company.id, tag_id: id }));
-        const { error } = await supabase.from('company_tags').insert(inserts);
-        if (error) throw error;
-      }
-      toast({ title: 'Profil-Tags gespeichert' });
-    } catch (error: any) {
-      toast({ title: 'Fehler beim Speichern', description: error.message, variant: 'destructive' });
-    } finally {
-      setSavingTags(false);
-    }
-  };
 
   const saveSettings = async () => {
     if (!company) return;
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      // Save company_settings
+      const { error: settingsError } = await supabase
         .from('company_settings')
         .upsert({
           company_id: company.id,
@@ -195,12 +193,30 @@ export default function CompanySettings() {
           onConflict: 'company_id'
         });
 
-      if (error) throw error;
+      if (settingsError) throw settingsError;
+
+      // Also update company.industry to match target_industries
+      const { error: companyError } = await supabase
+        .from('companies')
+        .update({
+          industry: settings.target_industries.length === 1 
+            ? settings.target_industries[0] 
+            : settings.target_industries.length > 1 
+            ? settings.target_industries 
+            : null,
+        })
+        .eq('id', company.id);
+
+      if (companyError) throw companyError;
+
+      // Refetch company data to update UI
+      await refetch();
+
       toast({ title: "Einstellungen gespeichert" });
     } catch (error: any) {
       toast({ 
         title: "Fehler beim Speichern", 
-        description: error.message,
+        description: error.message, 
         variant: "destructive" 
       });
     } finally {
@@ -266,17 +282,25 @@ export default function CompanySettings() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Einstellungen</h1>
-        <Button onClick={saveSettings} disabled={saving}>
-          {saving ? "Speichern..." : "Änderungen speichern"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => navigate("/company/settings/locations")}
+          >
+            Standorte verwalten
+          </Button>
+          <Button onClick={saveSettings} disabled={saving}>
+            {saving ? "Speichern..." : "Änderungen speichern"}
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general">Allgemein</TabsTrigger>
           <TabsTrigger value="team">Team & Sitze</TabsTrigger>
           <TabsTrigger value="targeting">Zielgruppen</TabsTrigger>
-          <TabsTrigger value="profile">Profil</TabsTrigger>
           <TabsTrigger value="billing">Tokens & Abrechnung</TabsTrigger>
           <TabsTrigger value="notifications">Benachrichtigungen</TabsTrigger>
         </TabsList>
@@ -329,13 +353,32 @@ export default function CompanySettings() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="location">Hauptsitz</Label>
-                  <Input
+                  <Label htmlFor="location">Hauptsitz (PLZ & Stadt)</Label>
+                  <LocationAutocomplete
                     id="location"
                     value={company?.main_location || ""}
-                    onChange={(e) => updateCompany({ main_location: e.target.value })}
-                    placeholder="Stadt, Land"
+                    onChange={async (value) => {
+                      if (!company?.id) return;
+                      
+                      // Save location using utility function
+                      const result = await saveCompanyLocation(company.id, value);
+                      
+                      if (result.success) {
+                        // Refetch company data to get updated location_id and coordinates
+                        await refetch();
+                      } else if (result.error) {
+                        toast({
+                          title: 'Standort gespeichert',
+                          description: 'Standort wurde gespeichert, aber Koordinaten konnten nicht ermittelt werden.',
+                          variant: 'default'
+                        });
+                      }
+                    }}
+                    placeholder="z. B. 10115 Berlin oder Berlin"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Geben Sie PLZ und Stadt ein, um automatisch Koordinaten zu erhalten
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -349,7 +392,7 @@ export default function CompanySettings() {
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center">
                     <Users className="h-5 w-5 mr-2" />
-                    Team-Mitglieder ({teamMembers.length}/{company?.seats || 0})
+                    Team-Mitglieder ({teamMembers.length}/{company?.seats ?? "–"})
                   </span>
                   <Badge variant="secondary">
                     {company?.seats || 0} Sitze verfügbar
@@ -375,13 +418,14 @@ export default function CompanySettings() {
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback>
-                            {member.user_id?.charAt(0).toUpperCase()}
+                            {member.profile?.vorname?.charAt(0) || "U"}
+                            {member.profile?.nachname?.charAt(0) || "N"}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium">{member.user_id}</p>
+                          <p className="font-medium">{member.profile?.vorname || "Unbekannter"} {member.profile?.nachname || "Mitarbeiter"}</p>
                           <Badge variant="outline" className="text-xs">
-                            {member.role}
+                            {member.profile?.email || "Keine E-Mail"}
                           </Badge>
                         </div>
                       </div>
@@ -496,135 +540,22 @@ export default function CompanySettings() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profil-Tags</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <p className="text-sm text-muted-foreground">Wähle aus, wofür euer Unternehmen steht und welche Talente ihr sucht. Diese Tags erscheinen im Unternehmensprofil und helfen beim Matching.</p>
-
-              <TagPicker
-                type="profession"
-                title="Berufe/Professionen"
-                description="Welche Ausbildungsberufe sucht ihr?"
-                selected={selectedTags.profession}
-                onChange={(ids) => setSelectedTags((prev) => ({ ...prev, profession: ids }))}
-              />
-
-              <TagPicker
-                type="must"
-                title="Must-Haves"
-                description="Welche Voraussetzungen sind ein Muss?"
-                selected={selectedTags.must}
-                onChange={(ids) => setSelectedTags((prev) => ({ ...prev, must: ids }))}
-              />
-
-              <TagPicker
-                type="nice"
-                title="Nice-to-Haves"
-                description="Schön, wenn Kandidat:innen diese mitbringen."
-                selected={selectedTags.nice}
-                onChange={(ids) => setSelectedTags((prev) => ({ ...prev, nice: ids }))}
-              />
-
-              <TagPicker
-                type="benefit"
-                title="Benefits"
-                description="Welche Vorteile bietet ihr?"
-                selected={selectedTags.benefit}
-                onChange={(ids) => setSelectedTags((prev) => ({ ...prev, benefit: ids }))}
-              />
-
-              <TagPicker
-                type="work_env"
-                title="Arbeitsumfeld"
-                description="Wie ist das Arbeitsumfeld/Arbeitsweise bei euch?"
-                selected={selectedTags.work_env}
-                onChange={(ids) => setSelectedTags((prev) => ({ ...prev, work_env: ids }))}
-              />
-
-              <TagPicker
-                type="target_group"
-                title="Zielgruppen"
-                description="Für wen ist euer Angebot gedacht?"
-                selected={selectedTags.target_group}
-                onChange={(ids) => setSelectedTags((prev) => ({ ...prev, target_group: ids }))}
-              />
-
-              <div className="flex justify-end">
-                <Button onClick={saveCompanyTags} disabled={savingTags}>
-                  {savingTags ? 'Speichern…' : 'Profil-Tags speichern'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="billing">
-          <div className="space-y-6">
-            <Card>
+          {FEATURE_BILLING_V2 && (
+            <Card className="mb-6 border-blue-200 bg-blue-50/60">
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Coins className="h-5 w-5 mr-2" />
-                  Token-Übersicht
-                </CardTitle>
+                <CardTitle>Neue Abrechnung (Beta)</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-3xl font-bold text-accent">
-                      {company?.active_tokens || 0}
-                    </div>
-                    <p className="text-sm text-muted-foreground">Verfügbare Tokens</p>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-3xl font-bold">
-                      {(company?.seats || 0) * 10}
-                    </div>
-                    <p className="text-sm text-muted-foreground">Tokens pro Monat</p>
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-2">
-                  <Button className="w-full">
-                    <Package className="h-4 w-4 mr-2" />
-                    Zusätzliche Tokens kaufen
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    Plan upgraden
-                  </Button>
-                </div>
+              <CardContent className="space-y-3 text-sm text-blue-900">
+                <p>
+                  Testen Sie die neue Abrechnungs- und Token-Ansicht mit erweiterten Funktionen für Käufe, Rechnungen und Plan-Upgrades.
+                </p>
+                <Button onClick={() => navigate("/company/billing-v2")}>Billing V2 öffnen</Button>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <CreditCard className="h-5 w-5 mr-2" />
-                  Abonnement
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Plan:</span>
-                    <span className="font-medium">{company?.plan_type || "Basic"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Status:</span>
-                    <Badge variant={company?.subscription_status === "active" ? "default" : "secondary"}>
-                      {company?.subscription_status || "inactive"}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Sitze:</span>
-                    <span className="font-medium">{company?.seats || 0}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          )}
+          <BillingOverview variant="embedded" />
         </TabsContent>
 
         <TabsContent value="notifications">
