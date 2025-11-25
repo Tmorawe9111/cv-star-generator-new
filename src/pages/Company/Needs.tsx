@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Briefcase, Settings, Archive, Eye } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
 import { useCompanyNeeds } from "@/hooks/useCompanyNeeds";
-import { NeedCard } from "@/components/company/needs/NeedCard";
-import { QuotaBanner } from "@/components/company/needs/QuotaBanner";
-import { UpsellModal } from "@/components/company/needs/UpsellModal";
-import { NeedWizard } from "@/components/company/needs/NeedWizard";
+import { NeedCard } from "@/components/Company/needs/NeedCard";
+import { QuotaBanner } from "@/components/Company/needs/QuotaBanner";
+import { UpsellModal } from "@/components/Company/needs/UpsellModal";
+import { NeedWizard } from "@/components/Company/needs/NeedWizard";
 import { useNavigate } from "react-router-dom";
 
 export default function CompanyNeeds() {

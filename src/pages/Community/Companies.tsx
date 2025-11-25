@@ -4,7 +4,7 @@ import { useCompaniesViews } from '@/hooks/useCompaniesViews';
 import { CompanyCard, formatCompanySubtitle } from '@/components/shared/CompanyCard';
 import { LoadingSkeleton } from '@/components/shared/LoadingSkeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
-import FollowButton from '@/components/company/FollowButton';
+import FollowButton from '@/components/Company/FollowButton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

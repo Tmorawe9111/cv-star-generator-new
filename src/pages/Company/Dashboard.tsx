@@ -20,7 +20,7 @@ import { Activity } from "lucide-react";
 import { changeCandidateStatus } from "@/lib/api/candidates";
 import type { ApplicationStatus } from "@/utils/applicationStatus";
 import { setApplicationStatus } from "@/lib/api/applications";
-import { TopRightQuickActions } from "@/components/company/TopRightQuickActions";
+import { TopRightQuickActions } from "@/components/Company/TopRightQuickActions";
 import { fetchPipelineSnapshot, type PipelineCandidateRow } from "@/lib/api/pipeline";
 import { PlanSelector } from "@/components/Company/onboarding/PlanSelector";
 import { Dialog, DialogContent } from "@/components/ui/dialog";

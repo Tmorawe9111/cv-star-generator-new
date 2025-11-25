@@ -2,8 +2,8 @@ import React from 'react';
 import CommunityFeed from '@/components/community/CommunityFeed';
 import FeedSortBar from '@/components/community/FeedSortBar';
 import CompanyComposerTeaser from '@/components/dashboard/CompanyComposerTeaser';
-import CompanyFeedLeft from '@/components/company/feed/CompanyFeedLeft';
-import CompanyFeedRight from '@/components/company/feed/CompanyFeedRight';
+import CompanyFeedLeft from '@/components/Company/feed/CompanyFeedLeft';
+import CompanyFeedRight from '@/components/Company/feed/CompanyFeedRight';
 
 const CompanyPosts: React.FC = () => {
   return (

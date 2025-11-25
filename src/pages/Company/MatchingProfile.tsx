@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { TagPicker, TagType } from "@/components/company/matching/TagPicker";
+import { TagPicker, TagType } from "@/components/Company/matching/TagPicker";
 import { Separator } from "@/components/ui/separator";
 
 const TAG_TYPES: TagType[] = [

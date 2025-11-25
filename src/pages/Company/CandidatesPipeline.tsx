@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CandidatePipelineBoard } from "@/components/company/pipeline/CandidatePipelineBoard";
+import { CandidatePipelineBoard } from "@/components/Company/pipeline/CandidatePipelineBoard";
 
 const CandidatesPipelinePage: React.FC = () => {
   return (

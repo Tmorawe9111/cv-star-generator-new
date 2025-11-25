@@ -3,7 +3,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PanelLeftClose, PanelLeftOpen, Search as SearchIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import SearchAutosuggestCompany from "@/components/company/feed/SearchAutosuggestCompany";
+import SearchAutosuggestCompany from "@/components/Company/feed/SearchAutosuggestCompany";
 import { useNavigate } from "react-router-dom";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import AppNavbar from "@/components/layout/AppNavbar";
