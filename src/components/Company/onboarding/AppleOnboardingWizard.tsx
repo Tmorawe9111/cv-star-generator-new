@@ -392,7 +392,7 @@ export function AppleOnboardingWizard({ onComplete }: AppleOnboardingWizardProps
         if (onComplete) {
           onComplete();
         } else {
-          navigate('/company/dashboard');
+          navigate('/unternehmen/startseite');
         }
       }, 3000);
     } catch (error: any) {

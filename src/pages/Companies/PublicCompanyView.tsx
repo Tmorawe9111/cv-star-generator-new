@@ -698,7 +698,7 @@ const c = companyQuery.data;
           <Menu className="h-5 w-5" />
           <span>Menü</span>
         </button>
-        <button className="flex flex-col items-center gap-1" onClick={() => navigate('/dashboard')}>
+        <button className="flex flex-col items-center gap-1" onClick={() => navigate('/mein-bereich')}>
           <Home className="h-5 w-5" />
           <span>Start</span>
         </button>

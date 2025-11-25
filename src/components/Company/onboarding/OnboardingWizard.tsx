@@ -74,7 +74,7 @@ export function OnboardingWizard() {
   const nextStep = () => {
     // After step 2 (plan selection), redirect to dashboard with onboarding flag
     if (currentStep === 2) {
-      navigate('/company/dashboard?onboarding=true');
+      navigate('/unternehmen/startseite?onboarding=true');
       return;
     }
     setCurrentStep(prev => Math.min(prev + 1, 4));
@@ -180,9 +180,9 @@ export function OnboardingWizard() {
             {currentStep === 4 && (
               <OnboardingStep3 
                 data={data} 
-                onNext={() => navigate('/company/dashboard')}
+                onNext={() => navigate('/unternehmen/startseite')}
                 onPrev={prevStep}
-                onSkip={() => navigate('/company/dashboard')}
+                onSkip={() => navigate('/unternehmen/startseite')}
               />
             )}
           </div>

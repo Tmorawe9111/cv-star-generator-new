@@ -69,7 +69,7 @@ export default function CompanyJobsListNew() {
                 Verwalten Sie Ihre Stellenausschreibungen
               </p>
             </div>
-            <Button onClick={() => navigate('/company/jobs/new')} size="lg">
+            <Button onClick={() => navigate('/unternehmen/stellenanzeigen/neu')} size="lg">
               <Plus className="h-4 w-4 mr-2" />
               Neue Stelle
             </Button>
@@ -141,7 +141,7 @@ export default function CompanyJobsListNew() {
                 </p>
                 {!search && statusFilter === "all" && (
                   <Button 
-                    onClick={() => navigate('/company/jobs/new')} 
+                    onClick={() => navigate('/unternehmen/stellenanzeigen/neu')} 
                     className="mt-4"
                   >
                     Erste Stelle erstellen

@@ -49,13 +49,13 @@ const Auth = () => {
           }
 
           if (isCompany) {
-            navigate('/company/dashboard');
+            navigate('/unternehmen/startseite');
           } else {
-            navigate('/dashboard');
+            navigate('/mein-bereich');
           }
         } catch (error) {
           // If error checking company status, default to user dashboard
-          navigate('/dashboard');
+          navigate('/mein-bereich');
         }
       };
 
@@ -176,7 +176,7 @@ const Auth = () => {
         
         // For company users, check if they need to complete company setup
         if (isCompany) {
-          navigate('/company/dashboard');
+          navigate('/unternehmen/startseite');
         } else {
           // Check if user has a profile
           const { data: profile } = await supabase
@@ -186,7 +186,7 @@ const Auth = () => {
             .maybeSingle();
           
           // Only redirect to dashboard if profile exists
-          navigate(profile ? '/dashboard' : '/cv-generator');
+          navigate(profile ? '/mein-bereich' : '/cv-generator');
         }
       }
     } catch (error) {

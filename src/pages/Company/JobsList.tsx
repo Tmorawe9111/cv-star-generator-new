@@ -81,7 +81,7 @@ export default function CompanyJobsList() {
                   <SelectItem value="inactive">Archiviert</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={() => navigate('/company/jobs/new')}>
+              <Button onClick={() => navigate('/unternehmen/stellenanzeigen/neu')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Neue Stelle
               </Button>

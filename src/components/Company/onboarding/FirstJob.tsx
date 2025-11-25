@@ -16,7 +16,7 @@ export function FirstJob({ onNext, onSkip, stepNumber, totalSteps, hasJob }: Fir
   const navigate = useNavigate();
 
   const handleCreateJob = () => {
-    navigate('/company/jobs/new');
+    navigate('/unternehmen/stellenanzeigen/neu');
     onNext();
   };
 

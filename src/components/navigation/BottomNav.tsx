@@ -81,7 +81,7 @@ const BottomNav: React.FC = () => {
                 ? "text-black"
                 : "text-gray-500"
             )}
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/mein-bereich')}
             aria-label="Home"
           >
             {isActive('/dashboard') ? (

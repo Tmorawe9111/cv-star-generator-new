@@ -38,7 +38,7 @@ export function NotificationBell({ recipientType, recipientId }: NotificationBel
             description: notif.body,
             action: {
               label: 'Ansehen',
-              onClick: () => navigate(recipientType === 'company' ? '/company/notifications' : '/notifications'),
+              onClick: () => navigate(recipientType === 'company' ? '/unternehmen/benachrichtigungen' : '/benachrichtigungen'),
             },
           });
           refetch();
@@ -56,7 +56,7 @@ export function NotificationBell({ recipientType, recipientId }: NotificationBel
       variant="ghost"
       size="icon"
       className="relative shrink-0 min-w-[44px] min-h-[44px]"
-      onClick={() => navigate(recipientType === 'company' ? '/company/notifications' : '/notifications')}
+      onClick={() => navigate(recipientType === 'company' ? '/unternehmen/benachrichtigungen' : '/benachrichtigungen')}
     >
       <Bell className="h-5 w-5 shrink-0" />
       {unreadCount > 0 && (

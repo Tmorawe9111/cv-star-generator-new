@@ -212,7 +212,7 @@ export default function CompanyOnboarding() {
         description: 'Weiterleitung zum Dashboard...'
       });
 
-      navigate('/company/dashboard');
+      navigate('/unternehmen/startseite');
     } catch (error: any) {
       console.error('Onboarding error:', error);
       // Offline/Network handling: persist payload for retry

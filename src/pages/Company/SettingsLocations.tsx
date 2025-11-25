@@ -35,7 +35,7 @@ export default function SettingsLocations() {
       {/* Back Button */}
       <Button
         variant="ghost"
-        onClick={() => navigate('/company/settings')}
+        onClick={() => navigate('/unternehmen/einstellungen')}
         className="mb-6 -ml-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
@@ -54,7 +54,7 @@ export default function SettingsLocations() {
         currentPlan={currentPlan}
         onSelectPlan={(plan) => {
           setShowUpgradeModal(false);
-          navigate('/company/billing');
+          navigate('/unternehmen/abrechnung');
         }}
       />
     </div>

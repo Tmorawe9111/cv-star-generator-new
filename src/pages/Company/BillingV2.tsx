@@ -169,7 +169,7 @@ export default function CompanyBillingV2Page() {
                   <h1 className="text-2xl font-bold text-gray-900">Abrechnung &amp; Token</h1>
                 </header>
           <button
-            onClick={() => navigate("/company/dashboard")}
+            onClick={() => navigate("/unternehmen/startseite")}
             className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-100"
             aria-label="Schließen"
           >

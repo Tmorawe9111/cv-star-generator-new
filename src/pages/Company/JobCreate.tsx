@@ -49,7 +49,7 @@ function JobCreateContent() {
       }
     }
     
-    navigate('/company/jobs');
+    navigate('/unternehmen/stellenanzeigen');
   };
 
   // Show upgrade modal if limits are reached
@@ -72,7 +72,7 @@ function JobCreateContent() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">Keine Firma gefunden</p>
-          <Button onClick={() => navigate('/company/profile')}>
+          <Button onClick={() => navigate('/unternehmen/profil')}>
             Zum Unternehmensprofil
           </Button>
         </div>

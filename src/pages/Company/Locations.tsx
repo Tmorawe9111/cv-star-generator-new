@@ -38,7 +38,7 @@ export default function CompanyLocations() {
         currentPlan={currentPlan}
         onSelectPlan={(plan) => {
           setShowUpgradeModal(false);
-          navigate('/company/billing');
+          navigate('/unternehmen/abrechnung');
         }}
       />
     </div>

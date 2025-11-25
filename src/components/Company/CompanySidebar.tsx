@@ -17,7 +17,26 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isActive = (to: string) => location.pathname === to || location.pathname.startsWith(to.replace(":id", ""));
+  // Check both German and English paths for active state
+  const isActive = (to: string) => {
+    const germanPath = to.replace('/company/', '/unternehmen/')
+      .replace('/dashboard', '/startseite')
+      .replace('/profile', '/profil')
+      .replace('/jobs', '/stellenanzeigen')
+      .replace('/search', '/kandidatensuche')
+      .replace('/unlocked', '/freigeschaltet')
+      .replace('/candidates/pipeline', '/bewerber/pipeline')
+      .replace('/feed', '/feed')
+      .replace('/notifications', '/benachrichtigungen')
+      .replace('/settings/locations', '/einstellungen/standorte')
+      .replace('/billing-v2', '/abrechnung')
+      .replace('/settings', '/einstellungen');
+    
+    return location.pathname === to || 
+           location.pathname === germanPath ||
+           location.pathname.startsWith(to.replace(":id", "")) ||
+           location.pathname.startsWith(germanPath.replace(":id", ""));
+  };
 
   const handleNavigate = (href: string) => (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
@@ -27,91 +46,91 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
   const topItems: NavItem[] = [
     {
       label: "Dashboard",
-      href: "/company/dashboard",
+      href: "/unternehmen/startseite",
       icon: <Home className="h-4 w-4" />,
       active: isActive("/company/dashboard"),
-      onClick: handleNavigate("/company/dashboard"),
+      onClick: handleNavigate("/unternehmen/startseite"),
     },
     {
       label: "Unternehmensprofil",
-      href: "/company/profile",
+      href: "/unternehmen/profil",
       icon: <Building2 className="h-4 w-4" />,
       active: isActive("/company/profile"),
-      onClick: handleNavigate("/company/profile"),
+      onClick: handleNavigate("/unternehmen/profil"),
     },
     {
       label: "Stellenanzeigen",
-      href: "/company/jobs",
+      href: "/unternehmen/stellenanzeigen",
       icon: <Briefcase className="h-4 w-4" />,
       active: isActive("/company/jobs"),
-      onClick: handleNavigate("/company/jobs"),
+      onClick: handleNavigate("/unternehmen/stellenanzeigen"),
     },
     {
       label: "Kandidatensuche",
-      href: "/company/search",
+      href: "/unternehmen/kandidatensuche",
       icon: <Search className="h-4 w-4" />,
       active: isActive("/company/search"),
-      onClick: handleNavigate("/company/search"),
+      onClick: handleNavigate("/unternehmen/kandidatensuche"),
     },
     {
       label: "Freigeschaltete Talente",
-      href: "/company/unlocked",
+      href: "/unternehmen/freigeschaltet",
       icon: <Users className="h-4 w-4" />,
       active: isActive("/company/unlocked"),
-      onClick: handleNavigate("/company/unlocked"),
+      onClick: handleNavigate("/unternehmen/freigeschaltet"),
     },
     {
       label: "Pipeline",
-      href: "/company/candidates/pipeline",
+      href: "/unternehmen/bewerber/pipeline",
       icon: <Columns3 className="h-4 w-4" />,
       active: isActive("/company/candidates/pipeline"),
-      onClick: handleNavigate("/company/candidates/pipeline"),
+      onClick: handleNavigate("/unternehmen/bewerber/pipeline"),
     },
   ];
 
   const communityItems: NavItem[] = [
     {
       label: "Community",
-      href: "/company/feed",
+      href: "/unternehmen/feed",
       icon: <MessageSquare className="h-4 w-4" />,
       active: isActive("/company/feed"),
-      onClick: handleNavigate("/company/feed"),
+      onClick: handleNavigate("/unternehmen/feed"),
     },
     {
       label: "Benachrichtigungen",
-      href: "/company/notifications",
+      href: "/unternehmen/benachrichtigungen",
       icon: <Bell className="h-4 w-4" />,
       active: isActive("/company/notifications"),
-      onClick: handleNavigate("/company/notifications"),
+      onClick: handleNavigate("/unternehmen/benachrichtigungen"),
     },
   ];
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate("/auth");
+    navigate("/anmelden");
   };
 
   const systemItems: NavItem[] = [
     {
       label: "Standorte",
-      href: "/company/settings/locations",
+      href: "/unternehmen/einstellungen/standorte",
       icon: <MapPin className="h-4 w-4" />,
       active: isActive("/company/settings/locations"),
-      onClick: handleNavigate("/company/settings/locations"),
+      onClick: handleNavigate("/unternehmen/einstellungen/standorte"),
     },
     {
       label: "Abrechnung & Tokens",
-      href: "/company/billing-v2",
+      href: "/unternehmen/abrechnung",
       icon: <CreditCard className="h-4 w-4" />,
       active: isActive("/company/billing-v2"),
-      onClick: handleNavigate("/company/billing-v2"),
+      onClick: handleNavigate("/unternehmen/abrechnung"),
     },
     {
       label: "Einstellungen",
-      href: "/company/settings",
+      href: "/unternehmen/einstellungen",
       icon: <SettingsIcon className="h-4 w-4" />,
       active: isActive("/company/settings"),
-      onClick: handleNavigate("/company/settings"),
+      onClick: handleNavigate("/unternehmen/einstellungen"),
     },
     {
       label: "Abmelden",
@@ -169,11 +188,11 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
   } : null;
 
   const handleBuyTokens = React.useCallback(() => {
-    navigate("/company/billing-v2?open=token");
+    navigate("/unternehmen/abrechnung?open=token");
   }, [navigate]);
 
   const handleUpgradePlan = React.useCallback(() => {
-    navigate("/company/billing-v2?open=upgrade");
+    navigate("/unternehmen/abrechnung?open=upgrade");
   }, [navigate]);
 
   const TokenWidget = React.useMemo(() => {

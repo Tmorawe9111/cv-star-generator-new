@@ -36,7 +36,7 @@ export function CompanyJobsCarousel({ companyId, isOwner }: CompanyJobsCarouselP
         </CardTitle>
         {isOwner && (
           <Button variant="outline" size="sm" asChild>
-            <Link to="/company/jobs/new">+ Job posten</Link>
+            <Link to="/unternehmen/stellenanzeigen/neu">+ Job posten</Link>
           </Button>
         )}
       </CardHeader>

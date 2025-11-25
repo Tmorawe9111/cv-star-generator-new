@@ -156,7 +156,7 @@ function CompanySignup() {
         });
         
         setTimeout(() => {
-          navigate('/company/dashboard');
+          navigate('/unternehmen/startseite');
         }, 1500);
 
       } else {

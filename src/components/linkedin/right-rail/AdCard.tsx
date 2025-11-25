@@ -17,7 +17,7 @@ export const AdCard: React.FC = () => {
             Entdecken Sie unsere Premium-Features für besseres Matching und schnellere Einstellungen.
           </p>
           <a 
-            href="/company/pricing" 
+            href="/unternehmen/abrechnung" 
             className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
           >
             Mehr erfahren

@@ -73,7 +73,7 @@ export const CVGeneratorGate = ({ children }: { children: React.ReactNode }) => 
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/mein-bereich')}
                 className="w-full"
               >
                 <FileText className="mr-2 h-4 w-4" />

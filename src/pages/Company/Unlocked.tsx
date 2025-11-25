@@ -1067,7 +1067,7 @@ export default function CompanyUnlocked() {
               <div className="text-center py-16 text-muted-foreground">
                 {search ? "Keine Treffer für deine Suche." : "Noch keine Profile freigeschaltet."}
                 <div className="mt-4">
-                  <Button onClick={() => navigate('/company/search')}>
+                  <Button onClick={() => navigate('/unternehmen/kandidatensuche')}>
                     <Coins className="h-4 w-4 mr-2" /> Kandidaten suchen
                   </Button>
                 </div>

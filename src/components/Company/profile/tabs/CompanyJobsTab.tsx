@@ -34,7 +34,7 @@ export function CompanyJobsTab({ companyId, isOwner }: CompanyJobsTabProps) {
       {isOwner && (
         <div className="mb-6 flex justify-end">
           <Button asChild>
-            <Link to="/company/jobs/new">
+            <Link to="/unternehmen/stellenanzeigen/neu">
               <Plus className="mr-2 h-4 w-4" />
               Neue Stellenanzeige erstellen
             </Link>
@@ -57,7 +57,7 @@ export function CompanyJobsTab({ companyId, isOwner }: CompanyJobsTabProps) {
               </p>
               {isOwner && (
                 <Button asChild>
-                  <Link to="/company/jobs/new">
+                  <Link to="/unternehmen/stellenanzeigen/neu">
                     <Plus className="mr-2 h-4 w-4" />
                     Ersten Job erstellen
                   </Link>

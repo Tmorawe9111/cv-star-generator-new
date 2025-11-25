@@ -23,7 +23,7 @@ function JobEditContent() {
       jobId: id, 
       updates: updatableFields 
     });
-    navigate('/company/jobs');
+    navigate('/unternehmen/stellenanzeigen');
   };
 
   return (

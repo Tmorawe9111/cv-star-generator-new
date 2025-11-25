@@ -241,7 +241,7 @@ export default function JobAdBuilder() {
     }
     
     if (status === 'published') {
-      navigate('/company/jobs');
+      navigate('/unternehmen/stellenanzeigen');
     }
   }
 

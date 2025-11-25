@@ -74,7 +74,7 @@ const CompanyFeedLeft: React.FC = () => {
       <Card className="p-5">
         <h3 className="text-sm font-medium mb-3">Schnellzugriff</h3>
         <div className="flex flex-col gap-2">
-          <Button size="sm" variant="ghost" className="justify-start" onClick={() => navigate("/company/dashboard")}>
+          <Button size="sm" variant="ghost" className="justify-start" onClick={() => navigate("/unternehmen/startseite")}>
             <Briefcase className="h-4 w-4 mr-2" /> Dashboard
           </Button>
           <Button size="sm" variant="ghost" className="justify-start" onClick={() => navigate("/company/settings")}>

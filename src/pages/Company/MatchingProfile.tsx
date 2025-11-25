@@ -288,7 +288,7 @@ export default function MatchingProfilePage() {
             {saving ? "Speichern…" : "Speichern"}
           </Button>
           <Button variant="secondary" asChild>
-            <a href="/company/dashboard">Später vervollständigen</a>
+            <a href="/unternehmen/startseite">Später vervollständigen</a>
           </Button>
         </div>
       </main>

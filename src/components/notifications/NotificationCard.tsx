@@ -292,7 +292,7 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
       case 'new_matches_available':
         return (
           <div className="mt-3">
-            <a href="/company/search" className="text-sm underline">
+            <a href="/unternehmen/kandidatensuche" className="text-sm underline">
               Jetzt ansehen
             </a>
           </div>
@@ -300,7 +300,7 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
       case 'low_tokens':
         return (
           <div className="mt-3">
-            <a href="/company/settings#upgrade" className="text-sm underline">
+            <a href="/unternehmen/einstellungen#upgrade" className="text-sm underline">
               Tokens nachkaufen
             </a>
           </div>
