@@ -33,26 +33,55 @@ type Company = {
 };
 
 export default function PublicCompanyViewNew() {
-  const { id } = useParams();
+  const { id, slug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "home");
+  const [companyId, setCompanyId] = useState<string | null>(id || null);
   const fromJobId = searchParams.get("fromJob");
   
-  const { data: isOwner } = useIsCompanyOwner(id);
-  const { isFollowing, toggleFollow } = useFollowCompany(id);
+  const { data: isOwner } = useIsCompanyOwner(companyId || undefined);
+  const { isFollowing, toggleFollow } = useFollowCompany(companyId || undefined);
+
+  // If we have a slug, first resolve it to an ID
+  const slugQuery = useQuery({
+    queryKey: ['company-slug', slug],
+    queryFn: async () => {
+      if (!slug) return null;
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+      if (error) throw error;
+      return data?.id || null;
+    },
+    enabled: !!slug && !id,
+    onSuccess: (resolvedId) => {
+      if (resolvedId) setCompanyId(resolvedId);
+    }
+  });
+
+  // Update companyId when slug resolves
+  useEffect(() => {
+    if (slugQuery.data) {
+      setCompanyId(slugQuery.data);
+    } else if (id) {
+      setCompanyId(id);
+    }
+  }, [slugQuery.data, id]);
 
   const companyQuery = useQuery<Company | null>({
-    queryKey: ['public-company', id],
+    queryKey: ['public-company', companyId],
     queryFn: async () => {
-      if (!id) return null;
+      if (!companyId) return null;
       const { data, error } = await supabase
-        .rpc('get_company_public', { p_id: id });
+        .rpc('get_company_public', { p_id: companyId });
       if (error) throw error;
       const row = ((data as any[]) || [])[0] || null;
       return row as Company | null;
     },
-    enabled: !!id,
+    enabled: !!companyId,
   });
 
   const company = companyQuery.data;

@@ -22,52 +22,70 @@ import { useCompany } from "@/hooks/useCompany";
 import FollowButton from "@/components/Company/FollowButton";
 
 export default function UserProfilePage() {
-  const { id } = useParams();
+  const { id, username } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { company } = useCompany();
   const { getStatuses, requestConnection, acceptRequest, declineRequest, cancelRequest } = useConnections();
 
   const [profile, setProfile] = useState<any | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<ConnectionState>("none");
   const [isCompanyMember, setIsCompanyMember] = useState(false);
   const [followStatus, setFollowStatus] = useState<'none' | 'pending' | 'accepted'>('none');
   const [followLoading, setFollowLoading] = useState(false);
   const [pendingFollowRequest, setPendingFollowRequest] = useState<{ id: string; companyId: string; companyName: string } | null>(null);
-  const { interested, loading: interestLoading, toggle: toggleInterest } = useCompanyInterest(id);
+  const { interested, loading: interestLoading, toggle: toggleInterest } = useCompanyInterest(profileId || id);
 
-  const isOwner = !!user && user.id === id;
+  const isOwner = !!user && user.id === (profileId || id);
   const isCompanyUser = !!company?.id;
   // For company users: check follow status instead of connection status
   const isConnected = isCompanyUser ? (followStatus === 'accepted' || isOwner) : (status === "accepted" || isOwner);
 
   useEffect(() => {
     const load = async () => {
-      if (!id) return;
+      // Support both UUID (id) and username lookup
+      const lookupId = id;
+      const lookupUsername = username;
+      
+      if (!lookupId && !lookupUsername) return;
       setLoading(true);
       try {
-        // Load profile and connection status in parallel for faster loading
-        const [profileResult, statusResult] = await Promise.all([
-          supabase
+        let profileResult;
+        
+        if (lookupUsername) {
+          // Lookup by username (vanity URL)
+          profileResult = await supabase
             .from("profiles")
             .select("*")
-            .eq("id", id)
-            .maybeSingle(),
-          user && user.id !== id ? getStatuses([id]) : Promise.resolve({})
-        ]);
+            .eq("username", lookupUsername)
+            .maybeSingle();
+        } else {
+          // Lookup by UUID
+          profileResult = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", lookupId)
+            .maybeSingle();
+        }
         
         const { data, error } = profileResult;
         if (error) throw error;
         if (!data) {
           toast({ title: "Profil nicht gefunden", description: "Dieses Profil existiert nicht.", variant: "destructive" });
-          navigate("/dashboard");
+          navigate("/startseite");
           return;
         }
         setProfile(data);
+        setProfileId(data.id);
 
-        if (statusResult && typeof statusResult === 'object') {
-          setStatus(statusResult[id] || "none");
+        // Load connection status
+        if (user && user.id !== data.id) {
+          const statusResult = await getStatuses([data.id]);
+          if (statusResult && typeof statusResult === 'object') {
+            setStatus(statusResult[data.id] || "none");
+          }
         }
       } catch (e) {
         console.error(e);
@@ -77,7 +95,7 @@ export default function UserProfilePage() {
       }
     };
     load();
-  }, [id, user, getStatuses, navigate]);
+  }, [id, username, user, getStatuses, navigate]);
 
   useEffect(() => {
     if (profile) {
