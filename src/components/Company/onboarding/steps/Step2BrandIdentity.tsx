@@ -105,8 +105,29 @@ export function Step2BrandIdentity({ data, onUpdate, onNext, onBack }: Step2Bran
     onUpdate({ coverImageUrl: undefined });
   };
 
+  const isValidUrl = (url: string) => {
+    if (!url) return true; // Empty is handled separately
+    try {
+      // Add protocol if missing
+      const urlToCheck = url.startsWith('http') ? url : `https://${url}`;
+      new URL(urlToCheck);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const isValid = () => {
-    return !!data.logoUrl && !!data.companyBio && data.companyBio.trim().length >= 20 && !!data.websiteUrl && data.websiteUrl.length > 0;
+    const hasLogo = !!data.logoUrl;
+    const hasBio = !!data.companyBio && data.companyBio.trim().length >= 20;
+    const hasValidUrl = !!data.websiteUrl && isValidUrl(data.websiteUrl);
+    return hasLogo && hasBio && hasValidUrl;
+  };
+
+  const getUrlError = () => {
+    if (!data.websiteUrl) return null;
+    if (!isValidUrl(data.websiteUrl)) return 'Bitte geben Sie eine gültige URL ein (z.B. www.beispiel.de)';
+    return null;
   };
 
   return (

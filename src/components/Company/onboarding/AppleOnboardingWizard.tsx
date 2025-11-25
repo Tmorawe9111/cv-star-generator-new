@@ -5,7 +5,8 @@ import { useCompanyId } from '@/hooks/useCompanyId';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, CheckCircle, Sparkles } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { Step0Welcome } from './steps/Step0Welcome';
 import { Step1PlanSelection } from './steps/Step1PlanSelection';
 import { Step2BrandIdentity } from './steps/Step2BrandIdentity';
@@ -75,6 +76,7 @@ export function AppleOnboardingWizard({ onComplete }: AppleOnboardingWizardProps
   // Step mapping: 0=Welcome, 1=Plan, 2=Brand, 3=Industry, 4=Location, 5=LocationsTeam (paid only), 6=Contact, 7=Activation
   // For free plan: skip step 5 (LocationsTeam)
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [data, setData] = useState<OnboardingData>({
     selectedPlan: 'free',
     planInterval: 'month',
@@ -203,8 +205,25 @@ export function AppleOnboardingWizard({ onComplete }: AppleOnboardingWizardProps
         if (error) throw error;
       }
 
-      // Step 4: Also save to company_locations table
+      // Step 4: Also save to company_locations table with coordinates
       if (step === 4 && data.city) {
+        // Get coordinates from postal_codes table
+        let lat: number | null = null;
+        let lon: number | null = null;
+        
+        if (data.zipCode) {
+          const { data: plzData } = await supabase
+            .from('postal_codes')
+            .select('lat, lon')
+            .eq('plz', data.zipCode)
+            .single();
+          
+          if (plzData) {
+            lat = plzData.lat;
+            lon = plzData.lon;
+          }
+        }
+
         // Check if a primary location already exists
         const { data: existingLocations } = await supabase
           .from('company_locations')
@@ -212,12 +231,12 @@ export function AppleOnboardingWizard({ onComplete }: AppleOnboardingWizardProps
           .eq('company_id', companyId)
           .eq('is_primary', true);
 
+        const countryName = data.country === 'DE' ? 'Deutschland' : 
+                            data.country === 'AT' ? 'Österreich' : 
+                            data.country === 'CH' ? 'Schweiz' : data.country || 'Deutschland';
+
         if (!existingLocations || existingLocations.length === 0) {
-          // Create the primary location
-          const countryName = data.country === 'DE' ? 'Deutschland' : 
-                              data.country === 'AT' ? 'Österreich' : 
-                              data.country === 'CH' ? 'Schweiz' : data.country || 'Deutschland';
-          
+          // Create the primary location with coordinates
           const { error: locationError } = await supabase
             .from('company_locations')
             .insert({
@@ -230,14 +249,15 @@ export function AppleOnboardingWizard({ onComplete }: AppleOnboardingWizardProps
               country: countryName,
               is_primary: true,
               is_active: true,
+              lat,
+              lon,
             });
 
           if (locationError) {
             console.error('Error creating company location:', locationError);
-            // Don't throw - the main company data was saved
           }
         } else {
-          // Update the existing primary location
+          // Update the existing primary location with coordinates
           const { error: locationError } = await supabase
             .from('company_locations')
             .update({
@@ -245,9 +265,9 @@ export function AppleOnboardingWizard({ onComplete }: AppleOnboardingWizardProps
               house_number: data.streetNumber || null,
               postal_code: data.zipCode || '',
               city: data.city,
-              country: data.country === 'DE' ? 'Deutschland' : 
-                       data.country === 'AT' ? 'Österreich' : 
-                       data.country === 'CH' ? 'Schweiz' : data.country || 'Deutschland',
+              country: countryName,
+              lat,
+              lon,
             })
             .eq('company_id', companyId)
             .eq('is_primary', true);
@@ -341,16 +361,40 @@ export function AppleOnboardingWizard({ onComplete }: AppleOnboardingWizardProps
 
       if (error) throw error;
 
-      toast({
-        title: 'Onboarding abgeschlossen!',
-        description: 'Ihr Unternehmensprofil wurde erfolgreich erstellt.',
+      // Show success screen with confetti
+      setShowSuccess(true);
+      
+      // Trigger confetti
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
       });
+      
+      // Second burst
+      setTimeout(() => {
+        confetti({
+          particleCount: 50,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 }
+        });
+        confetti({
+          particleCount: 50,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 }
+        });
+      }, 250);
 
-      if (onComplete) {
-        onComplete();
-      } else {
-        navigate('/company/dashboard');
-      }
+      // Redirect after 3 seconds
+      setTimeout(() => {
+        if (onComplete) {
+          onComplete();
+        } else {
+          navigate('/company/dashboard');
+        }
+      }, 3000);
     } catch (error: any) {
       console.error('Error completing onboarding:', error);
       toast({
@@ -525,6 +569,37 @@ export function AppleOnboardingWizard({ onComplete }: AppleOnboardingWizardProps
         return null;
     }
   };
+
+  // Success Screen
+  if (showSuccess) {
+    return (
+      <div className="bg-white relative flex flex-col h-full overflow-hidden items-center justify-center">
+        <div className="text-center space-y-6 px-8">
+          <div className="relative">
+            <div className="w-24 h-24 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-14 h-14 text-green-600" />
+            </div>
+            <Sparkles className="w-8 h-8 text-yellow-500 absolute -top-2 -right-2 animate-pulse" />
+          </div>
+          
+          <div className="space-y-3">
+            <h1 className="text-4xl font-light text-gray-900 tracking-tight">
+              Willkommen bei BeVisiblle!
+            </h1>
+            <p className="text-xl text-gray-600">
+              Ihr Unternehmensprofil wurde erfolgreich erstellt.
+            </p>
+          </div>
+          
+          <div className="pt-4">
+            <p className="text-sm text-gray-500">
+              Sie werden in wenigen Sekunden weitergeleitet...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white relative flex flex-col h-full overflow-hidden">

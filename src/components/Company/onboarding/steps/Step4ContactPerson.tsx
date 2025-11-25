@@ -35,8 +35,33 @@ export function Step4ContactPerson({ data, onUpdate, onNext, onBack }: Step4Cont
     }
   }, [user]);
 
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const isValidPhone = (phone: string) => {
+    if (!phone) return true; // Optional field
+    // Allow various phone formats: +49 123 456789, 0123-456789, etc.
+    return /^[\d\s\-+()]{6,20}$/.test(phone.replace(/\s/g, ''));
+  };
+
   const isValid = () => {
-    return !!(data.contactFirstName && data.contactLastName && data.contactPublicEmail);
+    const hasName = !!(data.contactFirstName && data.contactLastName);
+    const hasValidEmail = !!data.contactPublicEmail && isValidEmail(data.contactPublicEmail);
+    const hasValidPhone = isValidPhone(data.contactPhone || '');
+    return hasName && hasValidEmail && hasValidPhone;
+  };
+
+  const getPhoneError = () => {
+    if (!data.contactPhone) return null;
+    if (!isValidPhone(data.contactPhone)) return 'Bitte geben Sie eine gültige Telefonnummer ein';
+    return null;
+  };
+
+  const getEmailError = () => {
+    if (!data.contactPublicEmail) return null;
+    if (!isValidEmail(data.contactPublicEmail)) return 'Bitte geben Sie eine gültige E-Mail-Adresse ein';
+    return null;
   };
 
   return (
@@ -120,11 +145,16 @@ export function Step4ContactPerson({ data, onUpdate, onNext, onBack }: Step4Cont
             placeholder="kontakt@unternehmen.de"
             value={data.contactPublicEmail || ''}
             onChange={(e) => onUpdate({ contactPublicEmail: e.target.value })}
+            className={getEmailError() ? 'border-red-500' : ''}
             required
           />
-          <p className="text-sm text-gray-500">
-            Diese E-Mail wird in Ihrem Profil angezeigt. Kann von Ihrer Login-E-Mail abweichen.
-          </p>
+          {getEmailError() ? (
+            <p className="text-sm text-red-500">{getEmailError()}</p>
+          ) : (
+            <p className="text-sm text-gray-500">
+              Diese E-Mail wird in Ihrem Profil angezeigt. Kann von Ihrer Login-E-Mail abweichen.
+            </p>
+          )}
         </div>
 
         {/* Phone */}
@@ -138,10 +168,15 @@ export function Step4ContactPerson({ data, onUpdate, onNext, onBack }: Step4Cont
             placeholder="+49 123 456789"
             value={data.contactPhone || ''}
             onChange={(e) => onUpdate({ contactPhone: e.target.value })}
+            className={getPhoneError() ? 'border-red-500' : ''}
           />
-          <p className="text-sm text-gray-500">
-            Optional: Telefonnummer für direkten Kontakt
-          </p>
+          {getPhoneError() ? (
+            <p className="text-sm text-red-500">{getPhoneError()}</p>
+          ) : (
+            <p className="text-sm text-gray-500">
+              Optional: Telefonnummer für direkten Kontakt
+            </p>
+          )}
         </div>
         </div>
       </div>
