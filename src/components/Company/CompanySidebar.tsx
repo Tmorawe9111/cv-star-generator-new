@@ -107,7 +107,8 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate("/anmelden");
+    // Nach Logout zur Startseite, nicht zur Login-Seite
+    window.location.href = "/";
   };
 
   const systemItems: NavItem[] = [
