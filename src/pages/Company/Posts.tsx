@@ -20,7 +20,7 @@ const CompanyPosts: React.FC = () => {
 
           {/* Mitte - Community Feed */}
           <section className="flex-1 min-w-0">
-            <div className="w-full max-w-[560px] mx-auto px-4 md:max-w-none md:px-0 space-y-4">
+            <div className="w-full space-y-4">
               {/* Company Composer */}
               <CompanyComposerTeaser />
               

@@ -13,6 +13,7 @@ export interface PostComment {
   parent_comment_id?: string | null;
   like_count?: number;
   replies?: PostComment[];
+  author_type?: 'user' | 'company';
   author?: {
     id: string;
     vorname?: string | null;
@@ -23,6 +24,13 @@ export interface PostComment {
     company_name?: string | null;
     aktueller_beruf?: string | null;
     ausbildungsbetrieb?: string | null;
+  } | null;
+  company?: {
+    id: string;
+    name: string;
+    logo_url?: string | null;
+    industry?: string | null;
+    main_location?: string | null;
   } | null;
 }
 
@@ -141,31 +149,56 @@ export const usePostComments = (postId: string) => {
         new Set(items.map((c: any) => c.user_id).filter(Boolean))
       );
       
+      // Load user profiles
       let profilesMap: Record<string, any> = {};
       if (userIds.length) {
         const { data: profiles, error: profErr } = await supabase
           .from("profiles")
           .select("id, vorname, nachname, avatar_url, headline, employer_free, company_name, aktueller_beruf, ausbildungsbetrieb")
           .in("id", userIds as any);
-        if (profErr) throw profErr;
+        if (profErr) {
+          console.error("[comments] Error loading profiles:", profErr);
+          throw profErr;
+        }
         profilesMap = Object.fromEntries(
           (profiles ?? []).map((p: any) => [p.id, p])
         );
       }
 
+      // Check which users are company users and load their company data
+      let companyUsersMap: Record<string, any> = {};
+      if (userIds.length) {
+        const { data: companyUsers, error: cuErr } = await supabase
+          .from("company_users")
+          .select("user_id, company_id, companies(id, name, logo_url, industry, main_location)")
+          .in("user_id", userIds as any);
+        if (!cuErr && companyUsers) {
+          companyUsersMap = Object.fromEntries(
+            companyUsers.map((cu: any) => [cu.user_id, cu.companies])
+          );
+        }
+      }
+
       // Transform comments with hierarchy
-      const allComments = items.map((c: any) => ({
-        id: c.id,
-        post_id: c.post_id,
-        user_id: c.user_id,
-        content: c.content,
-        created_at: c.created_at,
-        updated_at: c.updated_at,
-        parent_comment_id: c.parent_comment_id,
-        like_count: c.like_count || 0,
-        author: profilesMap[c.user_id] ?? null,
-        replies: [] as PostComment[],
-      })) as PostComment[];
+      const allComments = items.map((c: any) => {
+        const userProfile = profilesMap[c.user_id] ?? null;
+        const companyData = companyUsersMap[c.user_id] ?? null;
+        
+        return {
+          id: c.id,
+          post_id: c.post_id,
+          user_id: c.user_id,
+          content: c.content,
+          created_at: c.created_at,
+          updated_at: c.updated_at,
+          parent_comment_id: c.parent_comment_id,
+          like_count: c.like_count || 0,
+          author: userProfile,
+          company: companyData,
+          author_type: companyData ? 'company' : 'user',
+          replies: [] as PostComment[],
+        };
+      }) as PostComment[];
       
       // Build nested structure: top-level comments with replies
       const topLevelComments = allComments.filter(c => !c.parent_comment_id);

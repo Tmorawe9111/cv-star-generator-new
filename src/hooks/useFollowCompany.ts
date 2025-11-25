@@ -43,7 +43,18 @@ export function useFollowCompany(companyId?: string) {
           .eq('followee_type', 'company');
         if (!error) setIsFollowing(false);
       } else {
-        const { error } = await supabase
+        // Check if company already follows this user (pending or accepted)
+        const { data: companyFollowsUser } = await supabase
+          .from('follows')
+          .select('id, status')
+          .eq('follower_type', 'company')
+          .eq('follower_id', companyId)
+          .eq('followee_type', 'profile')
+          .eq('followee_id', user.id)
+          .maybeSingle();
+        
+        // Insert user following company
+        const { error: insertError } = await supabase
           .from('follows')
           .insert({ 
             follower_id: user.id, 
@@ -52,7 +63,22 @@ export function useFollowCompany(companyId?: string) {
             followee_type: 'company',
             status: 'accepted'
           });
-        if (!error) setIsFollowing(true);
+        
+        if (insertError) throw insertError;
+        
+        // If company already follows user (mutual follow), accept the company's follow request
+        if (companyFollowsUser && companyFollowsUser.status === 'pending') {
+          const { error: updateError } = await supabase
+            .from('follows')
+            .update({ status: 'accepted' })
+            .eq('id', companyFollowsUser.id);
+          
+          if (updateError) {
+            console.error('Error accepting company follow request:', updateError);
+          }
+        }
+        
+        setIsFollowing(true);
       }
     } finally {
       setLoading(false);

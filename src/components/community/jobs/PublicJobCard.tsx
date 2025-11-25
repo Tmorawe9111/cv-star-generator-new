@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building2, MapPin, Clock, MoreVertical, CheckCircle2 } from "lucide-react";
+import { Building2, MapPin, Clock, MoreVertical, CheckCircle2, X } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { de } from "date-fns/locale";
 import type { MyApplication } from "@/hooks/useMyApplications";
@@ -30,68 +30,84 @@ export function PublicJobCard({ job, onClick, compact = false, application }: Pu
     : '';
 
   if (compact) {
+    const workModeLabel = job.work_mode === 'remote' ? 'Remote' : job.work_mode === 'hybrid' ? 'Hybrid' : 'Vor Ort';
+    const employmentTypeLabel = getEmploymentTypeLabel(job.employment_type);
+    const locationText = [job.city || job.state, job.country].filter(Boolean).join(', ');
+    
     return (
-      <Card 
-        className="p-4 hover:shadow-lg transition-shadow cursor-pointer group border-border"
+      <div 
+        className="bg-white border-b border-border p-4 hover:bg-gray-50 transition-colors cursor-pointer group"
         onClick={onClick}
       >
-        <div className="space-y-3">
-          {/* Header */}
-          <div className="flex items-start gap-3">
-            {job.company?.logo_url ? (
-              <img
-                src={job.company.logo_url}
-                alt={job.company.name}
-                className="h-10 w-10 rounded-lg object-cover flex-shrink-0"
-              />
-            ) : (
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
+        <div className="flex items-start gap-3">
+          {/* Company Logo */}
+          {job.company?.logo_url ? (
+            <img
+              src={job.company.logo_url}
+              alt={job.company.name}
+              className="h-12 w-12 rounded object-cover flex-shrink-0"
+            />
+          ) : (
+            <div className="h-12 w-12 rounded bg-muted flex items-center justify-center flex-shrink-0">
+              <Building2 className="h-6 w-6 text-muted-foreground" />
+            </div>
+          )}
+          
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm text-blue-600 group-hover:underline line-clamp-2">
+                  {job.title}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {job.company?.name || 'Unbekanntes Unternehmen'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {locationText} {workModeLabel && `(${workModeLabel})`} • {employmentTypeLabel}
+                </p>
+                
+                {/* Job Description */}
+                {job.description_md && (
+                  <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                    {job.description_md.replace(/[#*`_]/g, '').replace(/\n/g, ' ').trim().slice(0, 150)}
+                    {job.description_md.replace(/[#*`_]/g, '').replace(/\n/g, ' ').trim().length > 150 && '...'}
+                  </p>
+                )}
+                
+                {/* Divider */}
+                <div className="border-t border-border mt-2 pt-2">
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    {/* Salary Range */}
+                    {(job.salary_min || job.salary_max) && (
+                      <span>
+                        €{job.salary_min?.toLocaleString() || '?'} - €{job.salary_max?.toLocaleString() || '?'}
+                      </span>
+                    )}
+                    
+                    {/* Start Date */}
+                    {job.start_date && (
+                      <span>
+                        Start: {format(new Date(job.start_date), "dd.MM.yyyy", { locale: de })}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm group-hover:text-primary transition-colors line-clamp-2">
-                {job.title}
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {job.company?.name || 'Unbekanntes Unternehmen'}
-              </p>
+              
+              {/* Action Icons */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button className="p-1 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                </button>
+                <button className="p-1 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
             </div>
           </div>
-
-          {/* Footer */}
-          <div className="flex flex-col gap-1.5 text-xs">
-            <Badge variant="secondary" className="font-normal w-fit">
-              {getEmploymentTypeLabel(job.employment_type)}
-            </Badge>
-            
-            {(job.city || job.state) && (
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                {job.city || job.state}
-              </span>
-            )}
-
-            {(job.salary_min || job.salary_max) && (
-              <p className="text-xs font-medium">
-                €{job.salary_min?.toLocaleString() || '?'} - €{job.salary_max?.toLocaleString() || '?'}
-              </p>
-            )}
-
-            {/* Application Status */}
-            {application && (
-              <Button 
-                size="sm" 
-                variant="outline"
-                className="mt-2 w-full pointer-events-none"
-              >
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                Bereits beworben am {format(new Date(application.created_at), "dd.MM.yyyy", { locale: de })}
-              </Button>
-            )}
-          </div>
         </div>
-      </Card>
+      </div>
     );
   }
 

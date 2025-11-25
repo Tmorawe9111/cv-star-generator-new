@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLoginCounter } from '@/hooks/useLoginCounter';
+import { saveProfileLocation, parseLocation } from '@/lib/location-utils';
 
 interface AddressData {
   zip: string;
@@ -21,7 +22,7 @@ interface EntryGateState {
 }
 
 export function useEntryGates() {
-  const { profile, user } = useAuth();
+  const { profile, user, refetchProfile } = useAuth();
   const { loginCount } = useLoginCounter();
   const [state, setState] = useState<EntryGateState>({
     showAddressModal: false,
@@ -119,19 +120,85 @@ export function useEntryGates() {
     if (!user) throw new Error('No user');
 
     try {
-      // Update profile with address and mark as confirmed
+      // Build location string from zip and city
+      const locationString = addressData.zip && addressData.city 
+        ? `${addressData.zip} ${addressData.city}`
+        : addressData.city || '';
+
+      // Get coordinates and location_id first
+      let locationId: number | null = null;
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+
+      if (addressData.zip && addressData.city) {
+        // Get coordinates from postal_codes or geocode
+        const { data: coords, error: coordsError } = await supabase.rpc('get_location_coordinates', {
+          p_postal_code: addressData.zip.trim(),
+          p_city: addressData.city.trim(),
+          p_country_code: 'DE'
+        });
+
+        if (!coordsError && coords && coords.length > 0 && coords[0].latitude && coords[0].longitude) {
+          latitude = coords[0].latitude;
+          longitude = coords[0].longitude;
+
+          // Get bundesland from postal_codes if available
+          let bundesland = '';
+          const { data: postalData } = await supabase
+            .from('postal_codes')
+            .select('bundesland')
+            .eq('plz', addressData.zip.trim())
+            .limit(1)
+            .maybeSingle();
+          bundesland = postalData?.bundesland || '';
+
+          // Upsert location with coordinates
+          const { data: locId, error: locationError } = await supabase.rpc('upsert_location_with_coords', {
+            p_postal_code: addressData.zip.trim(),
+            p_city: addressData.city.trim(),
+            p_state: bundesland,
+            p_country_code: 'DE',
+            p_lat: latitude,
+            p_lon: longitude
+          });
+
+          if (!locationError && locId) {
+            locationId = locId;
+          }
+        }
+      }
+
+      // Update profile with ALL address fields, coordinates, and location_id in one update
+      const updateData: any = {
+        plz: addressData.zip?.trim() || null,
+        ort: addressData.city?.trim() || null,
+        strasse: addressData.street?.trim() || null,
+        hausnummer: addressData.houseNo?.trim() || null,
+        country: 'Deutschland', // Set country to Deutschland when address is confirmed
+        address_confirmed: true,
+      };
+
+      // Add coordinates and location_id if available
+      if (locationId) {
+        updateData.location_id = locationId;
+      }
+      if (latitude !== null && longitude !== null) {
+        updateData.latitude = latitude;
+        updateData.longitude = longitude;
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          plz: addressData.zip,
-          ort: addressData.city,
-          strasse: addressData.street || null,
-          hausnummer: addressData.houseNo || null,
-          address_confirmed: true
-        })
+        .update(updateData)
         .eq('id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating profile address:', error);
+        throw error;
+      }
+
+      // Refetch profile to ensure UI is updated with latest data
+      await refetchProfile();
 
       setState(prev => ({
         ...prev,
@@ -145,7 +212,7 @@ export function useEntryGates() {
       console.error('Failed to save address:', error);
       throw error;
     }
-  }, [user, checkVisibilityPrompt]);
+  }, [user, refetchProfile, checkVisibilityPrompt]);
 
   const saveVisibilityChoice = useCallback(async (choice: 'visible' | 'invisible') => {
     if (!user) return;

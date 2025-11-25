@@ -25,7 +25,6 @@ const CVStep4 = () => {
   // Local states for dynamic entry inputs to prevent focus loss
   const [localEntryInputs, setLocalEntryInputs] = useState<Record<string, string>>({});
   const [generatingBulletsFor, setGeneratingBulletsFor] = useState<number | null>(null);
-  const [generatingAboutMe, setGeneratingAboutMe] = useState(false);
 
   // Debounced update function with stable reference
   const debouncedUpdate = useDebounce((updates: any) => {
@@ -74,9 +73,10 @@ const CVStep4 = () => {
     return localEntryInputs[key] !== undefined ? localEntryInputs[key] : defaultValue;
   };
 
-  // Generate year options (current year + 5 future, back to 1950)
+  // Generate year options (current year + 1 future max, back to 1950)
   const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from({ length: currentYear - 1950 + 6 }, (_, i) => currentYear + 5 - i);
+  const maxFutureYear = currentYear + 1; // Max 1 year in the future
+  const yearOptions = Array.from({ length: maxFutureYear - 1950 + 1 }, (_, i) => maxFutureYear - i);
   
   // Month options
   const monthOptions = [
@@ -93,6 +93,48 @@ const CVStep4 = () => {
     { value: '11', label: 'November' },
     { value: '12', label: 'Dezember' }
   ];
+
+  // Helper function to get available months/years for "Bis" based on "Von"
+  const getAvailableBisOptions = (vonValue: string) => {
+    if (!vonValue || vonValue === 'heute' || vonValue.split('-')[0] === '0000') {
+      return {
+        availableMonths: monthOptions,
+        availableYears: yearOptions,
+        minYear: null,
+        minMonth: null
+      };
+    }
+
+    const vonParts = vonValue.split('-');
+    const vonYear = parseInt(vonParts[0] || '0');
+    const vonMonth = parseInt(vonParts[1] || '0');
+
+    if (vonYear === 0 || vonMonth === 0) {
+      return {
+        availableMonths: monthOptions,
+        availableYears: yearOptions,
+        minYear: null,
+        minMonth: null
+      };
+    }
+
+    // If same year, only allow months >= vonMonth
+    // If later year, allow all months
+    const availableMonths = vonYear > 0 ? monthOptions.filter((month, index) => {
+      const monthNum = index + 1;
+      return monthNum >= vonMonth;
+    }) : monthOptions;
+
+    // Years: only allow years >= vonYear
+    const availableYears = yearOptions.filter(year => year >= vonYear);
+
+    return {
+      availableMonths,
+      availableYears,
+      minYear: vonYear,
+      minMonth: vonMonth
+    };
+  };
 
   const schulformOptions = [
     'Grundschule',
@@ -211,6 +253,22 @@ const CVStep4 = () => {
   };
 
   const updateSchulbildungDate = (index: number, field: 'zeitraum_von' | 'zeitraum_bis', year: string) => {
+    // Validate year is not more than 1 year in the future
+    const currentYearNum = new Date().getFullYear();
+    const maxFutureYear = currentYearNum + 1;
+    
+    if (year) {
+      const yearNum = parseInt(year);
+      if (!isNaN(yearNum) && yearNum > maxFutureYear) {
+        toast({
+          title: "Ungültiges Datum",
+          description: `Das Datum darf nicht mehr als 1 Jahr in der Zukunft liegen (maximal ${maxFutureYear}).`,
+          variant: "destructive"
+        });
+        return; // Don't update if invalid
+      }
+    }
+    
     updateSchulbildungEntry(index, field, year);
   };
 
@@ -223,12 +281,90 @@ const CVStep4 = () => {
     const finalYear = year || currentYear;
     const finalMonth = month || currentMonth;
     
-    if (finalYear && finalMonth) {
+    // Validate year is not more than 1 year in the future
+    const currentYearNum = new Date().getFullYear();
+    const maxFutureYear = currentYearNum + 1;
+    
+    if (finalYear && finalYear !== '0000') {
+      const yearNum = parseInt(finalYear);
+      if (!isNaN(yearNum) && yearNum > maxFutureYear) {
+        toast({
+          title: "Ungültiges Datum",
+          description: `Das Datum darf nicht mehr als 1 Jahr in der Zukunft liegen (maximal ${maxFutureYear}).`,
+          variant: "destructive"
+        });
+        return; // Don't update if invalid
+      }
+    }
+    
+    // If only month is provided, store it temporarily with placeholder year
+    if (finalMonth && !finalYear) {
+      updateBerufserfahrungEntry(index, field, `0000-${finalMonth}`);
+    } else if (finalYear && finalMonth) {
+      // If both are provided, store the complete date
       const monthYear = `${finalYear}-${finalMonth}`;
       updateBerufserfahrungEntry(index, field, monthYear);
-    } else if (finalYear) {
-      // Store partial date temporarily
-      updateBerufserfahrungEntry(index, field, `${finalYear}-01`);
+      
+      // If updating "Von", validate and reset "Bis" if it's before "Von"
+      if (field === 'zeitraum_von') {
+        const berufserfahrung = formData.berufserfahrung || [];
+        const arbeit = berufserfahrung[index];
+        if (arbeit && arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute') {
+          const bisParts = arbeit.zeitraum_bis.split('-');
+          const bisYear = parseInt(bisParts[0] || '0');
+          const bisMonth = parseInt(bisParts[1] || '0');
+          const vonYear = parseInt(finalYear);
+          const vonMonth = parseInt(finalMonth);
+          
+          // If bis is before von, reset bis
+          if (bisYear < vonYear || (bisYear === vonYear && bisMonth < vonMonth)) {
+            updateBerufserfahrungEntry(index, 'zeitraum_bis', '');
+          }
+        }
+      }
+      
+      // If updating "Bis", validate it's not before "Von"
+      if (field === 'zeitraum_bis') {
+        const berufserfahrung = formData.berufserfahrung || [];
+        const arbeit = berufserfahrung[index];
+        if (arbeit && arbeit.zeitraum_von && arbeit.zeitraum_von.split('-')[0] !== '0000') {
+          const vonParts = arbeit.zeitraum_von.split('-');
+          const vonYear = parseInt(vonParts[0] || '0');
+          const vonMonth = parseInt(vonParts[1] || '0');
+          const bisYear = parseInt(finalYear);
+          const bisMonth = parseInt(finalMonth);
+          
+          // If bis is before von, don't save it
+          if (bisYear < vonYear || (bisYear === vonYear && bisMonth < vonMonth)) {
+            toast({
+              title: "Ungültiges Datum",
+              description: "Das Enddatum muss nach dem Startdatum liegen.",
+              variant: "destructive"
+            });
+            return; // Don't update if invalid
+          }
+        }
+      }
+    } else if (finalYear && !finalMonth && currentMonth) {
+      // If only year is provided but month exists, combine them
+      updateBerufserfahrungEntry(index, field, `${finalYear}-${currentMonth}`);
+      
+      // Same validation as above
+      if (field === 'zeitraum_von') {
+        const berufserfahrung = formData.berufserfahrung || [];
+        const arbeit = berufserfahrung[index];
+        if (arbeit && arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute') {
+          const bisParts = arbeit.zeitraum_bis.split('-');
+          const bisYear = parseInt(bisParts[0] || '0');
+          const bisMonth = parseInt(bisParts[1] || '0');
+          const vonYear = parseInt(finalYear);
+          const vonMonth = parseInt(currentMonth);
+          
+          if (bisYear < vonYear || (bisYear === vonYear && bisMonth < vonMonth)) {
+            updateBerufserfahrungEntry(index, 'zeitraum_bis', '');
+          }
+        }
+      }
     }
   };
 
@@ -342,82 +478,6 @@ const CVStep4 = () => {
     }
   };
 
-  // Generate "About Me" text using AI
-  const generateAboutMeWithAI = async () => {
-    setGeneratingAboutMe(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-generate-about-me', {
-        body: { 
-          branche: formData.branche,
-          status: formData.status,
-          faehigkeiten: formData.faehigkeiten || [],
-          schulbildung: formData.schulbildung || [],
-          berufserfahrung: formData.berufserfahrung || [],
-          motivation: formData.motivation,
-          kenntnisse: formData.kenntnisse,
-          geburtsdatum: formData.geburtsdatum
-        }
-      });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw error;
-      }
-
-      if (data.success && data.aboutMe) {
-        updateFormData({ ueberMich: data.aboutMe });
-        
-        toast({
-          title: "Erfolgreich generiert!",
-          description: "Dein persönlicher Text wurde erstellt. Du kannst ihn jederzeit bearbeiten."
-        });
-      } else {
-        throw new Error(data.error || 'Keine Antwort von der KI erhalten');
-      }
-    } catch (error: any) {
-      console.error('Error generating about me:', error);
-      toast({
-        title: "Fehler",
-        description: error.message || "Der Text konnte nicht generiert werden. Bitte versuche es erneut.",
-        variant: "destructive"
-      });
-    } finally {
-      setGeneratingAboutMe(false);
-    }
-  };
-
-  // Generate "About Me" text using template (fallback)
-  const generateAboutMeText = () => {
-    const heute = new Date();
-    const geburtsdatum = formData.geburtsdatum ? new Date(formData.geburtsdatum) : null;
-    const alter = geburtsdatum ? heute.getFullYear() - geburtsdatum.getFullYear() : '';
-    
-    const schulbildung = formData.schulbildung?.[0]; // Latest school
-    const schule = schulbildung?.name || 'meiner Schule';
-    
-    const branche = formData.branche === 'handwerk' ? 'Handwerk' : 
-                   formData.branche === 'it' ? 'IT' : 
-                   formData.branche === 'gesundheit' ? 'Gesundheit' : 'den gewählten Bereich';
-    
-    const berufsrichtung = formData.branche === 'handwerk' ? 'handwerklichen Tätigkeiten' : 
-                          formData.branche === 'it' ? 'der IT-Branche' : 
-                          formData.branche === 'gesundheit' ? 'dem Gesundheitswesen' : 'meinem Wunschbereich';
-
-    const stichwortMotivation = formData.motivation?.split(' ').slice(0, 3).join(' ') || 'neue Herausforderungen';
-    const stichwortFähigkeiten = formData.kenntnisse?.split(' ').slice(0, 3).join(' ') || 'teamorientiertes Arbeiten';
-
-    const aboutMeText = `Ich bin ${alter} Jahre alt und interessiere mich besonders für den Bereich ${branche}. Während meiner schulischen Laufbahn an ${schule} konnte ich erste Einblicke in ${stichwortMotivation} gewinnen. Besonders gut kann ich ${stichwortFähigkeiten} – deshalb sehe ich meine berufliche Zukunft in ${berufsrichtung}. Mein Ziel ist es, eine Ausbildung zu finden, in der ich mich weiterentwickeln und mit vollem Einsatz mitarbeiten kann.`;
-
-    updateFormData({ ueberMich: aboutMeText });
-  };
-
-  // Auto-generate when we have enough data (optional fallback)
-  React.useEffect(() => {
-    if (formData.motivation && formData.kenntnisse && formData.schulbildung?.length && !formData.ueberMich) {
-      // Optional: auto-generate with template
-      // generateAboutMeText();
-    }
-  }, [formData.motivation, formData.kenntnisse, formData.schulbildung]);
 
   const hasMinimumSchulbildung = (formData.schulbildung?.length || 0) > 0;
 
@@ -655,10 +715,12 @@ const CVStep4 = () => {
                     <div>
                       <Label>Von Monat *</Label>
                       <Select 
-                        value={arbeit.zeitraum_von ? arbeit.zeitraum_von.split('-')[1] || '' : ''} 
+                        value={arbeit.zeitraum_von ? (arbeit.zeitraum_von.split('-')[1] || '') : ''} 
                         onValueChange={(month) => {
-                          const year = arbeit.zeitraum_von ? arbeit.zeitraum_von.split('-')[0] || '' : '';
-                          updateBerufserfahrungDate(index, 'zeitraum_von', month, year);
+                          const currentValue = arbeit.zeitraum_von || '';
+                          const parts = currentValue.split('-');
+                          const currentYear = parts[0] === '0000' ? '' : (parts[0] || '');
+                          updateBerufserfahrungDate(index, 'zeitraum_von', month, currentYear);
                         }}
                       >
                         <SelectTrigger>
@@ -676,11 +738,14 @@ const CVStep4 = () => {
                     <div>
                       <Label>Von Jahr *</Label>
                       <Select 
-                        value={arbeit.zeitraum_von ? arbeit.zeitraum_von.split('-')[0] || '' : ''} 
+                        value={arbeit.zeitraum_von && arbeit.zeitraum_von.split('-')[0] !== '0000' ? (arbeit.zeitraum_von.split('-')[0] || '') : ''} 
                         onValueChange={(year) => {
-                          const month = arbeit.zeitraum_von ? arbeit.zeitraum_von.split('-')[1] || '' : '';
-                          updateBerufserfahrungDate(index, 'zeitraum_von', month, year);
+                          const currentValue = arbeit.zeitraum_von || '';
+                          const parts = currentValue.split('-');
+                          const currentMonth = parts[1] || '';
+                          updateBerufserfahrungDate(index, 'zeitraum_von', currentMonth, year);
                         }}
+                        disabled={!arbeit.zeitraum_von || (arbeit.zeitraum_von.split('-')[0] !== '0000' && !arbeit.zeitraum_von.split('-')[1])}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Jahr" />
@@ -707,52 +772,108 @@ const CVStep4 = () => {
                     </Label>
                   </div>
 
-                  {!isCurrentJob(arbeit) && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label>Bis Monat</Label>
-                        <Select 
-                          value={arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute' ? arbeit.zeitraum_bis.split('-')[1] || '' : ''} 
-                          onValueChange={(month) => {
-                            const year = arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute' ? arbeit.zeitraum_bis.split('-')[0] || '' : '';
-                            updateBerufserfahrungDate(index, 'zeitraum_bis', month, year);
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Monat" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {monthOptions.map((month) => (
-                              <SelectItem key={month.value} value={month.value}>
-                                {month.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                  {!isCurrentJob(arbeit) && (() => {
+                    const bisOptions = getAvailableBisOptions(arbeit.zeitraum_von || '');
+                    const currentBisValue = arbeit.zeitraum_bis || '';
+                    const bisParts = currentBisValue.split('-');
+                    const bisYear = bisParts[0] === '0000' ? '' : (bisParts[0] || '');
+                    const bisMonth = bisParts[1] || '';
+                    
+                    // Check if current bis date is valid (not before von)
+                    let isValidBisDate = true;
+                    if (arbeit.zeitraum_von && arbeit.zeitraum_von.split('-')[0] !== '0000' && bisYear && bisMonth) {
+                      const vonYear = parseInt(arbeit.zeitraum_von.split('-')[0] || '0');
+                      const vonMonth = parseInt(arbeit.zeitraum_von.split('-')[1] || '0');
+                      const bisYearNum = parseInt(bisYear);
+                      const bisMonthNum = parseInt(bisMonth);
+                      
+                      if (bisYearNum < vonYear || (bisYearNum === vonYear && bisMonthNum < vonMonth)) {
+                        isValidBisDate = false;
+                      }
+                    }
+                    
+                    // Filter available months based on selected year
+                    const getAvailableMonthsForBis = () => {
+                      if (!bisYear || bisYear === '0000') {
+                        return bisOptions.availableMonths;
+                      }
+                      
+                      const bisYearNum = parseInt(bisYear);
+                      const vonYear = arbeit.zeitraum_von ? parseInt(arbeit.zeitraum_von.split('-')[0] || '0') : 0;
+                      const vonMonth = arbeit.zeitraum_von ? parseInt(arbeit.zeitraum_von.split('-')[1] || '0') : 0;
+                      
+                      if (bisYearNum === vonYear && vonMonth > 0) {
+                        // Same year: only allow months >= vonMonth
+                        return monthOptions.filter((month, index) => {
+                          const monthNum = index + 1;
+                          return monthNum >= vonMonth;
+                        });
+                      }
+                      
+                      // Different year: all months available
+                      return monthOptions;
+                    };
+                    
+                    return (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label>Bis Monat</Label>
+                          <Select 
+                            value={arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute' ? (arbeit.zeitraum_bis.split('-')[1] || '') : ''} 
+                            onValueChange={(month) => {
+                              const currentValue = arbeit.zeitraum_bis || '';
+                              const parts = currentValue.split('-');
+                              const currentYear = parts[0] === '0000' ? '' : (parts[0] || '');
+                              updateBerufserfahrungDate(index, 'zeitraum_bis', month, currentYear);
+                            }}
+                            disabled={!arbeit.zeitraum_von || arbeit.zeitraum_von.split('-')[0] === '0000' || !arbeit.zeitraum_von.split('-')[1]}
+                          >
+                            <SelectTrigger className={!isValidBisDate ? 'border-destructive' : ''}>
+                              <SelectValue placeholder="Monat" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getAvailableMonthsForBis().map((month) => (
+                                <SelectItem key={month.value} value={month.value}>
+                                  {month.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Bis Jahr</Label>
+                          <Select 
+                            value={arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute' && arbeit.zeitraum_bis.split('-')[0] !== '0000' ? (arbeit.zeitraum_bis.split('-')[0] || '') : ''} 
+                            onValueChange={(year) => {
+                              const currentValue = arbeit.zeitraum_bis || '';
+                              const parts = currentValue.split('-');
+                              const currentMonth = parts[1] || '';
+                              updateBerufserfahrungDate(index, 'zeitraum_bis', currentMonth, year);
+                            }}
+                            disabled={!arbeit.zeitraum_bis || arbeit.zeitraum_bis === 'heute' || (arbeit.zeitraum_bis.split('-')[0] !== '0000' && !arbeit.zeitraum_bis.split('-')[1]) || !arbeit.zeitraum_von || arbeit.zeitraum_von.split('-')[0] === '0000' || !arbeit.zeitraum_von.split('-')[1]}
+                          >
+                            <SelectTrigger className={!isValidBisDate ? 'border-destructive' : ''}>
+                              <SelectValue placeholder="Jahr" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {bisOptions.availableYears.map((year) => (
+                                <SelectItem key={year} value={year.toString()}>
+                                  {year}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {!isValidBisDate && (
+                          <div className="col-span-2">
+                            <p className="text-xs text-destructive mt-1">
+                              ⚠️ Das Enddatum muss nach dem Startdatum liegen.
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <Label>Bis Jahr</Label>
-                        <Select 
-                          value={arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute' ? arbeit.zeitraum_bis.split('-')[0] || '' : ''} 
-                          onValueChange={(year) => {
-                            const month = arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute' ? arbeit.zeitraum_bis.split('-')[1] || '' : '';
-                            updateBerufserfahrungDate(index, 'zeitraum_bis', month, year);
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Jahr" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {yearOptions.map((year) => (
-                              <SelectItem key={year} value={year.toString()}>
-                                {year}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
               <div>
@@ -783,47 +904,6 @@ const CVStep4 = () => {
               </div>
             </div>
           ))}
-        </div>
-      </Card>
-
-      {/* Motivation & Persönlichkeit */}
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-lg">💬 Motivation & Persönlichkeit</h3>
-            <Button
-              onClick={generateAboutMeWithAI}
-              disabled={generatingAboutMe}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              {generatingAboutMe ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generiere...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Mit KI generieren
-                </>
-              )}
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Beschreibe dich selbst, deine Motivation und deine Persönlichkeit. Du kannst den Text selbst schreiben oder mit KI generieren lassen.
-          </p>
-          <Textarea
-            value={formData.ueberMich || ''}
-            onChange={(e) => updateFormData({ ueberMich: e.target.value })}
-            placeholder="Ich bin... Besonders interessiere ich mich für... Meine Stärken sind..."
-            rows={6}
-            className="resize-none"
-          />
-          <p className="text-xs text-muted-foreground">
-            💡 Tipp: Dieser Text erscheint in deinem Lebenslauf und gibt Arbeitgebern einen persönlichen Einblick.
-          </p>
         </div>
       </Card>
 

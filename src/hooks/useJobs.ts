@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { JobsService } from "@/services/jobsService";
 import { toast } from "sonner";
 import { useAuth } from "./useAuth";
+import { useCompany } from "./useCompany";
 
 export function useCompanyJobs(companyId?: string) {
   return useQuery({
@@ -23,6 +24,7 @@ export function usePublicJobs(filters?: {
   employment_type?: string;
   profession_id?: string;
   location?: string;
+  work_mode?: string;
 }) {
   return useQuery({
     queryKey: ["public-jobs", filters],
@@ -32,12 +34,27 @@ export function usePublicJobs(filters?: {
 
 export function useCreateJob(companyId: string) {
   const queryClient = useQueryClient();
+  const { company } = useCompany();
 
   return useMutation({
     mutationFn: (jobData: any) => JobsService.createJob(companyId, jobData),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["company-jobs", companyId] });
       toast.success("Stellenanzeige erstellt");
+      
+      // Mark onboarding as complete after first job creation
+      if (company && !company.onboarding_completed) {
+        try {
+          const { supabase } = await import("@/integrations/supabase/client");
+          await supabase
+            .from('companies')
+            .update({ onboarding_completed: true })
+            .eq('id', companyId);
+        } catch (error) {
+          console.error('Error completing onboarding:', error);
+          // Don't show error to user, onboarding completion is not critical
+        }
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || "Fehler beim Erstellen");

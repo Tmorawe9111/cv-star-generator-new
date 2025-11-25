@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, Plus, X } from 'lucide-react';
 import type { ProfileCreationData, ValidationErrors } from '@/hooks/useProfileCreation';
+import { BRANCHES } from '@/lib/branches';
 
 interface ProfileDetailsStepProps {
   profileData: ProfileCreationData;
@@ -60,21 +61,11 @@ export const ProfileDetailsStep: React.FC<ProfileDetailsStepProps> = ({
     { value: 'arbeitssuchend', label: 'Arbeitssuchend' }
   ];
 
-  // Industry options
-  const branchenOptions = [
-    { value: 'handwerk', label: 'Handwerk' },
-    { value: 'industrie', label: 'Industrie & Produktion' },
-    { value: 'it', label: 'IT & Software' },
-    { value: 'gesundheit', label: 'Gesundheit & Pflege' },
-    { value: 'einzelhandel', label: 'Einzelhandel' },
-    { value: 'gastronomie', label: 'Gastronomie & Hotellerie' },
-    { value: 'buero', label: 'Büro & Verwaltung' },
-    { value: 'logistik', label: 'Logistik & Transport' },
-    { value: 'bildung', label: 'Bildung & Erziehung' },
-    { value: 'finanzen', label: 'Finanzen & Versicherung' },
-    { value: 'marketing', label: 'Marketing & Kommunikation' },
-    { value: 'soziales', label: 'Soziales & Non-Profit' }
-  ];
+  // Industry options - use centralized branches
+  const branchenOptions = BRANCHES.map(branch => ({
+    value: branch.key,
+    label: branch.label
+  }));
 
   return (
     <Card>

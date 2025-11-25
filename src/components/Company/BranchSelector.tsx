@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { BRANCHES } from "@/lib/branches";
 
 interface BranchSelectorProps {
   selectedBranches: string[];
@@ -6,15 +7,13 @@ interface BranchSelectorProps {
   error?: string;
 }
 
-const branches = [
-  { key: 'handwerk', emoji: '👷', title: 'Handwerk', desc: 'Bau, Elektro, Sanitär, KFZ und mehr' },
-  { key: 'it', emoji: '💻', title: 'IT', desc: 'Programmierung, Support, Systemadmin' },
-  { key: 'gesundheit', emoji: '🩺', title: 'Gesundheit', desc: 'Pflege, Therapie, medizinische Assistenz' },
-  { key: 'buero', emoji: '📊', title: 'Büro & Verwaltung', desc: 'Organisation, Kommunikation, Administration' },
-  { key: 'verkauf', emoji: '🛍️', title: 'Verkauf & Handel', desc: 'Beratung, Kundenservice, Einzelhandel' },
-  { key: 'gastronomie', emoji: '🍽️', title: 'Gastronomie', desc: 'Service, Küche, Hotellerie' },
-  { key: 'bau', emoji: '🏗️', title: 'Bau & Architektur', desc: 'Konstruktion, Planung, Ausführung' }
-];
+// Use centralized branch definitions
+const branches = BRANCHES.map(branch => ({
+  key: branch.key,
+  emoji: branch.emoji || '',
+  title: branch.label,
+  desc: branch.desc || ''
+}));
 
 export function BranchSelector({ selectedBranches, onSelectionChange, error }: BranchSelectorProps) {
   const toggleBranch = (branchKey: string) => {

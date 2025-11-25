@@ -9,11 +9,13 @@ import { VisibilityPrompt } from "@/components/modals/VisibilityPrompt";
 import { AddressConfirmModal } from "@/components/modals/AddressConfirmModal";
 import { VisibilityNudge, VisibilityInfoBanner } from "@/components/modals/VisibilityNudge";
 import { useEntryGates } from "@/hooks/useEntryGates";
+import { cn } from "@/lib/utils";
 
 export function AuthenticatedLayout() {
   const { profile, isLoading, user } = useAuth();
   const location = useLocation();
   const entryGates = useEntryGates();
+  const isJobsPage = location.pathname === '/community/jobs' || location.pathname === '/jobs';
 
   // Trigger entry gates on route change for dashboard/sidebar access
   React.useEffect(() => {
@@ -41,7 +43,6 @@ export function AuthenticatedLayout() {
     return <Navigate to="/auth" replace />;
   }
 
-
   return (
     <div className="min-h-screen flex w-full">
       {/* Sidebar - Mobile als Overlay, Desktop persistent */}
@@ -49,10 +50,14 @@ export function AuthenticatedLayout() {
       
       <main className="flex-1 flex flex-col">
         {/* Main Content - TopNavBar is now handled by UniversalLayout */}
-        <div className="flex-1 p-0 pb-20 md:pb-0">
-          <BaseLayout>
+        <div className={cn("flex-1 p-0 pb-20 md:pb-0", isJobsPage && "mt-0")}>
+          {isJobsPage ? (
             <Outlet />
-          </BaseLayout>
+          ) : (
+            <BaseLayout>
+              <Outlet />
+            </BaseLayout>
+          )}
         </div>
 
         {/* BottomNav nur Mobile */}

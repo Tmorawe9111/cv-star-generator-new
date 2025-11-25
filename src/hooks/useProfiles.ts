@@ -16,6 +16,8 @@ export function useProfiles(params: {
   return useQuery({
     queryKey: ["profiles-with-match", companyId, variant, limit, offset],
     enabled: !!companyId && enabled,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 5 * 60 * 1000, // 5 minutes
     queryFn: async (): Promise<Profile[]> => {
       const { data, error } = await supabase
         .rpc("profiles_with_match", {
@@ -27,29 +29,19 @@ export function useProfiles(params: {
 
       if (error) throw error;
 
-      // Calculate match scores dynamically using the new function
-      const profilesWithMatch = await Promise.all(
-        (data ?? []).map(async (r: any) => {
-          const { data: matchScore } = await supabase.rpc("calculate_match_score", {
-            p_profile_id: r.id,
-            p_company_id: companyId,
-          });
-
-          return {
-            id: r.id,
-            name: r.name,
-            avatar_url: r.avatar_url,
-            role: r.role,
-            city: r.city,
-            fs: r.fs,
-            seeking: r.seeking,
-            skills: r.skills || [],
-            match: matchScore ?? 0,
-          };
-        })
-      );
-
-      return profilesWithMatch;
+      // Return profiles without individual match score calculations for faster loading
+      // Match scores can be calculated on-demand or in batches if needed
+      return (data ?? []).map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        avatar_url: r.avatar_url,
+        role: r.role,
+        city: r.city,
+        fs: r.fs,
+        seeking: r.seeking,
+        skills: r.skills || [],
+        match: r.match_score ?? 0, // Use match_score from RPC if available
+      }));
     },
   });
 }

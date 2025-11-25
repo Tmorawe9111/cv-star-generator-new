@@ -56,7 +56,7 @@ export function FollowedCompanyCard({
             <Button 
               size="sm" 
               variant="secondary"
-              onClick={() => navigate(`/c/${companyId}`)}
+              onClick={() => navigate(`/companies/${companyId}`)}
             >
               Profil
             </Button>

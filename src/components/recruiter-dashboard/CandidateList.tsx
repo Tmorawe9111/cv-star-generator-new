@@ -25,9 +25,9 @@ interface CandidateListProps {
 
 function ListSkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <Skeleton key={index} className="h-64 rounded-2xl" />
+    <div className="grid gap-3 md:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Skeleton key={index} className="h-56 rounded-xl" />
       ))}
     </div>
   );
@@ -76,8 +76,8 @@ export function CandidateList({
 
   return (
     <Fragment>
-      <div className="grid gap-4 md:grid-cols-2">
-        {items.map(candidate => (
+      <div className="grid gap-3 md:grid-cols-3">
+        {items.slice(0, 6).map(candidate => (
           <CandidateCard
             key={candidate.id}
             data={candidate}

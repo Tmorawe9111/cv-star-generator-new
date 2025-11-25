@@ -2,19 +2,18 @@ import React from 'react';
 import { useCVForm } from '@/contexts/CVFormContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { BRANCHES } from '@/lib/branches';
 
 const CVStep1 = () => {
   const { formData, updateFormData, validationErrors } = useCVForm();
 
-  const branches = [
-    { key: 'handwerk', emoji: '👷', title: 'Handwerk', desc: 'Bau, Elektro, Sanitär, KFZ und mehr' },
-    { key: 'it', emoji: '💻', title: 'IT', desc: 'Programmierung, Support, Systemadmin' },
-    { key: 'gesundheit', emoji: '🩺', title: 'Gesundheit', desc: 'Pflege, Therapie, medizinische Assistenz' },
-    { key: 'buero', emoji: '📊', title: 'Büro & Verwaltung', desc: 'Organisation, Kommunikation, Administration' },
-    { key: 'verkauf', emoji: '🛍️', title: 'Verkauf & Handel', desc: 'Beratung, Kundenservice, Einzelhandel' },
-    { key: 'gastronomie', emoji: '🍽️', title: 'Gastronomie', desc: 'Service, Küche, Hotellerie' },
-    { key: 'bau', emoji: '🏗️', title: 'Bau & Architektur', desc: 'Konstruktion, Planung, Ausführung' }
-  ] as const;
+  // Use centralized branch definitions
+  const branches = BRANCHES.map(branch => ({
+    key: branch.key,
+    emoji: branch.emoji || '',
+    title: branch.label,
+    desc: branch.desc || ''
+  }));
 
   const statuses = [
     { key: 'schueler', emoji: '🧑‍🎓', title: 'Schüler:in', desc: 'Ich gehe noch zur Schule' },
@@ -36,11 +35,11 @@ const CVStep1 = () => {
         )}
         
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 md:gap-4">
           {branches.map((branch) => (
             <Card 
               key={branch.key}
-              className={`p-6 cursor-pointer transition-all hover:shadow-md ${
+              className={`p-4 md:p-5 cursor-pointer transition-all hover:shadow-md min-w-0 overflow-hidden ${
                 formData.branche === branch.key 
                   ? 'ring-2 ring-primary bg-primary/5' 
                   : validationErrors.branche 
@@ -49,10 +48,10 @@ const CVStep1 = () => {
               }`}
               onClick={() => updateFormData({ branche: branch.key })}
             >
-              <div className="text-center">
-                <div className="text-3xl mb-2">{branch.emoji}</div>
-                <h3 className="font-semibold mb-1">{branch.title}</h3>
-                <p className="text-sm text-muted-foreground">{branch.desc}</p>
+              <div className="text-center min-w-0 w-full">
+                <div className="text-2xl md:text-3xl mb-2">{branch.emoji}</div>
+                <h3 className="text-xs md:text-sm font-semibold mb-1.5 px-1 break-words hyphens-auto">{branch.title}</h3>
+                <p className="text-[10px] md:text-xs text-muted-foreground leading-snug px-1 break-words">{branch.desc}</p>
               </div>
             </Card>
           ))}
@@ -71,11 +70,11 @@ const CVStep1 = () => {
         )}
         
         
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
           {statuses.map((status) => (
             <Card 
               key={status.key}
-              className={`p-6 cursor-pointer transition-all hover:shadow-md ${
+              className={`p-4 md:p-5 cursor-pointer transition-all hover:shadow-md min-w-0 overflow-hidden ${
                 formData.status === status.key 
                   ? 'ring-2 ring-primary bg-primary/5' 
                   : validationErrors.status 
@@ -84,10 +83,10 @@ const CVStep1 = () => {
               }`}
               onClick={() => updateFormData({ status: status.key })}
             >
-              <div className="text-center">
-                <div className="text-3xl mb-2">{status.emoji}</div>
-                <h3 className="font-semibold mb-1">{status.title}</h3>
-                <p className="text-sm text-muted-foreground">{status.desc}</p>
+              <div className="text-center min-w-0 w-full">
+                <div className="text-2xl md:text-3xl mb-2">{status.emoji}</div>
+                <h3 className="text-xs md:text-sm font-semibold mb-1.5 px-1 break-words hyphens-auto">{status.title}</h3>
+                <p className="text-[10px] md:text-xs text-muted-foreground leading-snug px-1 break-words">{status.desc}</p>
               </div>
             </Card>
           ))}

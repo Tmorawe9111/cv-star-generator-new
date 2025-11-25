@@ -7,6 +7,9 @@ import { OnboardingPopup } from './OnboardingPopup';
 
 interface TargetGroupSelectorProps {
   onNext: (groups: string[]) => void;
+  onSkip?: () => void;
+  stepNumber?: number;
+  totalSteps?: number;
 }
 
 const targetGroups = [
@@ -15,7 +18,7 @@ const targetGroups = [
   { id: 'gesellen', label: 'Gesellen/Fachkräfte', desc: 'Fertig ausgebildete Fachkräfte', emoji: '⚒️' }
 ];
 
-export function TargetGroupSelector({ onNext }: TargetGroupSelectorProps) {
+export function TargetGroupSelector({ onNext, onSkip, stepNumber, totalSteps }: TargetGroupSelectorProps) {
   const [selected, setSelected] = useState<string[]>([]);
 
   const toggleGroup = (groupId: string) => {
@@ -27,11 +30,11 @@ export function TargetGroupSelector({ onNext }: TargetGroupSelectorProps) {
   };
 
   return (
-    <OnboardingPopup>
+    <OnboardingPopup onSkip={onSkip} showSkip={!!onSkip} stepNumber={stepNumber} totalSteps={totalSteps}>
       <div className="p-8">
         <h2 className="text-3xl font-bold mb-2">Wen suchen Sie?</h2>
         <p className="text-muted-foreground mb-6">
-          Wählen Sie die Zielgruppen aus, die Sie mit Norothy erreichen möchten (Mehrfachauswahl möglich)
+          Wählen Sie die Zielgruppen aus, die Sie mit BeVisiblle erreichen möchten (Mehrfachauswahl möglich)
         </p>
 
         <div className="space-y-3 mb-6">
@@ -55,14 +58,25 @@ export function TargetGroupSelector({ onNext }: TargetGroupSelectorProps) {
           ))}
         </div>
 
-        <Button
-          onClick={() => onNext(selected)}
-          disabled={selected.length === 0}
-          className="w-full"
-          size="lg"
-        >
-          Weiter
-        </Button>
+        <div className="flex gap-3">
+          {onSkip && (
+            <Button
+              variant="outline"
+              onClick={onSkip}
+              className="flex-1"
+            >
+              Überspringen
+            </Button>
+          )}
+          <Button
+            onClick={() => onNext(selected)}
+            disabled={selected.length === 0}
+            className={onSkip ? "flex-1" : "w-full"}
+            size="lg"
+          >
+            Weiter
+          </Button>
+        </div>
       </div>
     </OnboardingPopup>
   );

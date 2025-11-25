@@ -5,6 +5,56 @@ type CVServerHtmlParams = {
 
 const sanitize = (value?: string) => (value ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+/**
+ * Sortiert Berufserfahrung chronologisch:
+ * 1. Jobs mit "bis heute" kommen zuerst (neueste zuerst basierend auf Startdatum)
+ * 2. Dann die anderen Jobs nach Enddatum sortiert (neueste zuerst)
+ * 3. Falls kein Enddatum, nach Startdatum (neueste zuerst)
+ */
+function sortBerufserfahrung(berufserfahrung: any[]): any[] {
+  if (!berufserfahrung || berufserfahrung.length === 0) return berufserfahrung;
+
+  const parseDate = (dateStr: string): { year: number; month: number } | null => {
+    if (!dateStr || dateStr === 'heute' || dateStr === '0000') return null;
+    
+    const parts = dateStr.split('-');
+    const year = parseInt(parts[0] || '0');
+    const month = parts[1] ? parseInt(parts[1]) : 1;
+    
+    if (isNaN(year) || year === 0) return null;
+    return { year, month: isNaN(month) ? 1 : month };
+  };
+
+  const getSortValue = (job: any): number => {
+    const isCurrent = job.zeitraum_bis === 'heute';
+    const vonDate = parseDate(job.zeitraum_von || '');
+    const bisDate = parseDate(job.zeitraum_bis || '');
+
+    if (isCurrent) {
+      if (vonDate) {
+        return 1000000 + (vonDate.year * 100 + vonDate.month);
+      }
+      return 1000000;
+    }
+
+    if (bisDate) {
+      return bisDate.year * 100 + bisDate.month;
+    }
+
+    if (vonDate) {
+      return vonDate.year * 100 + vonDate.month;
+    }
+
+    return 0;
+  };
+
+  return [...berufserfahrung].sort((a, b) => {
+    const aValue = getSortValue(a);
+    const bValue = getSortValue(b);
+    return bValue - aValue;
+  });
+}
+
 export async function buildClassicHTML({ layout, data }: CVServerHtmlParams) {
   // TODO: Add support for additional layouts based on `layout`
   return `<!doctype html>
@@ -70,7 +120,7 @@ export async function buildClassicHTML({ layout, data }: CVServerHtmlParams) {
         <div style="margin-bottom:8mm;break-inside:avoid;">
           <h3 style="font-family:'Playfair Display',serif;font-size:12pt;font-weight:700;letter-spacing:.2em;margin:0 0 3mm 0;color:#0f172a;">BERUFSERFAHRUNG</h3>
           <div style="display:flex;flex-direction:column;gap:5mm;">
-            ${data.berufserfahrung.map((job: any) => `
+            ${sortBerufserfahrung(data.berufserfahrung || []).map((job: any) => `
             <div style="break-inside:avoid;">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                 <div>

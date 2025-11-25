@@ -10,6 +10,11 @@ interface Company {
   description?: string;
   size_range?: string;
   industry?: string;
+  target_groups?: string[];
+  selected_plan_id?: string;
+  active_plan_id?: string;
+  plan_interval?: string;
+  next_billing_date?: string;
   founded_year?: number;
   main_location?: string;
   additional_locations?: any;
@@ -25,6 +30,15 @@ interface Company {
   primary_email?: string;
   phone?: string;
   contact_person?: string;
+  contact_position?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  // Address fields
+  street?: string;
+  house_number?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
   created_at: string;
   updated_at: string;
   // Matching profile fields
@@ -34,6 +48,8 @@ interface Company {
   matching_nice_text?: string;
   location_radius_km?: number;
   location_id?: number;
+  // Onboarding fields
+  onboarding_completed?: boolean | null;
 }
 
 interface CompanyUser {
@@ -83,11 +99,14 @@ export const useCompany = () => {
       setLoading(true);
       setError(null);
 
+      // Only select needed fields for better performance
+      // Note: contact_email and contact_phone may not exist until migration is run
+      // TODO: Add contact_email, contact_phone back after running migration 20250120000000_add_contact_fields_to_companies.sql
       const { data: companyUserData, error: companyUserError } = await supabase
         .from('company_users')
         .select(`
-          *,
-          companies (*)
+          id, user_id, company_id, role, invited_at, accepted_at,
+          companies (id, name, logo_url, header_image, industry, main_location, description, website_url, active_plan_id, plan_interval, subscription_id, active_tokens, total_tokens_ever, max_seats, max_locations, max_industries, next_billing_date, country, contact_person, contact_position, contact_email, contact_phone, onboarding_completed, street, house_number, postal_code, city)
         `)
         .eq('user_id', user?.id)
         .maybeSingle();
@@ -123,7 +142,12 @@ export const useCompany = () => {
 
       if (error) throw error;
 
+      // Update local state immediately
       setCompany({ ...company, ...updates });
+      
+      // Reload company data from database to ensure consistency
+      await loadCompanyData();
+      
       return { success: true };
     } catch (err: any) {
       console.error('Error updating company:', err);

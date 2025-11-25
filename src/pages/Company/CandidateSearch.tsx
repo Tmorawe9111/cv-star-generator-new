@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { searchCandidates, unlockCandidate } from "@/lib/api/applications";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizePreviewProfile } from "@/utils/sanitizePreviewProfile";
 
 const parseJsonField = (field: any) => {
   if (!field) return null;
@@ -32,6 +33,8 @@ export default function CandidateSearch() {
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [dismissedCandidateIds, setDismissedCandidateIds] = useState<Set<string>>(new Set());
+  const [unlockedCandidateIds, setUnlockedCandidateIds] = useState<Set<string>>(new Set());
 
   const { data: candidates, isLoading, refetch } = useQuery({
     queryKey: ["search-candidates", company?.id, searchQuery],
@@ -50,6 +53,27 @@ export default function CandidateSearch() {
     enabled: !!company?.id,
   });
 
+  const loadUnlockedCandidateIds = async (companyId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("company_candidates")
+        .select("candidate_id")
+        .eq("company_id", companyId)
+        .not("unlocked_at", "is", null);
+
+      if (error) throw error;
+      setUnlockedCandidateIds(new Set((data || []).map((row) => row.candidate_id)));
+    } catch (error) {
+      console.error("Error loading unlocked candidate ids:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (company?.id) {
+      loadUnlockedCandidateIds(company.id);
+    }
+  }, [company?.id]);
+
   const handleUnlock = async (candidateId: string) => {
     if (!company?.id) return;
 
@@ -64,7 +88,7 @@ export default function CandidateSearch() {
         description: "Sie können nun die Kontaktdaten einsehen.",
       });
 
-      refetch();
+      await Promise.all([refetch(), loadUnlockedCandidateIds(company.id)]);
       navigate(`/company/profile/${candidateId}`, {
         state: {
           from: { pathname: location.pathname, search: location.search },
@@ -84,10 +108,9 @@ export default function CandidateSearch() {
     setPreviewOpen(true);
     setLoadingProfile(true);
 
-    setSelectedProfile({
-      ...profile,
-      is_unlocked: profile.is_unlocked || false,
-    });
+    const initialUnlocked = profile.is_unlocked || false;
+    const initialPreview = sanitizePreviewProfile({ ...profile }, initialUnlocked);
+    setSelectedProfile(initialPreview);
 
     try {
       const { data: fullProfile, error } = await supabase
@@ -121,10 +144,8 @@ export default function CandidateSearch() {
         isUnlocked = !!unlockData;
       }
 
-      setSelectedProfile({
-        ...parsedProfile,
-        is_unlocked: isUnlocked,
-      });
+      const sanitizedProfile = sanitizePreviewProfile(parsedProfile, isUnlocked);
+      setSelectedProfile(sanitizedProfile);
     } catch (error: any) {
       console.error("Error loading profile:", error);
       toast({
@@ -135,6 +156,30 @@ export default function CandidateSearch() {
     } finally {
       setLoadingProfile(false);
     }
+  };
+
+  const visibleCandidates = (candidates || []).filter((candidate: any) => {
+    if (dismissedCandidateIds.has(candidate.id)) {
+      return false;
+    }
+    const candidateKey = candidate.user_id || candidate.id;
+    if (candidateKey && unlockedCandidateIds.has(candidateKey)) {
+      return false;
+    }
+    return true;
+  });
+
+  const handleMarkNotFit = async (candidateId: string) => {
+    setDismissedCandidateIds((prev) => {
+      const next = new Set(prev);
+      next.add(candidateId);
+      return next;
+    });
+    setPreviewOpen(false);
+    toast({
+      title: "Kandidat ausgeblendet",
+      description: "Dieser Kandidat wird nicht mehr angezeigt.",
+    });
   };
 
   return (
@@ -169,15 +214,15 @@ export default function CandidateSearch() {
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
-        ) : !candidates || candidates.length === 0 ? (
+        ) : visibleCandidates.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">Keine Kandidaten gefunden. Versuchen Sie eine andere Suche.</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {candidates.map((candidate: any) => (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
+            {visibleCandidates.map((candidate: any) => (
               <UnifiedCandidateCard
                 key={candidate.id}
                 candidate={{
@@ -220,6 +265,11 @@ export default function CandidateSearch() {
             });
           }
         }}
+        onMarkNotFit={
+          selectedProfile?.id
+            ? () => handleMarkNotFit(selectedProfile.id)
+            : undefined
+        }
       />
     </div>
   );

@@ -9,12 +9,14 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import MarketplaceComposer from '@/components/marketplace/MarketplaceComposer';
-import { Plus, Check, X, UserPlus } from 'lucide-react';
+import { Plus, Check, X, UserPlus, Search } from 'lucide-react';
 import { useSearchParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useConnections, type ConnectionState } from '@/hooks/useConnections';
 import { toast } from '@/hooks/use-toast';
 import { useFollowCompany } from '@/hooks/useFollowCompany';
+import { openSearchMode } from '@/lib/event-bus';
+import { Input } from '@/components/ui/input';
 
 // Simple types for the new sections
  type Person = { id: string; vorname?: string | null; nachname?: string | null; avatar_url?: string | null };
@@ -196,6 +198,23 @@ React.useEffect(() => {
 
   return (
     <div className="min-h-screen flex flex-col pb-20 md:pb-0">
+      {/* Mobile: Search Bar - clickable to open search mode */}
+      <div 
+        className="md:hidden sticky top-0 z-50 bg-white border-b border-gray-200"
+        onClick={() => openSearchMode()}
+      >
+        <div className="px-3 py-3">
+          <div className="relative">
+            <Input 
+              placeholder="Suchen..." 
+              readOnly
+              value={q}
+              className="pr-10 h-10 text-sm cursor-pointer bg-gray-50"
+            />
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          </div>
+        </div>
+      </div>
 
       {/* Chips under header */}
       <div className="border-b">

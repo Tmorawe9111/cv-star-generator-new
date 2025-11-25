@@ -1,8 +1,11 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, MapPin, Car, Briefcase, Mail, Phone, Download, Eye, Unlock } from "lucide-react";
+import { Heart, MapPin, Car, Briefcase, Mail, Phone, Download, Eye, Unlock, User, Lock, Calendar } from "lucide-react";
 import { useState } from "react";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface Candidate {
   id: string;
@@ -30,11 +33,15 @@ interface Application {
   candidates: Candidate;
   linked_job_ids?: string[];
   is_virtual?: boolean;
+  created_at?: string;
+  job_id?: string | null;
+  job_title?: string | null;
 }
 
 type ApplicationCandidateCardProps = {
   application: Application;
   onViewProfile: () => void;
+  onUnlock?: () => void;
   onToggleFavorite?: () => void;
   isFavorite?: boolean;
   linkedJobTitles?: Array<{ id: string; title: string }>;
@@ -43,6 +50,7 @@ type ApplicationCandidateCardProps = {
 export function ApplicationCandidateCard({
   application,
   onViewProfile,
+  onUnlock,
   onToggleFavorite,
   isFavorite: initialFavorite = false,
   linkedJobTitles = [],
@@ -63,6 +71,7 @@ export function ApplicationCandidateCard({
     }
   };
 
+  // Locked state: nur Vorname, unlocked: vollständiger Name
   const displayName = isUnlocked 
     ? (candidate.full_name || `${candidate.vorname || ""} ${candidate.nachname || ""}`.trim())
     : (candidate.vorname || "Kandidat");
@@ -70,15 +79,41 @@ export function ApplicationCandidateCard({
   const skills = candidate.skills || [];
   const seeking = candidate.bio_short || "";
 
+  // Format application date
+  const formattedApplicationDate = application.created_at 
+    ? format(new Date(application.created_at), "dd.MM.yyyy", { locale: de })
+    : null;
+
   return (
-    <article className="flex h-full w-full flex-col rounded-xl border bg-card p-3 shadow-sm transition-shadow hover:shadow-md">
+    <article className={cn(
+      "flex h-full w-full flex-col rounded-xl border bg-card p-3 shadow-sm transition-shadow hover:shadow-md",
+      !isUnlocked && "border-orange-300 ring-2 ring-orange-200"
+    )}>
+      {/* Application Date Badge */}
+      {formattedApplicationDate && (
+        <Badge variant="default" className="mb-2 bg-green-600 text-white w-fit">
+          <Calendar className="h-3 w-3 mr-1" />
+          Beworben am {formattedApplicationDate}
+        </Badge>
+      )}
+
       {/* 1) Header (compact) */}
       <div className="flex min-h-[48px] items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
-            <AvatarImage src={candidate.profile_image} />
-            <AvatarFallback className="text-sm">{displayName.charAt(0)}</AvatarFallback>
-          </Avatar>
+          <div className={!isUnlocked ? "rounded-full ring-2 ring-orange-400 ring-offset-2" : ""}>
+            <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
+              {isUnlocked ? (
+                <>
+                  <AvatarImage src={candidate.profile_image} />
+                  <AvatarFallback className="text-sm">{displayName.charAt(0)}</AvatarFallback>
+                </>
+              ) : (
+                <AvatarFallback className="bg-gradient-to-br from-blue-100 to-blue-200">
+                  <User className="h-5 w-5 text-blue-600" />
+                </AvatarFallback>
+              )}
+            </Avatar>
+          </div>
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold text-foreground">{displayName}</h3>
             {candidate.title && <div className="truncate text-xs text-muted-foreground">{candidate.title}</div>}
@@ -182,15 +217,28 @@ export function ApplicationCandidateCard({
 
       {/* 5) Actions (compact buttons) */}
       <div className="mt-2 flex h-[44px] items-center gap-2">
-        <Button variant="outline" size="sm" className="h-9 flex-1 px-3 text-xs" onClick={onViewProfile}>
-          <Eye className="mr-1 h-4 w-4" />
-          {isUnlocked ? "Profil ansehen" : "Vorschau"}
-        </Button>
-        {isUnlocked && candidate.cv_url && (
-          <Button variant="outline" size="sm" className="h-9 flex-1 px-3 text-xs" onClick={handleDownloadCV}>
-            <Download className="mr-1 h-4 w-4" />
-            CV Download
+        {!isUnlocked ? (
+          <Button 
+            size="sm" 
+            className="h-9 flex-1 px-3 text-xs bg-blue-600 hover:bg-blue-700" 
+            onClick={onUnlock || onViewProfile}
+          >
+            <Lock className="mr-1 h-4 w-4" />
+            Freischalten (1 Token)
           </Button>
+        ) : (
+          <>
+            <Button variant="outline" size="sm" className="h-9 flex-1 px-3 text-xs" onClick={onViewProfile}>
+              <Eye className="mr-1 h-4 w-4" />
+              Profil ansehen
+            </Button>
+            {candidate.cv_url && (
+              <Button variant="outline" size="sm" className="h-9 flex-1 px-3 text-xs" onClick={handleDownloadCV}>
+                <Download className="mr-1 h-4 w-4" />
+                CV Download
+              </Button>
+            )}
+          </>
         )}
       </div>
 

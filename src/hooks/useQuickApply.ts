@@ -13,9 +13,9 @@ export function useQuickApply(jobId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("applications")
-        .select("id")
-        .eq("candidate_id", user!.id)
+        .select("id, candidates!inner(user_id)")
         .eq("job_id", jobId)
+        .eq("candidates.user_id", user!.id)
         .maybeSingle();
 
       if (error) throw error;
@@ -165,6 +165,19 @@ export function useQuickApply(jobId: string) {
 
         if (candidateError) throw candidateError;
         candidateId = newCandidate.id;
+      }
+
+      // Prevent duplicate applications for same job
+      const { data: existingApplication } = await supabase
+        .from("applications")
+        .select("id, status")
+        .eq("company_id", job.company_id)
+        .eq("candidate_id", candidateId)
+        .eq("job_id", jobId)
+        .maybeSingle();
+
+      if (existingApplication) {
+        throw new Error("Du hast dich bereits auf diese Stelle beworben.");
       }
 
       // Create application

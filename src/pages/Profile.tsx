@@ -147,11 +147,54 @@ const Profile = () => {
       setIsSaving(false);
     }
   };
+  // Helper function to parse JSONB fields
+  const parseJsonField = (field: any) => {
+    if (field === null || field === undefined) return null;
+    if (typeof field === 'string') {
+      try {
+        return JSON.parse(field);
+      } catch {
+        return field;
+      }
+    }
+    if (Array.isArray(field)) return field;
+    return field;
+  };
+
   useEffect(() => {
     if (authProfile) {
-      setProfile({
-        ...authProfile
+      // Parse JSONB fields that might come as strings from the database
+      const parsedProfile = {
+        ...authProfile,
+        berufserfahrung: parseJsonField(authProfile.berufserfahrung) || [],
+        schulbildung: parseJsonField(authProfile.schulbildung) || [],
+        faehigkeiten: parseJsonField(authProfile.faehigkeiten) || [],
+        sprachen: parseJsonField(authProfile.sprachen) || [],
+        job_search_preferences: parseJsonField(authProfile.job_search_preferences) || [],
+      };
+      
+      // Debug: Log parsed profile data
+      console.log('✅ Profile parsed for display:', {
+        id: parsedProfile.id,
+        vorname: parsedProfile.vorname,
+        nachname: parsedProfile.nachname,
+        berufserfahrung: parsedProfile.berufserfahrung,
+        schulbildung: parsedProfile.schulbildung,
+        faehigkeiten: parsedProfile.faehigkeiten,
+        sprachen: parsedProfile.sprachen,
+        uebermich: parsedProfile.uebermich,
+        branche: parsedProfile.branche,
+        status: parsedProfile.status,
+        headline: parsedProfile.headline,
+        cover_image_url: parsedProfile.cover_image_url,
+        cv_url: parsedProfile.cv_url,
+        account_created: parsedProfile.account_created,
+        profile_complete: parsedProfile.profile_complete,
       });
+      
+      setProfile(parsedProfile);
+    } else {
+      console.warn('⚠️ authProfile is null or undefined');
     }
   }, [authProfile]);
 
@@ -205,7 +248,7 @@ const Profile = () => {
       {/* Main Content */}
       <div className="px-2 sm:px-3 md:px-6 py-2 md:py-4">
         <div className="max-w-screen-2xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3 md:gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3 md:gap-4 lg:gap-6">
             {/* Main Content */}
             <main className="lg:col-span-8">
               <div className="max-w-[560px] mx-auto lg:max-w-none space-y-2 sm:space-y-3 md:space-y-4">
@@ -327,18 +370,34 @@ const Profile = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-1 text-sm text-muted-foreground">
+                      <div className="space-y-2 text-sm text-muted-foreground">
                         {profile?.email && (
-                          <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> <span>{profile.email}</span></div>
+                          <div className="flex items-center gap-2"><Mail className="h-4 w-4 flex-shrink-0" /> <span>{profile.email}</span></div>
                         )}
                         {profile?.telefon && (
-                          <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> <span>{profile.telefon}</span></div>
+                          <div className="flex items-center gap-2"><Phone className="h-4 w-4 flex-shrink-0" /> <span>{profile.telefon}</span></div>
                         )}
-                        {(profile?.ort || profile?.strasse) && (
-                          <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /> <span>{[profile?.strasse && `${profile.strasse} ${profile.hausnummer || ''}`.trim(), profile?.plz && profile?.ort && `${profile.plz} ${profile.ort}`].filter(Boolean).join(' • ') || profile?.ort}</span></div>
+                        {(profile?.strasse || profile?.hausnummer || profile?.plz || profile?.ort) && (
+                          <div className="flex items-start gap-2">
+                            <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              {profile?.strasse && profile?.hausnummer && (
+                                <div>{profile.strasse} {profile.hausnummer}</div>
+                              )}
+                              {profile?.strasse && !profile?.hausnummer && (
+                                <div>{profile.strasse}</div>
+                              )}
+                              {(profile?.plz || profile?.ort) && (
+                                <div>{[profile?.plz, profile?.ort].filter(Boolean).join(' ')}</div>
+                              )}
+                              {profile?.country && (
+                                <div className="text-xs text-muted-foreground/80">{profile.country}</div>
+                              )}
+                            </div>
+                          </div>
                         )}
                         {typeof profile?.has_drivers_license === 'boolean' && (
-                          <div className="flex items-center gap-2"><Car className="h-4 w-4" /> <span>Führerschein: {profile.has_drivers_license ? (profile?.driver_license_class ? `Ja, Klasse ${profile.driver_license_class}` : 'Ja') : 'Nein'}</span></div>
+                          <div className="flex items-center gap-2"><Car className="h-4 w-4 flex-shrink-0" /> <span>Führerschein: {profile.has_drivers_license ? (profile?.driver_license_class ? `Ja, Klasse ${profile.driver_license_class}` : 'Ja') : 'Nein'}</span></div>
                         )}
                       </div>
                     )}

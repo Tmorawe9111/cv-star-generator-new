@@ -19,6 +19,7 @@ export type EmploymentRequest = {
     vorname?: string | null;
     nachname?: string | null;
     headline?: string | null;
+    avatar_url?: string | null;
   };
 };
 
@@ -94,7 +95,7 @@ export function useCompanyEmploymentRequests(companyId?: string) {
       if (userIds.length > 0) {
         const { data: profiles, error: pErr } = await supabase
           .from("profiles")
-          .select("id, vorname, nachname, headline")
+          .select("id, vorname, nachname, headline, avatar_url")
           .in("id", userIds);
         if (pErr) console.error("Error loading profiles for employment requests:", pErr);
         profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
@@ -113,16 +114,91 @@ export function useUpdateEmploymentRequest() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ requestId, status }: { requestId: string; status: 'accepted' | 'declined' }) => {
-      const { error } = await supabase
+    mutationFn: async ({ requestId, status }: { requestId: string; status: "accepted" | "declined" }) => {
+      const {
+        data: request,
+        error: loadError,
+      } = await supabase
         .from("company_employment_requests")
-        .update({ 
-          status, 
-          confirmed_by: (await supabase.auth.getUser()).data.user?.id 
-        })
+        .select("id, company_id, user_id")
+        .eq("id", requestId)
+        .maybeSingle();
+
+      if (loadError) throw loadError;
+      if (!request) throw new Error("Beschäftigungsanfrage wurde nicht gefunden");
+
+      const currentUser = (await supabase.auth.getUser()).data.user?.id ?? null;
+
+      let confirmedBy: string | null = null;
+      if (currentUser) {
+        const { data: profileRow } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", currentUser)
+          .maybeSingle();
+        if (profileRow?.id) {
+          confirmedBy = profileRow.id;
+        }
+      }
+
+      const updatePayload: Record<string, any> = { status };
+      if (confirmedBy) {
+        updatePayload.confirmed_by = confirmedBy;
+      }
+
+      const { error: updateError } = await supabase
+        .from("company_employment_requests")
+        .update(updatePayload)
         .eq("id", requestId);
-      
-      if (error) throw error;
+
+      if (updateError) throw updateError;
+
+      if (status === "accepted") {
+        // prüfen ob schon Mitglied
+        const { data: existing } = await supabase
+          .from("company_users")
+          .select("id")
+          .eq("company_id", request.company_id)
+          .eq("user_id", request.user_id)
+          .maybeSingle();
+
+        if (!existing) {
+          // optional: Sitzlimit prüfen
+          const [{ data: seatsInfo }, { count: memberCount }] = await Promise.all([
+            supabase
+              .from("companies")
+              .select("seats")
+              .eq("id", request.company_id)
+              .maybeSingle(),
+            supabase
+              .from("company_users")
+              .select("id", { count: "exact", head: true })
+              .eq("company_id", request.company_id),
+          ]);
+
+          const seatLimit = seatsInfo?.seats ?? null;
+          if (seatLimit != null && memberCount && memberCount >= seatLimit) {
+            throw new Error("Sitzlimit erreicht. Bitte einen Sitz frei machen oder erhöhen.");
+          }
+
+          const { error: insertError } = await supabase.from("company_users").insert({
+            company_id: request.company_id,
+            user_id: request.user_id,
+            role: "viewer",
+            invited_at: new Date().toISOString(),
+            accepted_at: new Date().toISOString(),
+          });
+
+          if (insertError) throw insertError;
+        }
+      } else if (status === "declined") {
+        // Falls bereits ein Eintrag existiert, entfernen
+        await supabase
+          .from("company_users")
+          .delete()
+          .eq("company_id", request.company_id)
+          .eq("user_id", request.user_id);
+      }
     },
     onSuccess: () => {
       // Invalidate all related queries for live updates
@@ -131,7 +207,9 @@ export function useUpdateEmploymentRequest() {
       queryClient.invalidateQueries({ queryKey: ["profiles_public"] });
       queryClient.invalidateQueries({ queryKey: ["company_people_public"] });
       queryClient.invalidateQueries({ queryKey: ["home-feed"] });
-      
+      queryClient.invalidateQueries({ queryKey: ["company-users"] });
+      queryClient.invalidateQueries({ queryKey: ["company-settings-team"] });
+
       toast.success("Anfrage erfolgreich bearbeitet");
     },
     onError: (error) => {

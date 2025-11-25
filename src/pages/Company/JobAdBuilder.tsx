@@ -9,6 +9,9 @@ import { toast } from 'sonner';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '@/hooks/useCompany';
+import { useJobLimits } from '@/hooks/useJobLimits';
+import { JobLimitUpgradeModal } from '@/components/Company/jobs/JobLimitUpgradeModal';
+import { PlanKey } from '@/lib/billing-v2/plans';
 
 const BlueBtn = (p: any) => (
   <Button {...p} className={`bg-primary hover:bg-primary/90 ${p.className || ''}`}>
@@ -58,6 +61,8 @@ interface FormData {
 export default function JobAdBuilder() {
   const navigate = useNavigate();
   const { company } = useCompany();
+  const { data: jobLimits } = useJobLimits();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [step, setStep] = useState(1);
   const [industries, setIndustries] = useState<any[]>([]);
   const [skills, setSkills] = useState<any[]>([]);
@@ -204,6 +209,15 @@ export default function JobAdBuilder() {
       toast.error('Bitte alle Pflichtfelder ausfüllen.');
       return;
     }
+    
+    // Check job limits before publishing (drafts are always allowed)
+    if (status === 'published') {
+      if (!jobLimits?.canCreate) {
+        setShowUpgradeModal(true);
+        return;
+      }
+    }
+    
     const payload = { ...form, job_family: industries.find((i) => i.id === form.industry_id)?.name || '' };
     const { data, error } = await supabase.rpc('upsert_job_ad_with_requirements', { p_job: payload, p_status: status });
     if (error) {
@@ -212,6 +226,20 @@ export default function JobAdBuilder() {
     }
     set('id', data);
     toast.success(status === 'published' ? 'Job veröffentlicht.' : 'Entwurf gespeichert.');
+    
+    // After successful job creation, mark onboarding as complete if not already
+    if (status === 'published' && company && !company.onboarding_completed) {
+      try {
+        await supabase
+          .from('companies')
+          .update({ onboarding_completed: true })
+          .eq('id', company.id);
+      } catch (error) {
+        console.error('Error completing onboarding:', error);
+        // Don't block navigation if this fails
+      }
+    }
+    
     if (status === 'published') {
       navigate('/company/jobs');
     }
@@ -223,7 +251,8 @@ export default function JobAdBuilder() {
   }, [form.requirements, skills]);
 
   return (
-    <div className='mx-auto max-w-4xl p-6 space-y-6 pb-20 md:pb-6'>
+    <>
+      <div className='mx-auto max-w-4xl p-6 space-y-6 pb-20 md:pb-6'>
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-3'>
           <Button variant="ghost" size="sm" onClick={() => navigate('/company/jobs')}>
@@ -478,6 +507,16 @@ export default function JobAdBuilder() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+      
+      <JobLimitUpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        currentPlan={(company?.selected_plan_id as PlanKey) || null}
+        currentCount={jobLimits?.currentCount || 0}
+        maxAllowed={jobLimits?.maxAllowed || 0}
+        reason={jobLimits?.reason || "free"}
+      />
+    </>
   );
 }

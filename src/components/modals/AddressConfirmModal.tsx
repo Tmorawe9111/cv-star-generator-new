@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { PLZOrtSelector } from '@/components/shared/PLZOrtSelector';
+import { LocationAutocomplete } from '@/components/Company/LocationAutocomplete';
+import { parseLocation } from '@/lib/location-utils';
+import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface AddressData {
   zip: string;
@@ -23,32 +26,109 @@ interface AddressConfirmModalProps {
 }
 
 export function AddressConfirmModal({ open, onOpenChange, initialData, onConfirm }: AddressConfirmModalProps) {
+  // Combine zip and city into location string for LocationAutocomplete
+  const getLocationString = (zip: string, city: string) => {
+    if (zip && city) return `${zip} ${city}`;
+    if (city) return city;
+    return '';
+  };
+
+  const [locationString, setLocationString] = useState(
+    getLocationString(initialData.zip, initialData.city)
+  );
   const [data, setData] = useState<AddressData>(initialData);
   const [loading, setLoading] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleZipChange = (zip: string) => {
-    const cleanZip = zip.replace(/\D/g, '').slice(0, 5);
-    setData(prev => ({ ...prev, zip: cleanZip }));
+  // Update location string when zip or city changes
+  React.useEffect(() => {
+    setLocationString(getLocationString(data.zip, data.city));
+  }, [data.zip, data.city]);
+
+  const handleLocationChange = (value: string) => {
+    setLocationString(value);
+    const { postalCode, city } = parseLocation(value);
+    setData(prev => ({ 
+      ...prev, 
+      zip: postalCode, 
+      city: city || value 
+    }));
+    // Reset validation error when user changes input
+    setValidationError(null);
+  };
+
+  // Validate PLZ against database
+  const validatePostalCode = async (postalCode: string, city: string): Promise<boolean> => {
+    if (!postalCode || postalCode.trim() === '') {
+      setValidationError('Bitte geben Sie eine PLZ ein.');
+      return false;
+    }
+
+    if (!city || city.trim() === '') {
+      setValidationError('Bitte geben Sie eine Stadt ein.');
+      return false;
+    }
+
+    setValidating(true);
+    try {
+      // Check if PLZ exists in postal_codes table
+      const { data: postalData, error } = await supabase
+        .from('postal_codes')
+        .select('plz, ort')
+        .eq('plz', postalCode.trim())
+        .limit(1);
+
+      if (error) {
+        console.error('Error validating postal code:', error);
+        setValidationError('Fehler bei der Validierung. Bitte versuchen Sie es erneut.');
+        return false;
+      }
+
+      if (!postalData || postalData.length === 0) {
+        setValidationError(`Die PLZ ${postalCode} existiert nicht in unserer Datenbank. Bitte geben Sie eine gültige PLZ ein.`);
+        return false;
+      }
+
+      // Check if city matches (case-insensitive)
+      const postalCity = postalData[0].ort?.toLowerCase().trim();
+      const inputCity = city.toLowerCase().trim();
+      
+      if (postalCity && !postalCity.includes(inputCity) && !inputCity.includes(postalCity)) {
+        setValidationError(`Die PLZ ${postalCode} gehört nicht zu ${city}. Bitte korrigieren Sie die Eingabe.`);
+        return false;
+      }
+
+      // Validation successful
+      setValidationError(null);
+      return true;
+    } catch (error) {
+      console.error('Error validating postal code:', error);
+      setValidationError('Fehler bei der Validierung. Bitte versuchen Sie es erneut.');
+      return false;
+    } finally {
+      setValidating(false);
+    }
   };
 
   const isValid = () => {
-    return /^\d{5}$/.test(data.zip) && data.city.trim() !== '';
+    // PLZ and city are required
+    return data.zip.trim() !== '' && data.city.trim() !== '' && !validationError;
   };
 
   const handleConfirm = async () => {
+    // Validate PLZ and city before saving
+    const isValidPostalCode = await validatePostalCode(data.zip, data.city);
+    
+    if (!isValidPostalCode) {
+      return; // Error message is already set by validatePostalCode
+    }
+
     if (!isValid()) {
-      let errorMessage = "Bitte gib eine gültige PLZ und Stadt an.";
-      
-      if (data.zip.length !== 5) {
-        errorMessage = `PLZ muss 5-stellig sein (aktuell: ${data.zip.length} Ziffern). Beispiel: 01067 für Dresden`;
-      } else if (data.city.trim() === '') {
-        errorMessage = "Bitte gib eine Stadt an.";
-      }
-      
       toast({
         title: "Ungültige Daten",
-        description: errorMessage,
+        description: "Bitte geben Sie eine gültige PLZ und Stadt ein.",
         variant: "destructive"
       });
       return;
@@ -69,10 +149,24 @@ export function AddressConfirmModal({ open, onOpenChange, initialData, onConfirm
     }
   };
 
+  // Prevent closing modal without validation
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      // Don't allow closing - address confirmation is required
+      toast({
+        title: "Adresse bestätigen erforderlich",
+        description: "Bitte bestätigen Sie Ihre Adresse, um fortzufahren.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
         className="w-[min(560px,92vw)] max-h-[90dvh] overflow-auto p-4 sm:p-6"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">Adresse bestätigen</DialogTitle>
@@ -83,18 +177,26 @@ export function AddressConfirmModal({ open, onOpenChange, initialData, onConfirm
 
         <div className="space-y-4 mt-4">
           <div className="space-y-1">
-            <PLZOrtSelector
-              plz={data.zip}
-              ort={data.city}
-              required
-              plzLabel="Postleitzahl"
-              ortLabel="Stadt"
-              onPLZChange={(plz, ort) => setData(prev => ({ ...prev, zip: plz, city: ort }))}
-              onOrtChange={(ort) => setData(prev => ({ ...prev, city: ort }))}
+            <Label htmlFor="location">Standort (PLZ & Stadt) *</Label>
+            <LocationAutocomplete
+              id="location"
+              value={locationString}
+              onChange={handleLocationChange}
+              placeholder="z. B. 10115 Berlin oder Berlin"
+              className={cn(
+                validationError && "border-red-500 focus-visible:ring-red-500"
+              )}
             />
-            <p className="text-xs text-muted-foreground">
-              PLZ muss 5-stellig sein, z.B. 01067 für Dresden
-            </p>
+            {validationError && (
+              <p className="text-xs text-red-500 font-medium mt-1">
+                {validationError}
+              </p>
+            )}
+            {!validationError && (
+              <p className="text-xs text-muted-foreground">
+                Geben Sie PLZ und Stadt ein für präzise Standortangabe und Radius-Matching. Die Datenbank wird den Standort validieren.
+              </p>
+            )}
           </div>
 
           <div>
@@ -123,18 +225,10 @@ export function AddressConfirmModal({ open, onOpenChange, initialData, onConfirm
         <div className="flex flex-col sm:flex-row gap-3 mt-6">
           <Button
             onClick={handleConfirm}
-            disabled={!isValid() || loading}
+            disabled={!isValid() || loading || validating}
             className="flex-1 min-h-[44px]"
           >
-            {loading ? "Wird gespeichert..." : "Bestätigen"}
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="flex-1 min-h-[44px]"
-          >
-            Abbrechen
+            {loading ? "Wird gespeichert..." : validating ? "Wird validiert..." : "Bestätigen & Speichern"}
           </Button>
         </div>
 

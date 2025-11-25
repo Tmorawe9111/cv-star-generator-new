@@ -50,6 +50,7 @@ export function useCompanyInterest(targetUserId?: string) {
     setLoading(true);
     try {
       if (interested) {
+        // Remove interest
         const { error } = await supabase
           .from('company_user_interests')
           .delete()
@@ -57,15 +58,68 @@ export function useCompanyInterest(targetUserId?: string) {
           .eq('user_id', targetUserId);
         if (!error) setInterested(false);
       } else {
-        const { error } = await supabase
+        // Check if user also has interest in company (mutual interest)
+        // User shows interest by following the company (accepted follow)
+        const { data: userFollowsCompany } = await supabase
+          .from('follows')
+          .select('id')
+          .eq('follower_type', 'profile')
+          .eq('follower_id', targetUserId)
+          .eq('followee_type', 'company')
+          .eq('followee_id', companyId)
+          .eq('status', 'accepted')
+          .maybeSingle();
+        
+        const hasMutualInterest = !!userFollowsCompany;
+        
+        // Insert company interest
+        const { error: insertError } = await supabase
           .from('company_user_interests')
           .insert({ company_id: companyId, user_id: targetUserId, created_by: user.id });
-        if (!error) setInterested(true);
+        
+        if (insertError) throw insertError;
+        
+        // If mutual interest (user follows company), deduct 3 tokens
+        if (hasMutualInterest) {
+          const { data: tokenResult, error: tokenError } = await supabase.rpc('use_company_token', {
+            p_company_id: companyId,
+            p_profile_id: targetUserId,
+            p_token_cost: 3,
+            p_reason: 'mutual_interest'
+          });
+          
+          if (tokenError || !tokenResult?.success) {
+            console.error('Error deducting tokens:', tokenError || tokenResult);
+            // Still set interested to true, but show warning
+            setInterested(true);
+            return { success: true, tokensDeducted: false, error: tokenError || tokenResult?.error };
+          }
+          
+          setInterested(true);
+          return { success: true, tokensDeducted: true, newBalance: tokenResult.new_balance };
+        } else {
+          setInterested(true);
+          return { success: true, tokensDeducted: false };
+        }
       }
+    } catch (error: any) {
+      console.error('Error toggling interest:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
   }, [user, targetUserId, companyId, interested]);
 
-  return { interested, loading, toggle, refetch: fetchStatus };
+  return { 
+    interested, 
+    loading, 
+    toggle: async () => {
+      try {
+        return await toggle();
+      } catch (error) {
+        throw error;
+      }
+    }, 
+    refetch: fetchStatus 
+  };
 }

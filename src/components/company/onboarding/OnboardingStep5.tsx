@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { OnboardingData } from './OnboardingWizard';
 import { PLZOrtSelector } from '@/components/shared/PLZOrtSelector';
 import { useToast } from '@/hooks/use-toast';
+import { LocationAutocomplete } from '@/components/Company/LocationAutocomplete';
 
 interface OnboardingStep5Props {
   data: OnboardingData;
@@ -118,16 +119,19 @@ export function OnboardingStep5({ data, updateData, onNext, onPrev }: Onboarding
 
         {/* Location */}
         <div className="space-y-2">
-          <Label>Standort *</Label>
-          <Input
+          <Label>Standort (PLZ & Stadt) *</Label>
+          <LocationAutocomplete
             value={data.jobLocation}
-            onChange={(e) => updateData({ jobLocation: e.target.value })}
-            placeholder="z.B. 10115 Berlin"
+            onChange={(value) => updateData({ jobLocation: value })}
+            placeholder="z. B. 10115 Berlin oder Berlin"
             className={errors.jobLocation ? 'border-destructive' : ''}
           />
           {errors.jobLocation && (
             <p className="text-sm text-destructive">{errors.jobLocation}</p>
           )}
+          <p className="text-xs text-muted-foreground">
+            Geben Sie PLZ und Stadt ein für präzise Standortangabe
+          </p>
         </div>
 
         {/* Start Date */}

@@ -51,13 +51,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Load profile when user is authenticated
+        // Load profile when user is authenticated (no delay for faster loading)
         if (session?.user) {
-          loadProfileTimeout = setTimeout(() => {
-            if (!abortController.signal.aborted) {
-              loadProfile(session.user.id);
-            }
-          }, 100);
+          loadProfile(session.user.id);
         } else {
           setProfile(null);
           setIsLoading(false);
@@ -96,6 +92,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const loadProfile = async (userId: string) => {
     setIsLoading(true);
     try {
+      // Load ALL profile fields using select('*') to ensure we get everything from the database
+      // This matches how CVPrintPage loads profile data and ensures all CV generator data is available
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
@@ -108,9 +106,69 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           return;
         }
         console.error('Error loading profile:', error);
-        setProfile(null);
-      } else {
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        
+        // Try loading with minimal fields if full query fails due to missing columns
+        if (error.code === '42703' || error.message?.includes('does not exist') || error.message?.includes('column')) {
+          console.warn('Some columns may not exist, trying minimal query...');
+          try {
+            const { data: minimalProfile, error: minimalError } = await supabase
+              .from('profiles')
+              .select('id, vorname, nachname, email, avatar_url, profile_complete, account_created, created_at, updated_at')
+              .eq('id', userId)
+              .maybeSingle();
+            
+            if (minimalError) {
+              console.error('Minimal query also failed:', minimalError);
+              setProfile(null);
+            } else if (minimalProfile) {
+              console.warn('Loaded profile with minimal fields');
+              setProfile(minimalProfile);
+              return;
+            } else {
+              console.warn('Profile not found in database');
+              setProfile(null);
+            }
+          } catch (fallbackError) {
+            console.error('Fallback query failed:', fallbackError);
+            setProfile(null);
+          }
+        } else {
+          setProfile(null);
+        }
+      } else if (profile) {
+        // Only set profile if data exists
+        // Debug: Log loaded profile data
+        console.log('✅ Profile loaded from database:', {
+          id: profile.id,
+          vorname: profile.vorname,
+          nachname: profile.nachname,
+          berufserfahrung: profile.berufserfahrung,
+          schulbildung: profile.schulbildung,
+          faehigkeiten: profile.faehigkeiten,
+          sprachen: profile.sprachen,
+          uebermich: profile.uebermich,
+          branche: profile.branche,
+          status: profile.status,
+          headline: profile.headline,
+          cover_image_url: profile.cover_image_url,
+          cv_url: profile.cv_url,
+          account_created: profile.account_created,
+          profile_complete: profile.profile_complete,
+          geburtsdatum: profile.geburtsdatum,
+          schule: profile.schule,
+          geplanter_abschluss: profile.geplanter_abschluss,
+          ausbildungsberuf: profile.ausbildungsberuf,
+          aktueller_beruf: profile.aktueller_beruf,
+        });
         setProfile(profile);
+      } else {
+        // Profile not found - this is normal for new users, don't set to null
+        // Keep existing profile state if available, otherwise set to null
+        console.warn('Profile not found for user:', userId);
+        setProfile(null);
       }
     } catch (error: any) {
       // Silently ignore abort errors

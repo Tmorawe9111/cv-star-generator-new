@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { LocationAutocomplete } from '@/components/Company/LocationAutocomplete';
+import { saveCompanyLocation } from '@/lib/location-utils';
+import { uploadFile } from '@/lib/supabase-storage';
 
 interface OnboardingStep4Props {
   data: {
@@ -62,27 +65,33 @@ export function OnboardingStep4({ data, updateData, onNext, onPrev, companyId }:
 
     setUploadingLogo(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${companyId}/logo.${fileExt}`;
+      // Use the uploadFile helper function that handles authentication and proper paths
+      const { url } = await uploadFile(file, 'company-media', `companies/${companyId}/logo`);
       
-      const { error: uploadError } = await supabase.storage
-        .from('company-logos')
-        .upload(fileName, file, { upsert: true });
+      // Save to database immediately so it updates everywhere
+      const { error: updateError } = await supabase
+        .from('companies')
+        .update({ logo_url: url })
+        .eq('id', companyId);
 
-      if (uploadError) throw uploadError;
+      if (updateError) {
+        console.error('Database update error:', updateError);
+        throw new Error(`Datenbank-Update fehlgeschlagen: ${updateError.message || 'Unbekannter Fehler'}`);
+      }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('company-logos')
-        .getPublicUrl(fileName);
+      setLogoPreview(url);
+      updateData({ logo_url: url });
 
-      setLogoPreview(publicUrl);
-      updateData({ logo_url: publicUrl });
-
-      toast({ title: 'Logo hochgeladen' });
-    } catch (error) {
+      toast({ 
+        title: 'Logo hochgeladen',
+        description: 'Das Logo wurde erfolgreich gespeichert.',
+      });
+    } catch (error: any) {
       console.error('Error uploading logo:', error);
+      const errorMessage = error?.message || error?.error?.message || 'Unbekannter Fehler';
       toast({
         title: 'Upload fehlgeschlagen',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -114,27 +123,33 @@ export function OnboardingStep4({ data, updateData, onNext, onPrev, companyId }:
 
     setUploadingHeader(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${companyId}/header.${fileExt}`;
+      // Use the uploadFile helper function
+      const { url } = await uploadFile(file, 'company-media', `companies/${companyId}/header`);
       
-      const { error: uploadError } = await supabase.storage
-        .from('company-headers')
-        .upload(fileName, file, { upsert: true });
+      // Save to database immediately
+      const { error: updateError } = await supabase
+        .from('companies')
+        .update({ header_image: url })
+        .eq('id', companyId);
 
-      if (uploadError) throw uploadError;
+      if (updateError) {
+        console.error('Database update error:', updateError);
+        throw new Error(`Datenbank-Update fehlgeschlagen: ${updateError.message || 'Unbekannter Fehler'}`);
+      }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('company-headers')
-        .getPublicUrl(fileName);
+      setHeaderPreview(url);
+      updateData({ header_image: url });
 
-      setHeaderPreview(publicUrl);
-      updateData({ header_image: publicUrl });
-
-      toast({ title: 'Titelbild hochgeladen' });
-    } catch (error) {
+      toast({ 
+        title: 'Titelbild hochgeladen',
+        description: 'Das Titelbild wurde erfolgreich gespeichert.',
+      });
+    } catch (error: any) {
       console.error('Error uploading header:', error);
+      const errorMessage = error?.message || error?.error?.message || 'Unbekannter Fehler';
       toast({
         title: 'Upload fehlgeschlagen',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -261,17 +276,26 @@ export function OnboardingStep4({ data, updateData, onNext, onPrev, companyId }:
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="location">Hauptstandort *</Label>
-        <Input
+        <Label htmlFor="location">Hauptstandort (PLZ & Stadt) *</Label>
+        <LocationAutocomplete
           id="location"
           value={data.main_location || ''}
-          onChange={(e) => updateData({ main_location: e.target.value })}
-          placeholder="z.B. Berlin, Deutschland"
+          onChange={async (value) => {
+            updateData({ main_location: value });
+            // Save location with coordinates
+            if (value && companyId) {
+              await saveCompanyLocation(companyId, value);
+            }
+          }}
+          placeholder="z. B. 10115 Berlin oder Berlin"
           className={errors.main_location ? 'border-destructive' : ''}
         />
         {errors.main_location && (
           <p className="text-sm text-destructive">{errors.main_location}</p>
         )}
+        <p className="text-xs text-muted-foreground">
+          Geben Sie PLZ und Stadt ein, um automatisch Koordinaten zu erhalten
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

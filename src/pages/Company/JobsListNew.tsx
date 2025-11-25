@@ -23,24 +23,42 @@ export default function CompanyJobsListNew() {
 
   const filteredJobs = jobs?.filter((job) => {
     const matchesSearch = job.title.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || 
-      (statusFilter === "published" && job.status === "published") ||
-      (statusFilter === "paused" && job.status === "paused") ||
-      (statusFilter === "drafts" && job.status === "draft") ||
-      (statusFilter === "deleted" && job.status === "inactive");
-    return matchesSearch && matchesStatus;
+    const status = job.status?.toLowerCase();
+
+    if (statusFilter === "all") {
+      const isDeleted = status === "inactive" || status === "deleted";
+      return matchesSearch && !isDeleted;
+    }
+
+    if (statusFilter === "published") {
+      return matchesSearch && status === "published";
+    }
+
+    if (statusFilter === "paused") {
+      return matchesSearch && status === "paused";
+    }
+
+    if (statusFilter === "drafts") {
+      return matchesSearch && status === "draft";
+    }
+
+    if (statusFilter === "deleted") {
+      return matchesSearch && (status === "inactive" || status === "deleted");
+    }
+
+    return matchesSearch;
   });
 
   const filterButtons = [
-    { id: "all", label: "All jobs", icon: Briefcase },
-    { id: "published", label: "Posted jobs", icon: FileText },
-    { id: "paused", label: "Paused jobs", icon: Pause },
-    { id: "drafts", label: "Drafts", icon: FileText },
-    { id: "deleted", label: "Deleted jobs", icon: Trash2 },
+    { id: "all", label: "Alle Stellenanzeigen", icon: Briefcase },
+    { id: "published", label: "Aktive Stellenanzeigen", icon: FileText },
+    { id: "paused", label: "Pausierte Stellenanzeigen", icon: Pause },
+    { id: "drafts", label: "Entwürfe", icon: FileText },
+    { id: "deleted", label: "Archivierte Stellenanzeigen", icon: Trash2 },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <div className="max-w-[1600px] mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">

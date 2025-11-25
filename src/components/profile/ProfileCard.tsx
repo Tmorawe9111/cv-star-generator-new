@@ -1,5 +1,5 @@
 import React from "react";
-import { Eye, Download, MapPin, User, Mail, Phone, Briefcase, BriefcaseBusiness, XCircle, ArrowRight, Info } from "lucide-react";
+import { Eye, Download, MapPin, User, Mail, Phone, Briefcase, BriefcaseBusiness, XCircle, ArrowRight, ChevronRight, Calendar } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -8,6 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 export type Profile = {
   id: string;
@@ -26,6 +27,8 @@ export type Profile = {
   skills: string[];
   match?: number | null;
   stage?: string | null;
+  available_from?: string | null;
+  visibility_mode?: string | null;
 };
 
 type Props = {
@@ -35,6 +38,7 @@ type Props = {
   unlockNotes?: string;
   unlockSource?: "bewerbung" | "initiativ" | null;
   unlockJobTitle?: string | null;
+  linkedJobTitles?: Array<{ id: string; title: string }> | null;
   onUnlock?: () => void;
   onView?: () => void;
   onDownload?: () => void;
@@ -48,6 +52,9 @@ type Props = {
     variant?: "primary" | "outline" | "destructive";
     disabled?: boolean;
   }>;
+  footerNote?: React.ReactNode;
+  footerActions?: React.ReactNode;
+  hideDefaultAction?: boolean;
 };
 
 export function ProfileCard({
@@ -57,6 +64,7 @@ export function ProfileCard({
   unlockNotes,
   unlockSource = null,
   unlockJobTitle = null,
+  linkedJobTitles = null,
   onUnlock,
   onView,
   onDownload,
@@ -64,8 +72,10 @@ export function ProfileCard({
   onAcceptInterview,
   onReject,
   actions = [],
+  footerNote,
+  footerActions,
+  hideDefaultAction = false,
 }: Props) {
-  const match = Math.round(p.match ?? 0);
   const stageKey = p.stage ? p.stage.toUpperCase() : null;
   const stageConfig: Record<string, { label: string; badgeClass: string }> = {
     FREIGESCHALTET: { label: "Freigeschaltet", badgeClass: "bg-[#E0F2FE] text-[#0369A1] border-none" },
@@ -104,6 +114,21 @@ export function ProfileCard({
           .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(" ")
       : null;
+
+  const formatAvailableFrom = (dateStr: string) => {
+    try {
+      // Format: YYYY-MM
+      const [year, month] = dateStr.split('-');
+      const monthNames = [
+        'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+        'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+      ];
+      const monthIndex = parseInt(month) - 1;
+      return `${monthNames[monthIndex]} ${year}`;
+    } catch {
+      return dateStr;
+    }
+  };
 
   const industryLabel = toTitleCase(p.industry ?? p.role ?? undefined);
   const normalizedStatus = (p.status ?? "").toLowerCase();
@@ -157,39 +182,105 @@ export function ProfileCard({
 
   const isApplication = unlockSource === "bewerbung";
 
+  const renderMatchIndicator = () => {
+    if (p.match == null) return null;
+    const percent = Math.round(p.match);
+    if (Number.isNaN(percent) || percent < 80) return null;
+
+    const { circleClass, textClass } = (() => {
+      if (percent >= 96) {
+        return {
+          circleClass: "bg-[#E0FBFB] ring-1 ring-[#5CE1E6]",
+          textClass: "text-[#0E8388]",
+        };
+      }
+      if (percent >= 90) {
+        return {
+          circleClass: "bg-emerald-50 ring-1 ring-emerald-200",
+          textClass: "text-emerald-600",
+        };
+      }
+      return {
+        circleClass: "bg-orange-50 ring-1 ring-orange-200",
+        textClass: "text-orange-500",
+      };
+    })();
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${circleClass} ${textClass}`}
+          >
+            {percent}%
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs text-xs">
+          <p>Berechnet aus Standort, Skills und Präferenzen.</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
+  const displayedSeeking = unlockJobTitle?.trim() || p.seeking?.trim() || null;
+
   return (
     <TooltipProvider>
       <article
-        className={`flex h-full w-full max-w-[320px] flex-col rounded-2xl border bg-white p-5 shadow-md transition-shadow duration-200 hover:shadow-lg ${
-          isApplication ? "border-orange-300" : "border-gray-200"
-        }`}
+        className={cn(
+          "flex h-full w-full min-h-[360px] max-h-full flex-col rounded-2xl border bg-white p-4 sm:p-6 shadow-md transition-shadow duration-200 hover:shadow-lg overflow-hidden",
+          isApplication ? "border-orange-300 ring-2 ring-orange-200" : "border-gray-200"
+        )}
+        style={{ display: 'flex', flexDirection: 'column' }}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <div
-              className={`${
-                isApplication ? "rounded-full ring-2 ring-orange-400 ring-offset-2" : ""
-              }`}
-            >
+            <div className={isApplication ? "rounded-full ring-2 ring-orange-400 ring-offset-2" : ""}>
               <Avatar className="h-12 w-12">
                 <AvatarImage src={p.avatar_url || ""} />
                 <AvatarFallback className="bg-gradient-to-br from-blue-100 to-blue-200">
-                  {variant === "unlocked" && p.name ? (
-                    p.name.split(" ").map((n) => n.charAt(0)).join("").substring(0, 2)
-                  ) : (
-                    <User className="h-5 w-5 text-blue-600" />
-                  )}
+                  {variant === "unlocked" && p.name
+                    ? p.name
+                        .split(" ")
+                        .map((n) => n.charAt(0))
+                        .join("")
+                        .substring(0, 2)
+                    : <User className="h-5 w-5 text-blue-600" />}
                 </AvatarFallback>
               </Avatar>
             </div>
             <div className="min-w-0">
-              <h3
-                className="cursor-pointer truncate text-base font-bold leading-tight hover:underline"
-                onClick={onView}
-              >
-                {p.name}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3
+                  className="max-w-[240px] cursor-pointer truncate text-base font-bold leading-tight hover:underline"
+                  onClick={onView}
+                  title={p.name}
+                >
+                  {p.name}
+                </h3>
+                {isApplication && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex h-2 w-2 rounded-full bg-orange-400" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-xs">
+                      <p>
+                        {p.name} hat sich beworben
+                      </p>
+                      {unlockJobTitle && (
+                        <p className="mt-1">
+                          Stelle: {unlockJobTitle}
+                          {p.city ? ` · ${p.city}` : ""}
+                        </p>
+                      )}
+                      {variant === "unlocked" && unlockNotes && (
+                        <p className="mt-1 text-[11px] text-muted-foreground">{unlockNotes}</p>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
               {p.city && (
                 <div className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
                   <MapPin className="h-3 w-3" />
@@ -199,11 +290,13 @@ export function ProfileCard({
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col items-end gap-1" />
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            {variant === "search" && renderMatchIndicator()}
+          </div>
         </div>
 
         {/* Industry & Profile Details */}
-        <div className="mt-3 space-y-1 text-xs text-gray-600">
+        <div className="mt-3 space-y-1 text-xs text-gray-600 min-h-[48px]">
           {industryLabel && (
             <div className="flex items-center gap-2 font-semibold">
               <Briefcase className="h-3.5 w-3.5 text-gray-400" />
@@ -219,14 +312,30 @@ export function ProfileCard({
         </div>
 
         {/* Sucht */}
-        <div className="mt-3">
-          {p.seeking ? (
+        <div className="mt-3 min-h-[56px]">
+          {displayedSeeking ? (
             <>
               <div className="text-xs font-semibold text-emerald-600">Sucht:</div>
-              <div className="mt-0.5 line-clamp-2 text-xs text-emerald-700">{p.seeking}</div>
+              <div className="mt-0.5 line-clamp-2 text-xs text-emerald-700">{displayedSeeking}</div>
             </>
           ) : (
             <div className="text-xs text-gray-400">Keine Präferenz angegeben</div>
+          )}
+          {p.available_from && (
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-600">
+              <Calendar className="h-3 w-3" />
+              <span className="truncate">
+                Verfügbar ab {formatAvailableFrom(p.available_from)}
+              </span>
+            </div>
+          )}
+          {unlockNotes && !p.available_from && (
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              <span className="truncate" title={unlockNotes}>
+                {unlockNotes}
+              </span>
+            </div>
           )}
         </div>
 
@@ -246,28 +355,12 @@ export function ProfileCard({
                   </TooltipContent>
                 )}
               </Tooltip>
-            ) : (
-              <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
-                Kein Status
-               </span>
-            )}
+            ) : null}
           </div>
-          {p.match != null && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                  Matching: {match}%
-                  <Info className="h-3.5 w-3.5" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs text-xs">
-                <p>Berechnet aus Standort, Skills und Präferenzen.</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
+          {variant !== "search" && renderMatchIndicator()}
         </div>
 
-        {/* Contact Info (unlocked only) */}
+        {/* Contact Info (unlocked only) - moved before buttons */}
         {variant === "unlocked" && (
           <div className="mt-3 min-h-[64px] space-y-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs">
             {p.email ? (
@@ -299,57 +392,77 @@ export function ProfileCard({
           </div>
         )}
 
-        {/* Process / Status Buttons */}
-        {variant === "unlocked" && actions.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {actions.map(renderProcessButton)}
-          </div>
-        )}
-
+        {/* Spacer to push buttons to bottom */}
         <div className="flex-1" />
 
-        {/* Action Buttons (Interview + Unpassend) */}
-        {variant === "unlocked" && (onAcceptInterview || onReject) && (
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              onClick={onAcceptInterview}
-              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] px-5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <BriefcaseBusiness className="h-5 w-5" />
-              <span>Interview planen</span>
-            </button>
-            <button
-              onClick={onReject}
-              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full border-2 border-red-200 bg-white px-5 text-sm font-semibold text-red-600 shadow-sm transition-all duration-200 hover:bg-red-50 hover:border-red-300 hover:shadow-md active:scale-[0.98]"
-            >
-              <XCircle className="h-5 w-5" />
-              <span>Unpassend</span>
-            </button>
-          </div>
-        )}
-
-        {/* Footer Buttons (Profil ansehen + CV Download) */}
+        {/* All Action Buttons - aligned at bottom */}
         {variant === "unlocked" && (
-          <div className="mt-2 flex items-center gap-3">
-            <button
-              onClick={onView}
-              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 text-xs font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-gray-400 hover:shadow active:scale-[0.98]"
-            >
-              <Eye className="h-4 w-4" />
-              <span>Profil ansehen</span>
-            </button>
-            <button
-              onClick={onDownload}
-              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 text-xs font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-gray-400 hover:shadow active:scale-[0.98]"
-            >
-              <Download className="h-4 w-4" />
-              <span>CV Download</span>
-            </button>
+          <div className="mt-4 space-y-2 min-w-0">
+            {/* Process / Status Buttons */}
+            {actions.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {actions.map(renderProcessButton)}
+              </div>
+            )}
+
+            {/* Action Buttons (Interview + Unpassend) */}
+            {(onAcceptInterview || onReject) && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                {onAcceptInterview && (
+                  <button
+                    onClick={onAcceptInterview}
+                    className="flex h-11 sm:h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white shadow-md transition-all duration-200 hover:shadow-lg hover:scale-[1.01] active:scale-[0.99]"
+                  >
+                    <BriefcaseBusiness className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                    <span className="truncate">Interview planen</span>
+                  </button>
+                )}
+                {onReject && (
+                  <button
+                    onClick={onReject}
+                    className="flex h-11 sm:h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-full border-2 border-red-200 bg-white px-3 sm:px-4 text-xs sm:text-sm font-semibold text-red-600 shadow-sm transition-all duration-200 hover:bg-red-50 hover:border-red-300 hover:shadow-md active:scale-[0.99]"
+                  >
+                    <XCircle className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                    <span className="truncate">Unpassend</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Footer Buttons (Profil ansehen + CV Download) - always at same height */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+              {onView && (
+                <button
+                  onClick={onView}
+                  className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white px-2 sm:px-3 text-[10px] sm:text-xs font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-gray-400 hover:shadow active:scale-[0.98]"
+                >
+                  <Eye className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Profil ansehen</span>
+                </button>
+              )}
+              {onDownload && (
+                <button
+                  onClick={onDownload}
+                  className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white px-2 sm:px-3 text-[10px] sm:text-xs font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:border-gray-400 hover:shadow active:scale-[0.98]"
+                >
+                  <Download className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">CV Download</span>
+                </button>
+              )}
+            </div>
+
+            {footerNote && (
+              <div className="text-xs text-muted-foreground text-center break-words">{footerNote}</div>
+            )}
+
+            {footerActions && (
+              <div className="flex flex-col gap-2 min-w-0">{footerActions}</div>
+            )}
           </div>
         )}
 
         {/* Search/Dashboard View */}
-        {(variant === "search" || variant === "dashboard") && (
+        {(variant === "search" || variant === "dashboard") && !hideDefaultAction && (
           <div className="mt-3 flex items-center gap-2">
             <button
               onClick={onView}

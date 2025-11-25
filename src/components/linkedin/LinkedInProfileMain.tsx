@@ -24,6 +24,13 @@ export const LinkedInProfileMain: React.FC<LinkedInProfileMainProps> = ({
   const [aboutText, setAboutText] = useState(profile?.uebermich || '');
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Update aboutText when profile changes
+  React.useEffect(() => {
+    if (profile?.uebermich !== undefined) {
+      setAboutText(profile.uebermich || '');
+    }
+  }, [profile?.uebermich]);
+
   const handleGenerateAI = async () => {
     setIsGenerating(true);
     try {

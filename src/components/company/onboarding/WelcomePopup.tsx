@@ -5,6 +5,9 @@ import { OnboardingPopup } from './OnboardingPopup';
 
 interface WelcomePopupProps {
   onComplete: () => void;
+  onSkip?: () => void;
+  stepNumber?: number;
+  totalSteps?: number;
 }
 
 const nextSteps = [
@@ -34,15 +37,15 @@ const nextSteps = [
   }
 ];
 
-export function WelcomePopup({ onComplete }: WelcomePopupProps) {
+export function WelcomePopup({ onComplete, onSkip, stepNumber, totalSteps }: WelcomePopupProps) {
   return (
-    <OnboardingPopup>
+    <OnboardingPopup onSkip={onSkip} showSkip={false} stepNumber={stepNumber} totalSteps={totalSteps}>
       <div className="p-8">
         <div className="text-center mb-6">
           <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Check className="w-10 h-10 text-primary" />
           </div>
-          <h2 className="text-3xl font-bold mb-2">Willkommen bei Norothy! 🎉</h2>
+          <h2 className="text-3xl font-bold mb-2">Willkommen bei BeVisiblle! 🎉</h2>
           <p className="text-muted-foreground">
             Ihr Account ist bereit. Hier sind Ihre nächsten Schritte:
           </p>

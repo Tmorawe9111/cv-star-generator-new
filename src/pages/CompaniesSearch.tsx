@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { BRANCHES } from '@/lib/branches';
 
 export default function CompaniesSearch() {
   const navigate = useNavigate();
@@ -50,6 +51,7 @@ export default function CompaniesSearch() {
       }
 
       if (industry && industry !== "all") {
+        // industry is now a branch key (e.g., 'handwerk', 'it')
         query = query.eq("industry", industry);
       }
 
@@ -68,20 +70,11 @@ export default function CompaniesSearch() {
     },
   });
 
-  const { data: industries } = useQuery({
-    queryKey: ["companies-industries"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("companies")
-        .select("industry")
-        .not("industry", "is", null);
-      
-      if (error) throw error;
-      
-      const uniqueIndustries = [...new Set(data.map(d => d.industry))].filter(Boolean) as string[];
-      return uniqueIndustries.sort();
-    },
-  });
+  // Use centralized branches instead of querying companies
+  const industries = BRANCHES.map(b => ({
+    id: b.key,
+    name: b.label
+  }));
 
   const activeFiltersCount = [
     industry !== "all" && industry,
@@ -142,9 +135,9 @@ export default function CompaniesSearch() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Alle Branchen</SelectItem>
-                    {industries?.map((ind) => (
-                      <SelectItem key={ind} value={ind}>
-                        {ind}
+                    {industries.map((ind) => (
+                      <SelectItem key={ind.id} value={ind.id}>
+                        {ind.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

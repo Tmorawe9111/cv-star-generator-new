@@ -10,6 +10,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import CompanySignupFooter from "./CompanySignupFooter";
+import { LocationAutocomplete } from "@/components/Company/LocationAutocomplete";
+import { saveCompanyLocation } from "@/lib/location-utils";
 
 function CompanySignup() {
   const navigate = useNavigate();
@@ -31,7 +33,7 @@ function CompanySignup() {
     industry: "",
     size: "",
     website: "",
-    country: "",
+    country: "DE", // Default: Deutschland
     city: "",
     adminFirst: "",
     adminLast: "",
@@ -46,7 +48,7 @@ function CompanySignup() {
   const isStep1Valid = () => {
     const required = ["companyName", "size", "country", "city", "adminFirst", "adminLast", "phone"] as const;
     const allFilled = required.every((k) => String(form[k]).trim().length > 0);
-    return allFilled && agreeTerms;
+    return allFilled && agreeTerms && (form.country === 'DE' || form.country === 'AT' || form.country === 'CH');
   };
 
   const isStep2Valid = () => {
@@ -99,12 +101,20 @@ function CompanySignup() {
 
         // Use the database function to create company and link user
         if (authData.user) {
+          // Map country code to full name
+          const countryNames: Record<string, string> = {
+            'DE': 'Deutschland',
+            'AT': 'Österreich',
+            'CH': 'Schweiz'
+          };
+          const countryName = countryNames[form.country] || form.country;
+
           const { data: companyId, error: companyError } = await supabase
             .rpc('create_company_account', {
               p_name: form.companyName,
               p_primary_email: form.email,
               p_city: form.city,
-              p_country: form.country,
+              p_country: countryName,
               p_size_range: form.size,
               p_contact_person: `${form.adminFirst} ${form.adminLast}`,
               p_phone: form.phone,
@@ -123,14 +133,20 @@ function CompanySignup() {
             return;
           }
 
-          // Update company with plan info
+          // Update company with plan info and save location with coordinates
           if (companyId) {
             await supabase
               .from('companies')
               .update({
-                selected_plan_id: selectedPlan
+                selected_plan_id: selectedPlan,
+                onboarding_completed: false  // Ensure onboarding is not completed
               })
               .eq('id', companyId);
+            
+            // Save location with coordinates if city is provided
+            if (form.city) {
+              await saveCompanyLocation(companyId, form.city);
+            }
           }
         }
 
@@ -145,12 +161,19 @@ function CompanySignup() {
 
       } else {
         // Magic link signup - save company data to localStorage to be processed after email confirmation
+        const countryNames: Record<string, string> = {
+          'DE': 'Deutschland',
+          'AT': 'Österreich',
+          'CH': 'Schweiz'
+        };
+        const countryName = countryNames[form.country] || form.country;
+        
         localStorage.setItem('pending_company_signup', JSON.stringify({
           companyName: form.companyName,
           industry: form.industry,
           size: form.size,
           city: form.city,
-          country: form.country,
+          country: countryName,
           website: form.website,
           phone: form.phone,
           contactPerson: `${form.adminFirst} ${form.adminLast}`,
@@ -303,10 +326,60 @@ function CompanySignup() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Field label="Land">
-                      <Input placeholder="Deutschland" value={form.country} onChange={update("country")} />
+                      <Select 
+                        value={form.country} 
+                        onValueChange={(value) => {
+                          setForm({ ...form, country: value, city: "" }); // Reset city when country changes
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Land auswählen">
+                            {form.country && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">
+                                  {form.country === 'DE' ? '🇩🇪' : form.country === 'AT' ? '🇦🇹' : '🇨🇭'}
+                                </span>
+                                <span>
+                                  {form.country === 'DE' ? 'Deutschland' : form.country === 'AT' ? 'Österreich' : 'Schweiz'}
+                                </span>
+                              </div>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="DE">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">🇩🇪</span>
+                              <span>Deutschland</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="AT">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">🇦🇹</span>
+                              <span>Österreich</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="CH">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">🇨🇭</span>
+                              <span>Schweiz</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </Field>
-                    <Field label="Stadt">
-                      <Input placeholder="z. B. Frankfurt am Main" value={form.city} onChange={update("city")} />
+                    <Field label="Stadt (PLZ & Ort)">
+                      <LocationAutocomplete
+                        value={form.city}
+                        onChange={(value) => setForm({ ...form, city: value })}
+                        placeholder={
+                          form.country === 'DE' 
+                            ? "z. B. 10115 Berlin oder 101 (3 Ziffern für PLZ)" 
+                            : "Stadt eingeben"
+                        }
+                        country={form.country}
+                        disabled={!form.country}
+                      />
                     </Field>
                   </div>
 

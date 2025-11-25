@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 import { Coins, LayoutGrid, List, Filter, Download } from "lucide-react";
@@ -16,6 +17,7 @@ import { SelectionBar } from "@/components/Company/SelectionBar";
 import { useExportCandidates } from "@/hooks/useUnlockedBulk";
 import { toast } from "sonner";
 import { ProfileCard } from "@/components/profile/ProfileCard";
+import { cn } from "@/lib/utils";
 import { useEqualizeCards } from "@/components/unlocked/useEqualizeCards";
 import { FullProfileModal } from "@/components/Company/FullProfileModal";
 import { UserCVModal } from "@/components/admin/user/UserCVModal";
@@ -59,20 +61,56 @@ interface Profile {
   unlock_notes?: string;
   linkedJobTitles?: Array<{ id: string; title: string }>;
   match_score?: number | null;
+  geplanter_abschluss?: string | null;
+  schulbildung?: any;
+  available_from?: string | null;
+  has_drivers_license?: boolean;
+  interview_date?: string | null;
 }
 
 const ITEMS_PER_PAGE = 20;
 
+const normalizeSearchKind = (value: unknown): string | null => {
+  if (!value) return null;
+
+  const raw = typeof value === "string" ? value.trim() : String(value).trim();
+  if (!raw) return null;
+
+  const match = SEARCH_KIND_OPTIONS.find(
+    (opt) =>
+      opt.key.toLowerCase() === raw.toLowerCase() ||
+      opt.label.toLowerCase() === raw.toLowerCase()
+  );
+
+  return match ? match.key : null;
+};
+
+// Vereinfachte Status-Filter - nur die wichtigsten Phasen
 const STAGE_FILTERS = [
-  { key: "FREIGESCHALTET", label: "Freigeschaltet" },
-  { key: "KONTAKTIERT", label: "Kontaktiert" },
-  { key: "INTERVIEW_GEPLANT", label: "Gespräch geplant" },
-  { key: "INTERVIEW_DURCHGEFÜHRT", label: "Gespräch geführt" },
-  { key: "ANGEBOT_GESENDET", label: "Angebot" },
-  { key: "EINGESTELLT", label: "Eingestellt" },
+  { key: "FREIGESCHALTET", label: "Freigeschaltet", description: "Noch nicht kontaktiert" },
+  { key: "INTERVIEW_GEPLANT", label: "Interview geplant", description: "Termin steht fest" },
+  { key: "INTERVIEW_DURCHGEFÜHRT", label: "Interview durchgeführt", description: "Gespräch abgeschlossen" },
+  { key: "ANGEBOT_GESENDET", label: "Angebot gesendet", description: "Warten auf Antwort" },
+  { key: "EINGESTELLT", label: "Eingestellt", description: "Erfolgreich abgeschlossen" },
+] as const;
+
+// Abgelehnte/Abgesagte Kandidaten separat
+const ARCHIVED_FILTERS = [
   { key: "ABGESAGT", label: "Abgesagt" },
   { key: "ABGELEHNT", label: "Abgelehnt" },
 ] as const;
+
+// Abschluss options for filtering
+const ABSCHLUSS_OPTIONS = [
+  { value: 'Hauptschulabschluss', label: 'Hauptschulabschluss' },
+  { value: 'Realschulabschluss', label: 'Realschulabschluss' },
+  { value: 'Abitur', label: 'Abitur' },
+  { value: 'Fachabitur', label: 'Fachabitur' },
+  { value: 'Fachhochschulreife', label: 'Fachhochschulreife' },
+  { value: 'Bachelor', label: 'Bachelor' },
+  { value: 'Master', label: 'Master' },
+  { value: 'Ausbildung abgeschlossen', label: 'Ausbildung abgeschlossen' },
+];
 
 const SEARCH_KIND_OPTIONS = [
   { key: "Praktikum", label: "Praktikum" },
@@ -106,6 +144,7 @@ export default function CompanyUnlocked() {
   const { company } = useCompany();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<Profile[]>([]);
   const [activeRecentTab, setActiveRecentTab] = useState<'unlocked' | 'viewed'>('unlocked');
@@ -119,14 +158,25 @@ export default function CompanyUnlocked() {
   const [selectedCVUserId, setSelectedCVUserId] = useState<string | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const gridRef = useEqualizeCards();
-  const [selectedStageFilters, setSelectedStageFilters] = useState<string[]>(STAGE_FILTERS.map(s => s.key));
+  
+  // Initialize stage filters from location state if available
+  const initialStageFilters = (location.state as any)?.initialStageFilters;
+  const [selectedStageFilters, setSelectedStageFilters] = useState<string[]>(
+    initialStageFilters && Array.isArray(initialStageFilters) && initialStageFilters.length > 0
+      ? initialStageFilters
+      : [STAGE_FILTERS[0].key] // Standard: Nur "Freigeschaltet" anzeigen
+  );
+  const [showArchived, setShowArchived] = useState(false);
   const [jobTitleFilter, setJobTitleFilter] = useState("");
   const [industryFilter, setIndustryFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
+  const [abschlussFilter, setAbschlussFilter] = useState<string[]>([]);
   const [searchKindFilters, setSearchKindFilters] = useState<string[]>(SEARCH_KIND_OPTIONS.map(opt => opt.key));
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [unlockedOnly, setUnlockedOnly] = useState(true);
-  const [applicationsOnly, setApplicationsOnly] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const SELECT_ALL_JOBS = "__all__";
+  const [availableJobs, setAvailableJobs] = useState<Array<{ id: string; title: string; is_active: boolean }>>([]);
 
   const handleOpenCv = (profileId: string) => {
     setSelectedCVUserId(profileId);
@@ -137,17 +187,31 @@ export default function CompanyUnlocked() {
     if (!companyCandidateId) return;
     try {
       setStatusUpdatingId(companyCandidateId);
-      const { error } = await supabase
-        .from('company_candidates')
-        .update({ stage: nextStage })
-        .eq('id', companyCandidateId);
+      
+      // Build meta object - for INTERVIEW_DURCHGEFÜHRT, we need interview_date
+      let meta: Record<string, unknown> = {};
+      if (nextStage === 'INTERVIEW_DURCHGEFÜHRT') {
+        // Use current date/time as interview_date if not provided
+        meta = {
+          interview_date: new Date().toISOString()
+        };
+      }
+      
+      // Use changeCandidateStatus RPC to update both status and stage
+      // This ensures the status field is updated correctly for dashboard metrics
+      const { error } = await supabase.rpc('change_candidate_status', {
+        p_company_candidate_id: companyCandidateId,
+        p_next_status: nextStage,
+        p_meta: meta,
+        p_silent: false
+      });
 
       if (error) throw error;
 
       setProfiles(prev =>
         prev.map(profile =>
           profile.company_candidate_id === companyCandidateId
-            ? { ...profile, stage: nextStage }
+            ? { ...profile, stage: nextStage, status: nextStage }
             : profile
         )
       );
@@ -189,95 +253,189 @@ export default function CompanyUnlocked() {
   // Bulk operations hooks
   const exporter = useExportCandidates(company?.id || '');
 
-  useEffect(() => {
-    if (!company) return;
-    const load = async () => {
-      setLoading(true);
-      try {
-        // Query company_candidates with profiles JOIN to get all unlocked candidates
-        const { data: ccRows, error: ccErr } = await supabase
-          .from('company_candidates')
-          .select(`
+  const loadUnlockedCandidates = useCallback(async () => {
+    if (!company?.id) return;
+
+    setLoading(true);
+    try {
+      const { data: ccRows, error: ccErr } = await supabase
+        .from('company_candidates')
+        .select(`
+          id,
+          candidate_id,
+          stage,
+          status,
+          unlocked_at,
+          match_score,
+          source,
+          notes,
+          linked_job_ids,
+          interview_date,
+          profiles:candidate_id (
             id,
-            candidate_id,
-            stage,
+            vorname,
+            nachname,
+            email,
+            telefon,
+            avatar_url,
+            ort,
+            plz,
+            branche,
             status,
-            unlocked_at,
-            match_score,
-            source,
-            notes,
-            linked_job_ids,
-            profiles:candidate_id (
-              id,
-              vorname,
-              nachname,
-              email,
-              telefon,
-              avatar_url,
-              ort,
-              plz,
-              branche,
-              status,
-              headline,
-              faehigkeiten,
-              job_search_preferences,
-              has_drivers_license,
-              cv_url
-            )
-          `)
-          .eq('company_id', company.id)
-          .not('unlocked_at', 'is', null)
-          .order('unlocked_at', { ascending: false });
+            headline,
+            faehigkeiten,
+            job_search_preferences,
+            has_drivers_license,
+            cv_url,
+            geplanter_abschluss,
+            schulbildung,
+            available_from,
+            visibility_mode
+          )
+        `)
+        .eq('company_id', company.id)
+        .not('unlocked_at', 'is', null)
+        .order('unlocked_at', { ascending: false });
 
-        if (ccErr) throw ccErr;
+      if (ccErr) {
+        console.error('Error loading unlocked candidates:', ccErr);
+        throw ccErr;
+      }
 
-        // Fetch job titles for linked_job_ids
-        const allJobIds = new Set<string>();
-        (ccRows || []).forEach((cc: any) => {
-          if (cc.linked_job_ids && Array.isArray(cc.linked_job_ids)) {
-            cc.linked_job_ids.forEach((id: string) => allJobIds.add(id));
+      console.log('Loaded company_candidates rows:', ccRows?.length || 0);
+      console.log('Sample row:', ccRows?.[0]);
+
+      const allJobIds = new Set<string>();
+      (ccRows || []).forEach((cc: any) => {
+        if (Array.isArray(cc.linked_job_ids)) {
+          cc.linked_job_ids.forEach((id: string) => allJobIds.add(id));
+        }
+      });
+
+      let jobTitleMap = new Map();
+      if (allJobIds.size > 0) {
+        const { data: jobTitles } = await supabase
+          .from("job_posts")
+          .select("id, title")
+          .in("id", Array.from(allJobIds));
+
+        jobTitleMap = new Map(jobTitles?.map(j => [j.id, j.title]) || []);
+      }
+
+
+      const parseJsonField = (field: any) => {
+        if (field === null || field === undefined) return null;
+        if (typeof field === "string") {
+          try {
+            return JSON.parse(field);
+          } catch {
+            return field;
           }
+        }
+        return field;
+      };
+
+      const profilesData = (ccRows || [])
+        .filter((cc: any) => {
+          const hasProfile = !!cc.profiles;
+          if (!hasProfile) {
+            console.warn('Company candidate without profile:', {
+              company_candidate_id: cc.id,
+              candidate_id: cc.candidate_id,
+              unlocked_at: cc.unlocked_at
+            });
+          }
+          return hasProfile;
+        })
+        .map((cc: any) => ({
+          ...cc.profiles,
+          stage: cc.status || cc.stage,
+          company_candidate_id: cc.id,
+          unlocked_at: cc.unlocked_at,
+          unlock_source: cc.source,
+          unlock_notes: cc.notes,
+          interview_date: cc.interview_date,
+          linkedJobTitles: (cc.linked_job_ids || []).map((id: string) => ({
+            id,
+            title: jobTitleMap.get(id) || "Unbekannte Stelle"
+          })),
+          plz: cc.profiles.plz ?? '',
+          match_score: cc.match_score,
+          schulbildung: parseJsonField(cc.profiles.schulbildung),
+        })) as Profile[];
+
+      console.log('Processed profiles:', profilesData.length);
+      setProfiles(profilesData);
+    } catch (e) {
+      console.error('Error loading unlocked profiles', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [company?.id]);
+
+  useEffect(() => {
+    loadUnlockedCandidates();
+  }, [loadUnlockedCandidates]);
+
+  // Load available jobs on mount
+  useEffect(() => {
+    if (!company?.id) return;
+
+    const loadJobs = async () => {
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      
+      const { data: allJobs } = await supabase
+        .from("job_posts")
+        .select("id, title, is_active, created_at, updated_at")
+        .eq("company_id", company.id)
+        .order("created_at", { ascending: false });
+
+      if (allJobs) {
+        // Filter: active jobs OR inactive jobs updated in last 3 months
+        const filteredJobs = allJobs.filter(job => {
+          if (job.is_active) return true;
+          if (!job.is_active && job.updated_at) {
+            const updatedAt = new Date(job.updated_at);
+            return updatedAt >= threeMonthsAgo;
+          }
+          return false;
         });
 
-        let jobTitleMap = new Map();
-        if (allJobIds.size > 0) {
-          const { data: jobTitles } = await supabase
-            .from("job_posts")
-            .select("id, title")
-            .in("id", Array.from(allJobIds));
-          
-          jobTitleMap = new Map(
-            jobTitles?.map(j => [j.id, j.title]) || []
-          );
-        }
-
-        // Map to UI Profile type with unlock metadata
-        const profilesData = (ccRows || [])
-          .filter((cc: any) => cc.profiles)
-          .map((cc: any) => ({
-            ...cc.profiles,
-            stage: cc.status || cc.stage,
-            company_candidate_id: cc.id,
-            unlocked_at: cc.unlocked_at,
-            unlock_source: cc.source,
-            unlock_notes: cc.notes,
-            linkedJobTitles: (cc.linked_job_ids || []).map((id: string) => ({
-              id,
-              title: jobTitleMap.get(id) || "Unbekannte Stelle"
-            })),
-            plz: cc.profiles.plz ?? '',
-            match_score: cc.match_score,
-          })) as Profile[];
-
-        setProfiles(profilesData);
-      } catch (e) {
-        console.error('Error loading unlocked profiles', e);
-      } finally {
-        setLoading(false);
+        setAvailableJobs(filteredJobs.map(job => ({
+          id: job.id,
+          title: job.title,
+          is_active: job.is_active ?? false,
+        })));
       }
     };
-    load();
-  }, [company]);
+
+    loadJobs();
+  }, [company?.id]);
+
+  useEffect(() => {
+    if (!company?.id) return;
+
+    const channel = supabase
+      .channel(`company-candidates-${company.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_candidates',
+          filter: `company_id=eq.${company.id}`,
+        },
+        () => {
+          loadUnlockedCandidates();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [company?.id, loadUnlockedCandidates]);
 
   useEffect(() => {
     if (!company) return;
@@ -404,11 +562,11 @@ export default function CompanyUnlocked() {
 
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    STAGE_FILTERS.forEach(({ key }) => {
+    [...STAGE_FILTERS, ...ARCHIVED_FILTERS].forEach(({ key }) => {
       counts[key] = 0;
     });
     profiles.forEach(profile => {
-      const stageKey = (profile.stage || "FREIGESCHALTET").toUpperCase();
+      const stageKey = (profile.stage || profile.status || "FREIGESCHALTET").toUpperCase();
       if (counts[stageKey] !== undefined) {
         counts[stageKey] += 1;
       }
@@ -416,25 +574,32 @@ export default function CompanyUnlocked() {
     return counts;
   }, [profiles]);
 
-  const applicationCount = useMemo(
-    () => profiles.filter(profile => profile.unlock_source === "bewerbung").length,
-    [profiles]
-  );
 
   // Filter profiles based on search
   const filteredProfiles = profiles.filter(p => {
-    const stageKey = (p.stage || "FREIGESCHALTET").toUpperCase();
-    if (!selectedStageFilters.includes(stageKey)) {
-      return false;
+    const stageKey = (p.stage || p.status || "FREIGESCHALTET").toUpperCase();
+    
+    // Filter by stage/status
+    if (showArchived) {
+      // Wenn Archiv anzeigt wird, zeige nur abgelehnte/abgesagte
+      if (!ARCHIVED_FILTERS.some(f => f.key === stageKey)) {
+        return false;
+      }
+    } else {
+      // Normale Ansicht: Nur aktive Status
+      if (!selectedStageFilters.includes(stageKey)) {
+        return false;
+      }
+      // Archivierte Status ausblenden
+      if (ARCHIVED_FILTERS.some(f => f.key === stageKey)) {
+        return false;
+      }
     }
 
     if (unlockedOnly && !p.unlocked_at) {
       return false;
     }
 
-    if (applicationsOnly && p.unlock_source !== "bewerbung") {
-      return false;
-    }
 
     const searchText = search.trim().toLowerCase();
     if (searchText) {
@@ -457,10 +622,41 @@ export default function CompanyUnlocked() {
       return false;
     }
 
+    // Stellenanzeige Filter
+    if (selectedJobId) {
+      const hasLinkedJob = p.linkedJobTitles?.some(job => job.id === selectedJobId);
+      if (!hasLinkedJob) {
+        return false;
+      }
+    }
+
+    // Abschluss filter
+    if (abschlussFilter.length > 0) {
+      // Check geplanter_abschluss
+      const hasMatchingAbschluss = 
+        (p.geplanter_abschluss && abschlussFilter.includes(p.geplanter_abschluss)) ||
+        // Check schulbildung JSONB array
+        (Array.isArray(p.schulbildung) && p.schulbildung.some((edu: any) => {
+          const abschluss = edu.abschluss || edu.degree || edu.qualifikation;
+          return abschluss && abschlussFilter.includes(abschluss);
+        }));
+      if (!hasMatchingAbschluss) return false;
+    }
+
     if (searchKindFilters.length) {
-      const prefs = Array.isArray(p.job_search_preferences) ? p.job_search_preferences : [];
-      const hasMatch = prefs.some(pref => searchKindFilters.includes(pref));
-      if (prefs.length && !hasMatch) return false;
+    const rawPrefs = Array.isArray(p.job_search_preferences)
+      ? p.job_search_preferences
+      : typeof p.job_search_preferences === "string"
+      ? [p.job_search_preferences]
+      : [];
+
+    const normalizedPrefs = rawPrefs
+      .map(normalizeSearchKind)
+      .filter((pref): pref is string => pref !== null);
+
+    const hasMatch = normalizedPrefs.some(pref => searchKindFilters.includes(pref));
+
+    if (normalizedPrefs.length && !hasMatch) return false;
     }
 
     return true;
@@ -483,12 +679,12 @@ export default function CompanyUnlocked() {
   const currentRecentlyViewed = filteredRecentlyViewed.slice(startIndex, endIndex);
 
   return (
-    <div className="mx-auto max-w-[1200px] p-4 md:p-6">
+    <div className="mx-auto max-w-[1500px] p-4 md:p-6">
       {/* Header */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">Freigeschaltete Azubis</h1>
+            <h1 className="text-2xl font-bold">Freigeschaltete Talente</h1>
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -519,12 +715,77 @@ export default function CompanyUnlocked() {
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
                   <Filter className="h-4 w-4" /> Filter
+                  {selectedJobId && (
+                    <Badge variant="secondary" className="ml-1">
+                      {availableJobs.find(j => j.id === selectedJobId)?.title || "Stelle"}
+                    </Badge>
+                  )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-[360px] space-y-4">
+              <PopoverContent align="end" className="w-[400px] space-y-4 max-h-[80vh] overflow-y-auto">
+                {/* Stellenanzeige Filter - prominent oben */}
+                <div className="space-y-2 pb-3 border-b">
+                  <Label className="text-sm font-semibold">Stellenanzeige</Label>
+                  <Select 
+                    value={selectedJobId || SELECT_ALL_JOBS} 
+                    onValueChange={(value) => setSelectedJobId(value === SELECT_ALL_JOBS ? null : value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Alle Stellenanzeigen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SELECT_ALL_JOBS}>Alle Stellenanzeigen</SelectItem>
+                      {availableJobs.map(job => (
+                        <SelectItem key={job.id} value={job.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{job.title}</span>
+                            {job.is_active ? (
+                              <Badge variant="default" className="ml-auto text-xs">Aktiv</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="ml-auto text-xs">Inaktiv</Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Zeigt nur Kandidaten, die mit der ausgewählten Stelle verknüpft sind
+                  </p>
+                </div>
+
+                {/* Stellenanzeige Filter - prominent at top */}
+                <div className="mb-4 pb-4 border-b">
+                  <Label className="text-sm font-semibold mb-2 block">Stellenanzeige</Label>
+                  <Select value={selectedJobId || SELECT_ALL_JOBS} onValueChange={(value) => setSelectedJobId(value === SELECT_ALL_JOBS ? null : value)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Alle Stellenanzeigen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SELECT_ALL_JOBS}>Alle Stellenanzeigen</SelectItem>
+                      {availableJobs.map(job => (
+                        <SelectItem key={job.id} value={job.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{job.title}</span>
+                            {job.is_active ? (
+                              <Badge variant="default" className="ml-auto text-xs">Aktiv</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="ml-auto text-xs">Inaktiv</Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Zeigt nur Kandidaten, die mit der ausgewählten Stelle verknüpft sind
+                  </p>
+                </div>
+
+                {/* Status Filter */}
                 <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">Stages</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-sm font-semibold">Status</Label>
                     <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
@@ -536,17 +797,17 @@ export default function CompanyUnlocked() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setSelectedStageFilters([])}
+                        onClick={() => setSelectedStageFilters([STAGE_FILTERS[0].key])}
                       >
-                        Keine
+                        Zurücksetzen
                       </Button>
                     </div>
                   </div>
-                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="space-y-2">
                     {STAGE_FILTERS.map(stage => {
                       const checked = selectedStageFilters.includes(stage.key);
                       return (
-                        <label key={stage.key} className="flex items-center gap-2">
+                        <label key={stage.key} className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-muted/50">
                           <Checkbox
                             checked={checked}
                             onCheckedChange={(value) => {
@@ -560,15 +821,37 @@ export default function CompanyUnlocked() {
                                 return Array.from(set);
                               });
                             }}
+                            className="mt-0.5"
                           />
-                          <span className="text-sm">{stage.label}</span>
+                          <div className="flex-1">
+                            <span className="text-sm font-medium">{stage.label}</span>
+                            {stage.description && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{stage.description}</p>
+                            )}
+                            <Badge variant="secondary" className="ml-2 text-xs">
+                              {stageCounts[stage.key] ?? 0}
+                            </Badge>
+                          </div>
                         </label>
                       );
                     })}
                   </div>
+                  {ARCHIVED_FILTERS.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-sm font-semibold text-muted-foreground">Archiv</Label>
+                        <Switch checked={showArchived} onCheckedChange={setShowArchived} />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Abgelehnte oder abgesagte Kandidaten
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <span className="text-sm font-semibold">Weitere Filter</span>
+
+                {/* Weitere Filter */}
+                <div className="space-y-2 pt-3 border-t">
+                  <Label className="text-sm font-semibold">Weitere Filter</Label>
                   <Input
                     value={jobTitleFilter}
                     onChange={(e) => setJobTitleFilter(e.target.value)}
@@ -587,6 +870,29 @@ export default function CompanyUnlocked() {
                     placeholder="Standort z. B. Berlin"
                     className="text-sm"
                   />
+                </div>
+                <div className="border-t pt-3 space-y-2">
+                  <span className="text-sm font-semibold">Abschluss</span>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {ABSCHLUSS_OPTIONS.map(option => {
+                      const checked = abschlussFilter.includes(option.value);
+                      return (
+                        <label key={option.value} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(value) => {
+                              setAbschlussFilter(prev => {
+                                const set = new Set(prev);
+                                if (value) set.add(option.value); else set.delete(option.value);
+                                return Array.from(set);
+                              });
+                            }}
+                          />
+                          {option.label}
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="border-t pt-3">
                   <span className="text-sm font-semibold">Art der Suche</span>
@@ -620,10 +926,13 @@ export default function CompanyUnlocked() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      setSelectedStageFilters(STAGE_FILTERS.map(s => s.key));
+                      setSelectedStageFilters([STAGE_FILTERS[0].key]); // Nur "Freigeschaltet" als Standard
+                      setShowArchived(false);
+                      setSelectedJobId(null);
                       setJobTitleFilter("");
                       setIndustryFilter("");
                       setLocationFilter("");
+                      setAbschlussFilter([]);
                       setSearchKindFilters(SEARCH_KIND_OPTIONS.map(opt => opt.key));
                       setUnlockedOnly(true);
                     }}
@@ -639,19 +948,31 @@ export default function CompanyUnlocked() {
           </div>
         </div>
 
-        {/* Stage filter chips */}
+        {/* Stage filter chips - vereinfacht */}
         <div className="-mx-2 overflow-x-auto px-2">
           <div className="flex items-center gap-2 min-w-max">
+            {/* Stellenanzeige Filter Chip */}
+            {selectedJobId && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="gap-2 whitespace-nowrap bg-blue-100 text-blue-700 hover:bg-blue-200"
+                onClick={() => setSelectedJobId(null)}
+              >
+                {availableJobs.find(j => j.id === selectedJobId)?.title || "Stelle"}
+                <span className="ml-1">×</span>
+              </Button>
+            )}
             <Button
               size="sm"
-              variant={applicationsOnly ? "secondary" : "outline"}
+              variant={selectedStageFilters.length === STAGE_FILTERS.length ? "secondary" : "outline"}
               className="gap-2 whitespace-nowrap"
-              onClick={() => setApplicationsOnly(prev => !prev)}
+              onClick={() => {
+                setSelectedStageFilters(STAGE_FILTERS.map(s => s.key));
+                setShowArchived(false);
+              }}
             >
-              Bewerbungen
-              <Badge variant={applicationsOnly ? "default" : "secondary"} className="ml-1">
-                {applicationCount}
-              </Badge>
+              Alle
             </Button>
             {STAGE_FILTERS.map(stage => {
               const active = selectedStageFilters.includes(stage.key);
@@ -661,16 +982,14 @@ export default function CompanyUnlocked() {
                   size="sm"
                   variant={active ? "secondary" : "outline"}
                   className="gap-2 whitespace-nowrap"
+                  title={stage.description}
                   onClick={() => {
-                    setSelectedStageFilters(prev => {
-                      const set = new Set(prev);
-                      if (active) {
-                        set.delete(stage.key);
-                      } else {
-                        set.add(stage.key);
-                      }
-                      return Array.from(set);
-                    });
+                    // Toggle: Wenn aktiv, deaktivieren; wenn nicht aktiv, nur diesen aktivieren
+                    if (active) {
+                      setSelectedStageFilters(prev => prev.filter(s => s !== stage.key));
+                    } else {
+                      setSelectedStageFilters([stage.key]);
+                    }
                   }}
                 >
                   {stage.label}
@@ -680,6 +999,31 @@ export default function CompanyUnlocked() {
                 </Button>
               );
             })}
+            {showArchived ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 whitespace-nowrap text-muted-foreground"
+                onClick={() => {
+                  setShowArchived(false);
+                  setSelectedStageFilters([STAGE_FILTERS[0].key]);
+                }}
+              >
+                Archiv ausblenden
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-2 whitespace-nowrap text-muted-foreground"
+                onClick={() => {
+                  setShowArchived(true);
+                  setSelectedStageFilters([]);
+                }}
+              >
+                Archiv anzeigen
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -731,7 +1075,10 @@ export default function CompanyUnlocked() {
             ) : (
               <>
                 {viewMode === "grid" ? (
-                  <div ref={gridRef} className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <div
+                    ref={gridRef}
+                    className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+                  >
                     {currentProfiles.map((p) => (
                       <div key={p.id} className="relative">
                         <Checkbox
@@ -757,6 +1104,8 @@ export default function CompanyUnlocked() {
                              match: typeof p.match_score === "number" ? Math.round(p.match_score) : null,
                              stage: p.stage,
                              educationForm: (p as any).schulform || undefined,
+                             available_from: (p as any).available_from || undefined,
+                             visibility_mode: (p as any).visibility_mode || undefined,
                            }}
                            variant="unlocked"
                            unlockReason={
@@ -778,22 +1127,57 @@ export default function CompanyUnlocked() {
                    ))}
                  </div>
                 ) : (
-                  <div className="overflow-hidden rounded-xl border border-gray-200">
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-12"></TableHead>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Ort</TableHead>
-                          <TableHead>Branche</TableHead>
-                          <TableHead>Profil</TableHead>
-                          <TableHead>Matching</TableHead>
-                          <TableHead>Aktionen</TableHead>
+                          <TableHead className="min-w-[150px]">Name</TableHead>
+                          <TableHead className="min-w-[120px]">Ort</TableHead>
+                          <TableHead className="min-w-[100px]">Status</TableHead>
+                          <TableHead className="min-w-[120px]">Art der Suche</TableHead>
+                          <TableHead className="min-w-[100px]">Verfügbar ab</TableHead>
+                          <TableHead className="min-w-[80px]">Führerschein</TableHead>
+                          <TableHead className="min-w-[100px]">Kontakt</TableHead>
+                          <TableHead className="min-w-[120px]">Interview</TableHead>
+                          <TableHead className="min-w-[150px]">Verknüpfte Stelle(n)</TableHead>
+                          <TableHead className="min-w-[140px]">Aktionen</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {currentProfiles.map((p) => {
                           const checked = selected.includes(p.id);
+                          const statusLabel = p.stage || p.status || "FREIGESCHALTET";
+                          const statusDisplay = STAGE_FILTERS.find(s => s.key === statusLabel.toUpperCase())?.label || statusLabel;
+                          
+                          // Format available_from
+                          const formatAvailableFrom = (dateStr: string | null | undefined) => {
+                            if (!dateStr) return "—";
+                            try {
+                              const [year, month] = dateStr.split('-');
+                              const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+                              return `${monthNames[parseInt(month) - 1]} ${year}`;
+                            } catch {
+                              return dateStr;
+                            }
+                          };
+
+                          // Format interview date
+                          const formatInterviewDate = (dateStr: string | null | undefined) => {
+                            if (!dateStr) return "—";
+                            try {
+                              const date = new Date(dateStr);
+                              return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                            } catch {
+                              return "—";
+                            }
+                          };
+
+                          // Job search preferences
+                          const jobSearchPrefs = Array.isArray(p.job_search_preferences) 
+                            ? p.job_search_preferences.join(', ')
+                            : p.job_search_preferences || "—";
+
                           return (
                             <TableRow key={p.id}>
                               <TableCell>
@@ -806,14 +1190,95 @@ export default function CompanyUnlocked() {
                               <TableCell className="font-medium">
                                 {p.vorname} {p.nachname}
                               </TableCell>
-                              <TableCell>{p.ort || "—"}</TableCell>
-                              <TableCell>{p.branche || "—"}</TableCell>
-                              <TableCell>{p.headline || p.status || "—"}</TableCell>
-                              <TableCell>{typeof p.match_score === "number" ? `${Math.round(p.match_score)}%` : "—"}</TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Button size="sm" variant="outline" onClick={() => handlePreview(p)}>Profil</Button>
-                                  <Button size="sm" variant="outline" onClick={() => handleOpenCv(p.id)}>CV</Button>
+                                <div className="text-sm">
+                                  {p.ort || "—"}
+                                  {p.plz && <span className="text-muted-foreground"> ({p.plz})</span>}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm">
+                                  <div className="font-medium">{p.branche || "—"}</div>
+                                  <div className="text-xs text-muted-foreground">{p.headline || p.status || ""}</div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm max-w-[120px] truncate" title={jobSearchPrefs}>
+                                  {jobSearchPrefs}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {formatAvailableFrom(p.available_from)}
+                              </TableCell>
+                              <TableCell>
+                                {p.has_drivers_license ? (
+                                  <Badge variant="default" className="bg-green-600">Ja</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-xs space-y-0.5">
+                                  {p.email && <div className="truncate max-w-[100px]" title={p.email}>{p.email}</div>}
+                                  {p.telefon && <div>{p.telefon}</div>}
+                                  {!p.email && !p.telefon && <span className="text-muted-foreground">—</span>}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm">
+                                  <div className="font-medium">{statusDisplay}</div>
+                                  {p.interview_date && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {formatInterviewDate(p.interview_date)}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {p.linkedJobTitles && p.linkedJobTitles.length > 0 ? (
+                                  <div className="space-y-1.5">
+                                    {p.linkedJobTitles.map((job, idx) => {
+                                      const isSelected = selectedJobId === job.id;
+                                      const jobData = availableJobs.find(j => j.id === job.id);
+                                      return (
+                                        <div key={job.id} className="flex items-center gap-1.5 flex-wrap">
+                                          <Badge 
+                                            variant={isSelected ? "default" : "outline"}
+                                            className={cn(
+                                              "text-xs cursor-pointer hover:bg-primary/10",
+                                              isSelected 
+                                                ? "bg-blue-600 text-white border-blue-600" 
+                                                : "bg-blue-50 text-blue-700 border-blue-200"
+                                            )}
+                                            onClick={() => setSelectedJobId(job.id)}
+                                            title="Klicken zum Filtern nach dieser Stelle"
+                                          >
+                                            {job.title}
+                                          </Badge>
+                                          {jobData && (
+                                            <Badge 
+                                              variant={jobData.is_active ? "default" : "secondary"} 
+                                              className="text-[10px]"
+                                            >
+                                              {jobData.is_active ? "Aktiv" : "Inaktiv"}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">Keine Stelle verknüpft</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Button size="sm" variant="outline" onClick={() => handlePreview(p)} className="text-xs px-2">
+                                    Profil
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleOpenCv(p.id)} className="text-xs px-2">
+                                    CV
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -867,7 +1332,10 @@ export default function CompanyUnlocked() {
               </div>
             ) : (
               <>
-                <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div
+                  ref={gridRef}
+                  className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+                >
                   {currentRecentlyViewed.map((p) => (
                     <div key={p.id} className="relative">
                       <Checkbox

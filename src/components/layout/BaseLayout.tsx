@@ -15,8 +15,8 @@ export const BaseLayout: React.FC<BaseLayoutProps> = ({ children, className }) =
     )}>
       <div
         className={cn(
-          // Max readable width + horizontal padding (mobile-optimized)
-          "mx-auto max-w-[1200px] px-3 sm:px-4 md:px-6 lg:px-12",
+          // Max readable width + horizontal padding (mobile only)
+          "mx-auto max-w-[1200px] px-3 sm:px-4 md:px-0",
           // Typography defaults
           "tracking-tight leading-relaxed text-[15px] md:text-base",
           // Prevent layout breaks

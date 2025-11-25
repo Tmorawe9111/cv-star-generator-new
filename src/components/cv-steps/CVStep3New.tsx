@@ -12,32 +12,37 @@ import { SprachEntry } from '@/contexts/CVFormContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { COMMON_LANGUAGES } from '@/data/commonLanguages';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
-import { Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+
+// Ensure COMMON_LANGUAGES is always an array
+const LANGUAGES_LIST = Array.isArray(COMMON_LANGUAGES) ? COMMON_LANGUAGES : [];
 
 const CVStep3New = () => {
   const { formData, updateFormData } = useCVForm();
   const { toast } = useToast();
   const [generatingSkills, setGeneratingSkills] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState(false);
-  const [languagePopoverOpen, setLanguagePopoverOpen] = useState<number | null>(null);
 
   const sprachNiveaus = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'Muttersprache'];
 
-  // Get available languages (filter out already selected ones)
-  const getAvailableLanguages = () => {
+  // Get available languages (filter out already selected ones, but keep current selection visible)
+  const getAvailableLanguages = (currentIndex?: number): string[] => {
     const selectedLanguages = (formData.sprachen || [])
-      .map(s => s.sprache)
+      .map((s, idx) => idx !== currentIndex ? s.sprache : null) // Exclude current selection from filter
       .filter((lang): lang is string => Boolean(lang)); // Filter out null/undefined/empty
-    return COMMON_LANGUAGES.filter(lang => !selectedLanguages.includes(lang));
+    
+    return LANGUAGES_LIST.filter(lang => !selectedLanguages.includes(lang));
   };
 
   // Sprachen
   const addSprache = () => {
     const sprachen = formData.sprachen || [];
     const availableLanguages = getAvailableLanguages();
+    
+    // Ensure availableLanguages is an array
+    if (!Array.isArray(availableLanguages)) {
+      console.error('availableLanguages is not an array in addSprache');
+      return;
+    }
     
     // Add with first available language or empty
     updateFormData({ 
@@ -303,68 +308,64 @@ const CVStep3New = () => {
         </div>
 
         <div className="space-y-3">
-          {formData.sprachen?.map((sprache, index) => (
-            <div key={index} className="flex gap-2 items-start">
-              <Popover open={languagePopoverOpen === index} onOpenChange={(open) => setLanguagePopoverOpen(open ? index : null)}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="flex-1 justify-between"
-                  >
-                    {sprache.sprache || 'Sprache auswählen...'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Sprache suchen..." />
-                    <CommandEmpty>Keine Sprache gefunden.</CommandEmpty>
-                    <CommandGroup className="max-h-64 overflow-auto">
-                      {getAvailableLanguages().map((language) => (
-                        <CommandItem
+          {formData.sprachen?.map((sprache, index) => {
+            // Get all languages, but mark selected ones as disabled
+            const selectedLanguages = (formData.sprachen || [])
+              .map((s, idx) => idx !== index ? s.sprache : null)
+              .filter((lang): lang is string => Boolean(lang));
+            
+            return (
+              <div key={index} className="flex gap-2 items-start">
+                <Select
+                  value={sprache.sprache || ''}
+                  onValueChange={(value) => updateSprache(index, 'sprache', value)}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Sprache auswählen..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {LANGUAGES_LIST.map((language) => {
+                      const isSelected = selectedLanguages.includes(language);
+                      const isCurrent = sprache.sprache === language;
+                      
+                      return (
+                        <SelectItem
                           key={language}
                           value={language}
-                          onSelect={() => {
-                            updateSprache(index, 'sprache', language);
-                            setLanguagePopoverOpen(null);
-                          }}
+                          disabled={isSelected && !isCurrent}
+                          className={isSelected && !isCurrent ? 'opacity-50 cursor-not-allowed' : ''}
                         >
-                          <Check
-                            className={cn(
-                              'mr-2 h-4 w-4',
-                              sprache.sprache === language ? 'opacity-100' : 'opacity-0'
-                            )}
-                          />
                           {language}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              <Select
-                value={sprache.niveau}
-                onValueChange={(value) => updateSprache(index, 'niveau', value)}
-              >
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {sprachNiveaus.map(niveau => (
-                    <SelectItem key={niveau} value={niveau}>{niveau}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => removeSprache(index)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
+                          {isCurrent && ' ✓'}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={sprache.niveau}
+                  onValueChange={(value) => updateSprache(index, 'niveau', value)}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sprachNiveaus.map(niveau => (
+                      <SelectItem key={niveau} value={niveau}>{niveau}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeSprache(index)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            );
+          })}
         </div>
       </Card>
 

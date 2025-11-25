@@ -135,7 +135,13 @@ export const CVLayoutSelectorDialog: React.FC<CVLayoutSelectorDialogProps> = ({
   };
 
   const renderPreview = () => {
-    const commonProps = { data: cvData, className: "scale-[0.55] origin-top-left w-[182%]" };
+    // A4 dimensions: 210mm x 297mm = 794px x 1123px at 96 DPI
+    // Render at exact PDF size, will be scaled by container
+    // Remove shadow and border for preview to match PDF exactly
+    const commonProps = { 
+      data: cvData, 
+      className: "cv-a4-page"
+    };
 
     switch (selectedLayout) {
       case 1:
@@ -184,63 +190,83 @@ export const CVLayoutSelectorDialog: React.FC<CVLayoutSelectorDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-7xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>CV-Layout auswählen</DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
-          {/* Left: Layout Options */}
-          <div className="space-y-3 max-h-[75vh] overflow-y-auto pr-2">
-            {layouts.map((layout) => (
-              <Card
-                key={layout.id}
-                className={`cursor-pointer transition-all hover:shadow-md ${
-                  selectedLayout === layout.id
-                    ? 'ring-2 ring-primary border-primary'
-                    : 'hover:border-primary/50'
-                } ${layout.color}`}
-                onClick={() => setSelectedLayout(layout.id)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="text-3xl">{layout.preview}</div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-sm">{layout.name}</h3>
-                        {layout.id === recommendedLayoutId && (
-                          <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">
-                            Empfohlen
-                          </span>
-                        )}
-                        {selectedLayout === layout.id && (
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
-                            Ausgewählt
-                          </span>
-                        )}
+        <div className="flex-1 overflow-y-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 pb-4">
+            {/* Left: Layout Options */}
+            <div className="space-y-3 pr-2">
+              {layouts.map((layout) => (
+                <Card
+                  key={layout.id}
+                  className={`cursor-pointer transition-all hover:shadow-md ${
+                    selectedLayout === layout.id
+                      ? 'ring-2 ring-primary border-primary'
+                      : 'hover:border-primary/50'
+                  } ${layout.color}`}
+                  onClick={() => setSelectedLayout(layout.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="text-3xl">{layout.preview}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-sm">{layout.name}</h3>
+                          {layout.id === recommendedLayoutId && (
+                            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">
+                              Empfohlen
+                            </span>
+                          )}
+                          {selectedLayout === layout.id && (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                              Ausgewählt
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{layout.description}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">{layout.description}</p>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
 
-          {/* Right: Preview */}
-          <div className="bg-muted/30 rounded-lg p-4 flex flex-col">
-            <h3 className="text-sm font-semibold mb-3">Vorschau (A4-Format)</h3>
-            <div className="bg-white rounded shadow-lg overflow-auto flex-1 max-h-[75vh]" style={{ aspectRatio: '1/1.414' }}>
-              <div className="w-full h-full overflow-auto">
-                <div className="min-h-full">
-                  {renderPreview()}
+            {/* Right: Preview */}
+            <div className="bg-gray-100 p-4 flex flex-col">
+              <h3 className="text-sm font-semibold mb-3 text-center">Vorschau (A4-Format)</h3>
+              <div 
+                className="flex-1 overflow-auto flex items-start justify-center"
+                style={{ 
+                  minHeight: 'calc(90vh - 250px)',
+                  padding: '20px 0'
+                }}
+              >
+                <div
+                  className="bg-white shadow-2xl"
+                  style={{
+                    width: '794px',
+                    height: '1123px',
+                    backgroundColor: 'white',
+                    transform: 'scale(0.5)',
+                    transformOrigin: 'top center',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+                    borderRadius: '0'
+                  }}
+                >
+                  <div className="cv-preview-mode" style={{ width: '100%', height: '100%' }}>
+                    {renderPreview()}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
+        {/* Fixed Footer with Buttons */}
+        <div className="sticky bottom-0 bg-background border-t px-6 py-4 flex justify-end gap-2 z-10">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Abbrechen
           </Button>

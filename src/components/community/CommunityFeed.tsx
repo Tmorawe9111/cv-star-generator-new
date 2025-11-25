@@ -13,16 +13,31 @@ type PostWithAuthor = {
   id: string;
   content: string;
   image_url?: string;
+  media?: Array<{ url: string; type: string }>;
+  documents?: Array<{ url: string; name: string; type: string }>;
   created_at: string;
   user_id: string;
-  author_type?: "company" | "user";
+  author_type?: "user" | "company";
   author_id?: string;
+  company_id?: string | null;
   recent_interaction?: string;
   like_count?: number;
   comment_count?: number;
   share_count?: number;
+  post_type?: string;
+  job_id?: string | null;
+  applies_enabled?: boolean | null;
+  cta_label?: string | null;
+  cta_url?: string | null;
+  promotion_theme?: string | null;
   author?: any;
   company?: any;
+  job?: {
+    id: string;
+    title: string;
+    city?: string | null;
+    employment_type?: string | null;
+  } | null;
   [key: string]: any;
 };
 
@@ -52,6 +67,8 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
   const feedQuery = useInfiniteQuery({
     queryKey: ['home-feed', viewerId, sort],
     enabled: true, // Always enabled to load posts
+    staleTime: 1 * 60 * 1000, // 1 Minute - Feed aktualisiert sich häufiger
+    cacheTime: 3 * 60 * 1000, // 3 Minuten
     initialPageParam: { after_published: null as string | null, after_id: null as string | null },
     queryFn: async ({ pageParam }) => {
       console.log('[feed] fetching page', pageParam, sort);
@@ -106,87 +123,60 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
       }
 
       // Transform posts data to match expected structure (map posts to expected format)
-      const transformedPosts = rawPosts?.map((post: any) => {
-        const author = post.author || null;
-        
-        return {
+      const transformedPosts: PostWithAuthor[] =
+        rawPosts?.map((post: any) => ({
           id: post.id,
-          content: post.content || '',
-          image_url: post.image_url || null,
-          media: post.media || [],
-          documents: post.documents || [],
+          content: post.content ?? '',
+          image_url: post.image_url ?? null,
+          media: Array.isArray(post.media) ? post.media : [],
+          documents: Array.isArray(post.documents) ? post.documents : [],
           user_id: post.user_id,
-          author_type: 'user' as 'user' | 'company',
-          author_id: post.user_id,
-          like_count: 0,
-          likes_count: 0,
-          comment_count: 0,
-          comments_count: 0,
-          share_count: 0,
-          shares_count: 0,
+          author_type: post.author_type === 'company' ? 'company' : 'user',
+          author_id: post.author_id ?? post.user_id,
+          company_id: post.company_id ?? null,
+          like_count: post.like_count ?? post.likes_count ?? 0,
+          comment_count: post.comment_count ?? post.comments_count ?? 0,
+          share_count: post.share_count ?? post.shares_count ?? 0,
           created_at: post.created_at,
           updated_at: post.updated_at,
           published_at: post.created_at,
-          author: author
-        };
-      }) || [];
+          post_type: post.post_type ?? 'text',
+          job_id: post.job_id ?? null,
+          applies_enabled: post.applies_enabled ?? false,
+          cta_label: post.cta_label ?? null,
+          cta_url: post.cta_url ?? null,
+          promotion_theme: post.promotion_theme ?? null,
+          author: post.author || null,
+          company: post.company || null,
+          job: post.job || null,
+        })) || [];
 
       console.log('[feed] transformed posts:', transformedPosts.length, transformedPosts);
 
-      // If we don't have author info from the view, fetch it separately
-      const postsNeedingAuthorInfo = transformedPosts.filter(post => !post.author);
+      // Load missing user profiles
+      const postsNeedingAuthorInfo = transformedPosts.filter(
+        (post) => post.author_type === 'user' && !post.author
+      );
       if (postsNeedingAuthorInfo.length > 0) {
-        console.log('[feed] Fetching author info for', postsNeedingAuthorInfo.length, 'posts');
-        
-        const userIds = [...new Set(postsNeedingAuthorInfo.map(p => p.user_id).filter(Boolean))];
-
-        let userProfiles: any[] = [];
-
+        const userIds = [...new Set(postsNeedingAuthorInfo.map((p) => p.user_id).filter(Boolean))];
         if (userIds.length > 0) {
-          console.log('[feed] Fetching user profiles for IDs:', userIds);
-          
-          // Try multiple profile queries to handle different table structures
-          let { data: profiles, error: profileError } = await supabase
+          const { data: profiles, error: profileError } = await supabase
             .from('profiles')
-            .select('id, vorname, nachname, avatar_url, headline, employer_free, aktueller_beruf, ausbildungsberuf, ausbildungsbetrieb, company_name')
+            .select(
+              'id, vorname, nachname, avatar_url, headline, employer_free, aktueller_beruf, ausbildungsberuf, ausbildungsbetrieb, company_name'
+            )
             .in('id', userIds);
-          
-          // If no profiles found, create fallback profiles
-          if (!profiles || profiles.length === 0) {
-            console.log('[feed] No profiles found, creating fallback profiles');
-            profiles = userIds.map(id => ({
-              id: id,
-              vorname: 'Nutzer',
-              nachname: id.slice(0, 8),
-              avatar_url: null,
-              headline: null,
-              employer_free: null,
-              aktueller_beruf: null,
-              ausbildungsberuf: null,
-              ausbildungsbetrieb: null,
-              company_name: null
-            }));
+
+          if (profileError) {
+            console.error('[feed] profile fetch error', profileError);
           }
-          
-          console.log('[feed] User profiles result:', profiles, profileError);
-          userProfiles = profiles || [];
-        }
 
+          const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]));
 
-        // Add author info to posts that need it
-        transformedPosts.forEach(post => {
-          if (!post.author) {
-            const author = userProfiles.find(p => p.id === post.user_id);
-
-            console.log('[feed] Post author lookup:', {
-              postId: post.id,
-              userId: post.user_id,
-              foundAuthor: author,
-              userProfilesCount: userProfiles.length
-            });
-
+          postsNeedingAuthorInfo.forEach((post) => {
+            const author = profileMap.get(post.user_id);
             if (author) {
-            (post as any).author = {
+              post.author = {
                 id: author.id,
                 vorname: author.vorname,
                 nachname: author.nachname,
@@ -196,9 +186,65 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
                 aktueller_beruf: author.aktueller_beruf,
                 ausbildungsberuf: author.ausbildungsberuf,
                 ausbildungsbetrieb: author.ausbildungsbetrieb,
-                company_name: author.company_name
+                company_name: author.company_name,
               };
             }
+          });
+        }
+      }
+
+      // Load missing company metadata for company posts
+      const companyIds = [
+        ...new Set(
+          transformedPosts
+            .filter((post) => post.author_type === 'company' && !post.company && post.company_id)
+            .map((post) => post.company_id as string)
+        ),
+      ];
+
+      if (companyIds.length > 0) {
+        const { data: companies, error: companiesError } = await supabase
+          .from('companies')
+          .select('id, name, logo_url, main_location, industry, description')
+          .in('id', companyIds);
+
+        if (companiesError) {
+          console.error('[feed] company fetch error', companiesError);
+        }
+
+        const companyMap = new Map((companies || []).map((company) => [company.id, company]));
+
+        transformedPosts.forEach((post) => {
+          if (post.author_type === 'company' && !post.company && post.company_id) {
+            post.company = companyMap.get(post.company_id) || null;
+          }
+        });
+      }
+
+      // Load job details for spotlight posts
+      const jobIds = [
+        ...new Set(
+          transformedPosts
+            .filter((post) => post.job_id)
+            .map((post) => post.job_id as string)
+        ),
+      ];
+
+      if (jobIds.length > 0) {
+        const { data: jobRows, error: jobError } = await supabase
+          .from('job_posts')
+          .select('id, title, city, employment_type')
+          .in('id', jobIds);
+
+        if (jobError) {
+          console.error('[feed] job fetch error', jobError);
+        }
+
+        const jobMap = new Map((jobRows || []).map((job) => [job.id, job]));
+
+        transformedPosts.forEach((post) => {
+          if (post.job_id) {
+            post.job = jobMap.get(post.job_id) || null;
           }
         });
       }
@@ -257,7 +303,7 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-1 md:space-y-4 w-full max-w-full overflow-x-hidden -mx-0 md:mx-0">
       <NewPostsNotification 
         onRefresh={() => feedQuery.refetch()} 
         currentPostIds={postIds}

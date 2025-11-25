@@ -1,9 +1,13 @@
 import { timeAgo } from '@/utils/timeAgo';
 import type { NotificationRow, NotifType } from '@/types/notifications';
 import { useAcceptEmployment, useDeclineEmployment } from '@/hooks/useEmployment';
+import { acceptInterviewRequest, declineInterviewRequest } from '@/lib/api/interview-requests';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { de } from 'date-fns/locale';
 
 type Props = {
   n: NotificationRow;
@@ -36,6 +40,9 @@ const typeIcon: Record<NotifType, string> = {
   job_post_rejected: '❌',
   job_post_expiring: '⏰',
   billing_invoice_ready: '🧾',
+  interview_request_received: '📅',
+  interview_request_accepted: '✅',
+  interview_request_declined: '❌',
 };
 
 export default function NotificationCard({ n, onRead, onAction }: Props) {
@@ -91,6 +98,11 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
       
       case 'application_withdrawn':
         return notif.payload?.job_id ? `/company/jobs/${notif.payload.job_id}` : null;
+      
+      case 'interview_request_received':
+      case 'interview_request_accepted':
+      case 'interview_request_declined':
+        return notif.payload?.company_id ? `/company/${notif.payload.company_id}` : null;
       
       default:
         return null;
@@ -153,6 +165,39 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
     try {
       await decline.mutateAsync({ request_id: n.payload.request_id });
       onAction?.(n, 'decline');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Handle interview request actions
+  const handleAcceptInterview = async () => {
+    if (!n.payload?.interview_request_id || busy) return;
+    setBusy(true);
+    try {
+      await acceptInterviewRequest({ requestId: n.payload.interview_request_id });
+      toast.success("Interview-Anfrage angenommen. Du erhältst in Kürze eine E-Mail mit dem Meeting-Link.");
+      onAction?.(n, 'accept');
+      onRead(n.id);
+    } catch (error) {
+      console.error(error);
+      toast.error("Interview-Anfrage konnte nicht angenommen werden.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeclineInterview = async () => {
+    if (!n.payload?.interview_request_id || busy) return;
+    setBusy(true);
+    try {
+      await declineInterviewRequest({ requestId: n.payload.interview_request_id });
+      toast.success("Interview-Anfrage abgelehnt.");
+      onAction?.(n, 'decline');
+      onRead(n.id);
+    } catch (error) {
+      console.error(error);
+      toast.error("Interview-Anfrage konnte nicht abgelehnt werden.");
     } finally {
       setBusy(false);
     }
@@ -260,6 +305,31 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
             </a>
           </div>
         );
+      case 'interview_request_received':
+        return (
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={handleAcceptInterview}
+              disabled={busy}
+              className="h-9 rounded-lg px-3 text-sm text-white disabled:opacity-60"
+              style={{ backgroundColor: '#5CE1E6' }}
+              title="Interview-Anfrage annehmen"
+            >
+              {busy ? 'Wird verarbeitet…' : 'Annehmen'}
+            </button>
+            <button
+              onClick={handleDeclineInterview}
+              disabled={busy}
+              className="h-9 rounded-lg border px-3 text-sm hover:bg-gray-50 disabled:opacity-60"
+              title="Interview-Anfrage ablehnen"
+            >
+              {busy ? 'Wird verarbeitet…' : 'Ablehnen'}
+            </button>
+          </div>
+        );
+      case 'interview_request_accepted':
+      case 'interview_request_declined':
+        return null; // Info-only notifications
       default:
         return null;
     }
@@ -293,6 +363,34 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
               </span>
               {n.payload.company_name && (
                 <span> für {n.payload.company_name}</span>
+              )}
+            </div>
+          )}
+
+          {/* Interview request meta info */}
+          {n.type === 'interview_request_received' && n.payload && (
+            <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+              {n.payload.planned_at && (
+                <div>
+                  <span className="font-medium">Termin:</span>{' '}
+                  {format(new Date(n.payload.planned_at), "dd.MM.yyyy 'um' HH:mm 'Uhr'", { locale: de })}
+                </div>
+              )}
+              {n.payload.interview_type && (
+                <div>
+                  <span className="font-medium">Art:</span>{' '}
+                  {n.payload.interview_type === 'online' ? 'Online (Video-Interview)' : 'Vor Ort'}
+                </div>
+              )}
+              {n.payload.location_address && (
+                <div>
+                  <span className="font-medium">Adresse:</span> {n.payload.location_address}
+                </div>
+              )}
+              {n.payload.job_title && (
+                <div>
+                  <span className="font-medium">Stelle:</span> {n.payload.job_title}
+                </div>
               )}
             </div>
           )}

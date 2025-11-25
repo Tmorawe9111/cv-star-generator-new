@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { useCommentLikes, type PostComment } from '@/hooks/usePostInteractions';
+import { useCompany } from '@/hooks/useCompany';
 
 interface CommentItemProps {
   comment: PostComment;
@@ -15,27 +16,87 @@ interface CommentItemProps {
 
 export const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, depth = 0 }) => {
   const navigate = useNavigate();
+  const { company } = useCompany();
   const [showReplies, setShowReplies] = useState(false);
   
   const { count: likeCount, liked, toggleLike, isToggling } = useCommentLikes(comment.id);
 
-  const name = comment.author?.vorname && comment.author?.nachname
-    ? `${comment.author.vorname} ${comment.author.nachname}`
-    : 'Unbekannt';
-    
-  const initials = comment.author?.vorname && comment.author?.nachname
-    ? `${comment.author.vorname[0]}${comment.author.nachname[0]}`
-    : 'U';
+  // Check if current user is a company user
+  const isCompanyUser = !!company?.id;
 
-  // Comment author headline wie bei LinkedIn
-  const employer = comment.author?.employer_free || comment.author?.ausbildungsbetrieb || comment.author?.company_name || null;
+  // Determine if comment is from a company
+  const isCompanyComment = comment.author_type === 'company' && comment.company;
+  
+  // Determine profile route for comment author
+  const getProfileRoute = () => {
+    // If current user is a company user, they should NEVER see user profiles
+    if (isCompanyUser) {
+      // If it's the company's own comment (by company_id match), go to own company profile with posts tab
+      if (comment.company?.id === company?.id) {
+        return `/company/profile?tab=posts`;
+      }
+      // If comment is from another company, go to that company's public profile
+      if (isCompanyComment && comment.company?.id) {
+        return `/companies/${comment.company.id}`;
+      }
+      // Company users CAN click on user profiles (but see restricted view)
+      if (comment.author?.id || comment.user_id) {
+        return `/u/${comment.author?.id || comment.user_id}`;
+      }
+      return null;
+    }
+    
+    // Regular user logic
+    if (isCompanyComment && comment.company?.id) {
+      return `/companies/${comment.company.id}`;
+    }
+    
+    // User profile
+    return `/u/${comment.author?.id || comment.user_id}`;
+  };
+  
+  const profileRoute = getProfileRoute();
+  
+  // Get name - prioritize company name, then user full name, then partial name
+  const name = isCompanyComment && comment.company?.name
+    ? comment.company.name
+    : (comment.author?.vorname && comment.author?.nachname
+      ? `${comment.author.vorname} ${comment.author.nachname}`
+      : (comment.author?.vorname
+        ? comment.author.vorname
+        : (comment.author?.nachname
+          ? comment.author.nachname
+          : 'Unbekannt')));
+    
+  // Get initials - prioritize company, then user initials
+  const initials = isCompanyComment && comment.company?.name
+    ? comment.company.name.slice(0, 2).toUpperCase()
+    : (comment.author?.vorname && comment.author?.nachname
+      ? `${comment.author.vorname[0] || ''}${comment.author.nachname[0] || ''}`.toUpperCase()
+      : (comment.author?.vorname
+        ? comment.author.vorname[0]?.toUpperCase() || 'U'
+        : (comment.author?.nachname
+          ? comment.author.nachname[0]?.toUpperCase() || 'U'
+          : 'U')));
+
+  // Comment author headline/subtitle
   let commentHeadline = '';
-  if (comment.author?.headline) {
-    commentHeadline = employer ? `${comment.author.headline} @ ${employer}` : comment.author.headline;
-  } else if (comment.author?.aktueller_beruf) {
-    commentHeadline = employer ? `${comment.author.aktueller_beruf} @ ${employer}` : comment.author.aktueller_beruf;
-  } else if (employer) {
-    commentHeadline = `@ ${employer}`;
+  if (isCompanyComment && comment.company) {
+    // Company comment: show industry and location
+    const parts = [];
+    if (comment.company.industry) parts.push(comment.company.industry);
+    if (comment.company.main_location) parts.push(comment.company.main_location);
+    commentHeadline = parts.join(' • ') || '';
+  } else if (comment.author) {
+    // User comment: show headline like LinkedIn
+    const employer = comment.author.employer_free || comment.author.ausbildungsbetrieb || comment.author.company_name || null;
+    if (comment.author.headline) {
+      commentHeadline = employer ? `${comment.author.headline} @ ${employer}` : comment.author.headline;
+    } else if (comment.author.aktueller_beruf) {
+      commentHeadline = employer ? `${comment.author.aktueller_beruf} @ ${employer}` : comment.author.aktueller_beruf;
+    } else if (employer) {
+      commentHeadline = `@ ${employer}`;
+    }
   }
 
   const hasReplies = comment.replies && comment.replies.length > 0;
@@ -44,8 +105,21 @@ export const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, dept
   return (
     <div className={`${depth > 0 ? 'ml-6 sm:ml-10' : ''}`}>
       <div className="flex items-start gap-2">
-        <Avatar className="h-7 w-7 sm:h-8 sm:w-8 cursor-pointer flex-shrink-0" onClick={() => navigate(`/u/${comment.author?.id || comment.user_id}`)}>
-          <AvatarImage src={comment.author?.avatar_url ?? undefined} />
+        <Avatar 
+          className={profileRoute ? "h-7 w-7 sm:h-8 sm:w-8 cursor-pointer flex-shrink-0" : "h-7 w-7 sm:h-8 sm:w-8 cursor-default flex-shrink-0"} 
+          onClick={() => {
+            if (profileRoute) {
+              navigate(profileRoute);
+            }
+          }}
+        >
+          <AvatarImage 
+            src={isCompanyComment 
+              ? (comment.company?.logo_url ?? undefined) 
+              : (comment.author?.avatar_url ?? undefined)
+            } 
+            alt={name}
+          />
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>
         
@@ -54,8 +128,13 @@ export const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, dept
             <div className="flex items-start justify-between gap-2 mb-1">
               <div className="flex-1 min-w-0">
                 <button 
-                  className="text-xs font-semibold hover:underline block truncate" 
-                  onClick={() => navigate(`/u/${comment.author?.id || comment.user_id}`)}
+                  className={`text-xs font-semibold block truncate ${profileRoute ? 'hover:underline cursor-pointer' : 'cursor-default'}`}
+                  onClick={() => {
+                    if (profileRoute) {
+                      navigate(profileRoute);
+                    }
+                  }}
+                  disabled={!profileRoute}
                 >
                   {name}
                 </button>

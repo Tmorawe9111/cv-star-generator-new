@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { CompanySidebar } from "@/components/Company/CompanySidebar";
 import { CompanyHeader } from "@/components/Company/CompanyHeader";
+import { CompanyPortalFooter } from "@/components/Company/CompanyPortalFooter";
 import { Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
@@ -9,14 +10,33 @@ import { useCompanyOnboarding } from "@/hooks/useCompanyOnboarding";
 import { BrancheSelector } from "@/components/company/onboarding/BrancheSelector";
 import { TargetGroupSelector } from "@/components/company/onboarding/TargetGroupSelector";
 import { PlanSelector } from "@/components/company/onboarding/PlanSelector";
+import { ProfileCompletion } from "@/components/company/onboarding/ProfileCompletion";
+import { FirstJob } from "@/components/company/onboarding/FirstJob";
+import { TeamInvite } from "@/components/company/onboarding/TeamInvite";
 import { WelcomePopup } from "@/components/company/onboarding/WelcomePopup";
 import { supabase } from "@/integrations/supabase/client";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { ONBOARDING_STEPS } from "@/hooks/useCompanyOnboarding";
+import { TokenDepletedModal } from "@/components/Company/TokenDepletedModal";
+import { AppleOnboardingModal } from "@/components/Company/onboarding/AppleOnboardingModal";
+
+// Mapping für Branchen-Keys zu lesbaren Namen
+const BRANCH_NAMES: Record<string, string> = {
+  'handwerk': 'Handwerk',
+  'it': 'IT',
+  'gesundheit': 'Gesundheit',
+  'buero': 'Büro & Verwaltung',
+  'verkauf': 'Verkauf & Handel',
+  'gastronomie': 'Gastronomie',
+  'bau': 'Bau & Architektur',
+};
 
 export function CompanyLayout() {
   const { user, isLoading: authLoading } = useAuth();
   const { company, loading: companyLoading, refetch } = useCompany();
-  const { loading: onboardingLoading, state, updateStep, completeOnboarding } = useCompanyOnboarding();
+  const { loading: onboardingLoading, state, updateStep, completeOnboarding, skipStep } = useCompanyOnboarding();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showTokenDepletedModal, setShowTokenDepletedModal] = useState(false);
+  const [showAppleOnboarding, setShowAppleOnboarding] = useState(false);
 
   // Check for pending company signup from magic link
   useEffect(() => {
@@ -42,10 +62,13 @@ export function CompanyLayout() {
         });
 
         if (!error && companyId) {
-          // Update with plan info
+          // Update with plan info and ensure onboarding is not completed
           await supabase
             .from('companies')
-            .update({ selected_plan_id: data.selectedPlan })
+            .update({ 
+              selected_plan_id: data.selectedPlan,
+              onboarding_completed: false  // Ensure onboarding is not completed
+            })
             .eq('id', companyId);
           
           localStorage.removeItem('pending_company_signup');
@@ -58,6 +81,43 @@ export function CompanyLayout() {
 
     processPendingSignup();
   }, [user, company, refetch]);
+
+  // Check if Apple Onboarding should be shown (new onboarding system)
+  useEffect(() => {
+    // Wait for company data to be loaded
+    if (companyLoading || onboardingLoading) return;
+    
+    // If no company yet, don't show onboarding
+    if (!company) return;
+
+    // Check if onboarding is not completed (explicitly check for false or null)
+    const shouldShow = company.onboarding_completed === false || company.onboarding_completed === null;
+    
+    if (shouldShow) {
+      // Small delay to ensure page is fully loaded and rendered
+      const timer = setTimeout(() => {
+        setShowAppleOnboarding(true);
+      }, 800);
+      return () => clearTimeout(timer);
+    } else {
+      // If onboarding is completed, ensure modal is closed
+      setShowAppleOnboarding(false);
+    }
+  }, [company, companyLoading, onboardingLoading, company?.onboarding_completed]);
+
+  // Check if tokens are depleted and show modal
+  useEffect(() => {
+    if (company && (company.active_tokens === null || company.active_tokens <= 0)) {
+      // Only show if onboarding is complete (don't interrupt onboarding)
+      if (state.isComplete && !showAppleOnboarding) {
+        // Small delay to avoid showing immediately on page load
+        const timer = setTimeout(() => {
+          setShowTokenDepletedModal(true);
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [company?.active_tokens, state.isComplete, showAppleOnboarding]);
 
   // Show loading state
   if (authLoading || companyLoading || onboardingLoading) {
@@ -79,32 +139,103 @@ export function CompanyLayout() {
   }
 
   // Render onboarding popups if not completed
+  // Only show if: not completed, no job exists, and has paid plan
   const renderOnboardingPopup = () => {
     if (state.isComplete) return null;
+    
+    // Additional check: don't show if company has a job or no paid plan
+    if (state.firstJobCreated || !state.selectedPlanId || state.selectedPlanId === 'free') {
+      return null;
+    }
+
+    const totalSteps = 7;
+    const handleNext = async (nextStep: number, data?: any, markCompleted = true) => {
+      try {
+        await updateStep(nextStep as any, data, markCompleted);
+      } catch (error) {
+        console.error('Error updating step:', error);
+      }
+    };
+
+    const handleSkip = async (currentStep: number) => {
+      await skipStep(currentStep as any);
+    };
 
     switch (state.currentStep) {
-      case 0:
+      case ONBOARDING_STEPS.BRANCH:
         return (
           <BrancheSelector
-            onNext={(industry) => updateStep(1, { industry })}
+            onNext={(industryKey) => {
+              // Convert key to readable name for storage
+              const industryName = BRANCH_NAMES[industryKey] || industryKey;
+              handleNext(ONBOARDING_STEPS.TARGET_GROUPS, { industry: industryName }, true);
+            }}
+            onSkip={() => handleSkip(ONBOARDING_STEPS.BRANCH)}
+            stepNumber={ONBOARDING_STEPS.BRANCH}
+            totalSteps={totalSteps}
           />
         );
-      case 1:
+      case ONBOARDING_STEPS.TARGET_GROUPS:
         return (
           <TargetGroupSelector
-            onNext={(targetGroups) => updateStep(2, { targetGroups })}
+            onNext={(targetGroups) => handleNext(ONBOARDING_STEPS.PLAN, { targetGroups }, true)}
+            onSkip={() => handleSkip(ONBOARDING_STEPS.TARGET_GROUPS)}
+            stepNumber={ONBOARDING_STEPS.TARGET_GROUPS}
+            totalSteps={totalSteps}
           />
         );
-      case 2:
+      case ONBOARDING_STEPS.PLAN:
         return (
           <PlanSelector
             selectedPlanId={state.selectedPlanId}
-            onNext={() => updateStep(3)}
+            onNext={(planKey, interval) => {
+              // Save plan selection when proceeding
+              handleNext(ONBOARDING_STEPS.PROFILE, { 
+                selectedPlanId: planKey, 
+                planInterval: interval 
+              }, true);
+            }}
+            onSkip={() => handleSkip(ONBOARDING_STEPS.PLAN)}
+            stepNumber={ONBOARDING_STEPS.PLAN}
+            totalSteps={totalSteps}
           />
         );
-      case 3:
+      case ONBOARDING_STEPS.PROFILE:
         return (
-          <WelcomePopup onComplete={completeOnboarding} />
+          <ProfileCompletion
+            onNext={() => handleNext(ONBOARDING_STEPS.FIRST_JOB, undefined, true)}
+            onSkip={() => handleSkip(ONBOARDING_STEPS.PROFILE)}
+            stepNumber={ONBOARDING_STEPS.PROFILE}
+            totalSteps={totalSteps}
+          />
+        );
+      case ONBOARDING_STEPS.FIRST_JOB:
+        return (
+          <FirstJob
+            onNext={() => handleNext(ONBOARDING_STEPS.TEAM_INVITE, undefined, true)}
+            onSkip={() => handleSkip(ONBOARDING_STEPS.FIRST_JOB)}
+            stepNumber={ONBOARDING_STEPS.FIRST_JOB}
+            totalSteps={totalSteps}
+            hasJob={state.firstJobCreated}
+          />
+        );
+      case ONBOARDING_STEPS.TEAM_INVITE:
+        return (
+          <TeamInvite
+            onNext={() => handleNext(ONBOARDING_STEPS.WELCOME, undefined, true)}
+            onSkip={() => handleSkip(ONBOARDING_STEPS.TEAM_INVITE)}
+            stepNumber={ONBOARDING_STEPS.TEAM_INVITE}
+            totalSteps={totalSteps}
+            hasTeam={state.teamInvited}
+          />
+        );
+      case ONBOARDING_STEPS.WELCOME:
+        return (
+          <WelcomePopup
+            onComplete={completeOnboarding}
+            stepNumber={ONBOARDING_STEPS.WELCOME}
+            totalSteps={totalSteps}
+          />
         );
       default:
         return null;
@@ -112,24 +243,46 @@ export function CompanyLayout() {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <CompanySidebar />
-        
-        <main className="flex-1 flex flex-col">
-          <CompanyHeader />
-          
-          {/* Main Content */}
-          <div className="flex-1 p-0">
-            <BaseLayout>
-              <Outlet />
-            </BaseLayout>
-          </div>
+    <div className="flex min-h-screen flex-col bg-[#f8f9ff]">
+      <CompanyHeader
+        collapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed(prev => !prev)}
+      />
+      <div className="flex flex-1 overflow-hidden">
+        <CompanySidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(prev => !prev)} />
+        <main className="flex-1 overflow-y-auto">
+          <BaseLayout>
+            <Outlet />
+          </BaseLayout>
         </main>
-
-        {/* Onboarding Popups */}
-        {renderOnboardingPopup()}
       </div>
-    </SidebarProvider>
+      <CompanyPortalFooter />
+      {renderOnboardingPopup()}
+
+      {company && (
+        <>
+          <AppleOnboardingModal
+            open={showAppleOnboarding}
+            onOpenChange={(open) => {
+              setShowAppleOnboarding(open);
+              // Mark onboarding as complete when modal is closed (if user completed it)
+              if (!open && company) {
+                supabase
+                  .from('companies')
+                  .update({ onboarding_completed: true })
+                  .eq('id', company.id)
+                  .then(() => refetch());
+              }
+            }}
+          />
+          <TokenDepletedModal
+            open={showTokenDepletedModal}
+            onOpenChange={setShowTokenDepletedModal}
+            companyId={company.id}
+            context="general"
+          />
+        </>
+      )}
+    </div>
   );
 }

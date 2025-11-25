@@ -1,25 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { MapPin, Briefcase, Wrench, Lock, X, Loader2, GraduationCap, Languages } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MapPin, Briefcase, Wrench, Lock, X, Loader2, GraduationCap, Languages, User } from "lucide-react";
 import CandidateUnlockModal from "@/components/unlock/CandidateUnlockModal";
 import { useCompany } from "@/hooks/useCompany";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CandidateProfilePreviewModalProps {
   open: boolean;
@@ -58,8 +47,10 @@ interface CandidateProfilePreviewModalProps {
     status?: string | null;
     createdAt?: string | null;
   } | null;
-  onRejectApplication?: (payload: { reasonShort: string; reasonCustom?: string }) => Promise<void> | void;
+  onRejectRequest?: () => void;
   isRejecting?: boolean;
+  onMarkNotFit?: (profileId: string, profile: CandidateProfilePreviewModalProps["profile"]) => Promise<void> | void;
+  showApplicationBanner?: boolean;
 }
 
 const toArray = (value: any): any[] => {
@@ -157,16 +148,66 @@ export function CandidateProfilePreviewModal({
   isLoading = false,
   onUnlockSuccess,
   applicationInfo = null,
-  onRejectApplication,
+  onRejectRequest,
   isRejecting = false,
+  onMarkNotFit,
+  showApplicationBanner = true,
 }: CandidateProfilePreviewModalProps) {
   const { company } = useCompany();
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [selectedReason, setSelectedReason] = useState("not_fit");
-  const [customReason, setCustomReason] = useState("");
-  const [customReasonError, setCustomReasonError] = useState("");
   const [shouldReopenPreview, setShouldReopenPreview] = useState(false);
+  const [hasContactAccess, setHasContactAccess] = useState<boolean>(Boolean(isUnlocked));
+  const [markingNotFit, setMarkingNotFit] = useState(false);
+
+  useEffect(() => {
+    setHasContactAccess(Boolean(isUnlocked));
+  }, [isUnlocked]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const run = async () => {
+      if (!open || !company?.id || !profile) return;
+      if (isUnlocked) {
+        setHasContactAccess(true);
+        return;
+      }
+
+      const candidateId = profile.user_id || profile.id;
+      if (!candidateId) {
+        setHasContactAccess(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("tokens_used")
+          .select("id")
+          .eq("company_id", company.id)
+          .eq("profile_id", candidateId)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error checking token usage for preview:", error);
+          if (isMounted) setHasContactAccess(false);
+          return;
+        }
+
+        if (isMounted) {
+          setHasContactAccess(Boolean(data));
+        }
+      } catch (error) {
+        console.error("Unexpected error checking token usage:", error);
+        if (isMounted) setHasContactAccess(false);
+      }
+    };
+
+    run();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [open, company?.id, profile?.id, profile?.user_id, isUnlocked]);
 
   if (!profile) return null;
 
@@ -189,6 +230,8 @@ export function CandidateProfilePreviewModal({
     return acc;
   }, []);
   const location = profile.ort ? `${profile.ort}${profile.plz ? `, ${profile.plz}` : ""}` : "";
+  const contactEmail = undefined;
+  const contactPhone = undefined;
 
   const formattedApplicationDate = (() => {
     if (!applicationInfo?.createdAt) return null;
@@ -199,43 +242,17 @@ export function CandidateProfilePreviewModal({
     }
   })();
 
-  const showApplicationActions = !!applicationInfo && applicationInfo.status !== "rejected" && !!onRejectApplication;
+  const showApplicationActions =
+    showApplicationBanner && !!applicationInfo && applicationInfo.status !== "rejected" && Boolean(onRejectRequest);
 
-  const rejectionOptions = [
-    { value: "not_fit", label: "Profil passt nicht zur Stelle" },
-    { value: "position_filled", label: "Stelle bereits besetzt" },
-    { value: "experience_mismatch", label: "Erfahrung passt nicht" },
-    { value: "other", label: "Eigener Grund" },
-  ];
+  const hasRejectButton = Boolean(onRejectRequest) || Boolean(onMarkNotFit);
+  const rejectButtonLoading = onRejectRequest ? isRejecting : markingNotFit;
 
-  const handleOpenRejectDialog = () => {
-    setCustomReason("");
-    setCustomReasonError("");
-    setSelectedReason("not_fit");
-    setRejectDialogOpen(true);
-  };
-
-  const handleConfirmReject = async () => {
-    if (!onRejectApplication || !applicationInfo) {
-      setRejectDialogOpen(false);
-      return;
-    }
-
-    if (selectedReason === "other" && !customReason.trim()) {
-      setCustomReasonError("Bitte geben Sie einen Grund an.");
-      return;
-    }
-
-    setCustomReasonError("");
-
-    try {
-      await onRejectApplication({
-        reasonShort: selectedReason,
-        reasonCustom: selectedReason === "other" ? customReason.trim() : undefined,
-      });
-      setRejectDialogOpen(false);
-    } catch {
-      // Fehlerbehandlung außerhalb
+  const handleRejectButtonClick = () => {
+    if (onRejectRequest) {
+      onRejectRequest();
+    } else if (onMarkNotFit) {
+      handleMarkNotFit();
     }
   };
 
@@ -265,9 +282,21 @@ export function CandidateProfilePreviewModal({
     }
   };
 
+  const handleMarkNotFit = async () => {
+    if (!profile?.id || !onMarkNotFit) return;
+    setMarkingNotFit(true);
+    try {
+      await onMarkNotFit(profile.id, profile);
+    } catch (error) {
+      console.error("Error marking candidate as not fit:", error);
+    } finally {
+      setMarkingNotFit(false);
+    }
+  };
+
   return (
     <>
-      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl p-0 overflow-hidden">
           <div className="flex h-full max-h-[90vh] flex-col">
             <div className="flex items-center justify-between border-b px-6 py-4">
@@ -283,7 +312,7 @@ export function CandidateProfilePreviewModal({
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-                {applicationInfo && (
+                {showApplicationBanner && applicationInfo && (
                   <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
                     <div className="font-semibold text-blue-700 mb-1">Bewerbung ansehen</div>
                     <div>
@@ -301,9 +330,18 @@ export function CandidateProfilePreviewModal({
 
                 <div className="flex items-start gap-4">
                   <Avatar className="h-16 w-16 flex-shrink-0 bg-blue-50 text-blue-600">
-                    <AvatarFallback className="text-xl font-semibold">
-                      {initials || displayName.charAt(0).toUpperCase()}
-                    </AvatarFallback>
+                    {isUnlocked ? (
+                      <>
+                        <AvatarImage src={profile.avatar_url || undefined} />
+                        <AvatarFallback className="text-xl font-semibold">
+                          {initials || displayName.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </>
+                    ) : (
+                      <AvatarFallback className="bg-gradient-to-br from-blue-100 to-blue-200">
+                        <User className="h-8 w-8 text-blue-600" />
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <h2 className="text-2xl font-bold mb-2">{displayName}</h2>
@@ -526,29 +564,6 @@ export function CandidateProfilePreviewModal({
                   </div>
                 )}
 
-                {isUnlocked && (profile.email || profile.telefon) && (
-                  <div className="pt-4 border-t">
-                    <h3 className="font-semibold mb-2">Kontaktinformationen</h3>
-                    <div className="space-y-2 text-sm">
-                      {profile.email && (
-                        <div>
-                          <span className="font-medium">E-Mail: </span>
-                          <a href={`mailto:${profile.email}`} className="text-blue-600 hover:underline">
-                            {profile.email}
-                          </a>
-                        </div>
-                      )}
-                      {profile.telefon && (
-                        <div>
-                          <span className="font-medium">Telefon: </span>
-                          <a href={`tel:${profile.telefon}`} className="text-blue-600 hover:underline">
-                            {profile.telefon}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
@@ -568,20 +583,50 @@ export function CandidateProfilePreviewModal({
                   <Button
                     variant="outline"
                     className="flex-1"
-                    onClick={handleOpenRejectDialog}
-                    disabled={isRejecting}
+                    onClick={handleRejectButtonClick}
+                    disabled={rejectButtonLoading}
                   >
                     Bewerbung ablehnen
                   </Button>
                 </div>
-              ) : !isUnlocked ? (
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleOpenUnlockModal}>
-                    <Lock className="mr-2 h-4 w-4" />
-                    Profil freischalten
-                  </Button>
-                </div>
               ) : null}
+
+              {(hasRejectButton || !isUnlocked) && (
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                  {hasRejectButton && (
+                    <Button
+                      variant="outline"
+                      className="sm:w-auto border-red-200 text-red-600 hover:bg-red-50"
+                      onClick={handleRejectButtonClick}
+                      disabled={rejectButtonLoading}
+                    >
+                      {rejectButtonLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {onRejectRequest ? "Wird abgelehnt..." : "Wird ausgeblendet..."}
+                        </>
+                      ) : (
+                        "Unpassend"
+                      )}
+                    </Button>
+                  )}
+                  {!isUnlocked && (
+                    <Button
+                      className="sm:w-auto bg-blue-600 hover:bg-blue-700"
+                      onClick={handleOpenUnlockModal}
+                      disabled={isRejecting || markingNotFit}
+                    >
+                      <Lock className="mr-2 h-4 w-4" />
+                      Jetzt freischalten
+                    </Button>
+                  )}
+                  {isUnlocked && !showApplicationActions && (
+                    <Button className="sm:w-auto" disabled>
+                      Bereits freigeschaltet
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
@@ -613,52 +658,6 @@ export function CandidateProfilePreviewModal({
           }}
         />
       )}
-
-      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Bewerbung ablehnen</AlertDialogTitle>
-          </AlertDialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Wählen Sie einen Grund aus, warum diese Bewerbung abgelehnt werden soll. Dieser Hinweis wird intern dokumentiert.
-            </p>
-            <RadioGroup value={selectedReason} onValueChange={setSelectedReason} className="space-y-3">
-              {rejectionOptions.map((option) => (
-                <Label
-                  key={option.value}
-                  htmlFor={`reject-${option.value}`}
-                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${selectedReason === option.value ? "border-blue-500 bg-blue-50" : "border-border"}`}
-                >
-                  <RadioGroupItem id={`reject-${option.value}`} value={option.value} className="mt-1" />
-                  <span>{option.label}</span>
-                </Label>
-              ))}
-            </RadioGroup>
-            {selectedReason === "other" && (
-              <div className="space-y-2">
-                <Label htmlFor="custom-reason" className="text-sm font-medium">
-                  Eigener Grund
-                </Label>
-                <Textarea
-                  id="custom-reason"
-                  value={customReason}
-                  onChange={(event) => setCustomReason(event.target.value)}
-                  placeholder="Grund für die Ablehnung"
-                  rows={3}
-                />
-                {customReasonError && <p className="text-xs text-red-600">{customReasonError}</p>}
-              </div>
-            )}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isRejecting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmReject} disabled={isRejecting}>
-              {isRejecting ? "Wird abgelehnt..." : "Ablehnung bestätigen"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

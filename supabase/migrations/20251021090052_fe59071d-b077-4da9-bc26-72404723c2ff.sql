@@ -14,7 +14,8 @@ DECLARE
   v_candidate_name TEXT;
   v_job_title TEXT;
 BEGIN
-  IF NEW.status != 'submitted' THEN
+  -- Check if status is 'new' (new applications from candidates)
+  IF NEW.status != 'new' OR NEW.source != 'applied' THEN
     RETURN NEW;
   END IF;
 

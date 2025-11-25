@@ -29,10 +29,10 @@ export function CompanyProfileHeader({
   onLogoUpload
 }: CompanyProfileHeaderProps) {
   return (
-    <>
+    <div className="flex flex-col">
       {/* Cover Image */}
-      <div className="relative w-full">
-        <div className="relative h-48 w-full overflow-hidden md:h-64 lg:h-80">
+      <div className="relative w-full rounded-t-3xl">
+        <div className="relative h-48 w-full overflow-hidden rounded-t-3xl md:h-64 lg:h-80">
           <img 
             src={company.header_image || "/placeholder.svg"} 
             alt={`${company.name} Cover`}
@@ -76,7 +76,7 @@ export function CompanyProfileHeader({
       </div>
 
       {/* Logo & Info Section */}
-      <div className="max-w-6xl mx-auto px-6 pt-24">
+      <div className="max-w-6xl mx-auto px-6 pb-12 pt-24">
         <div className="flex flex-col items-center text-center">
            
           {/* Company Name */}
@@ -120,6 +120,6 @@ export function CompanyProfileHeader({
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }

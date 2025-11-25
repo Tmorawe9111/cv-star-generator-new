@@ -8,6 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
+import { normalizeImageUrl } from '@/lib/image-utils';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface LinkedInProfileHeaderProps {
   profile: any;
@@ -28,6 +30,8 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
   onSave,
   isSaving = false
 }) => {
+  const { refetchProfile } = useAuth();
+  const queryClient = useQueryClient();
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [headline, setHeadline] = useState(profile?.headline || '');
@@ -82,21 +86,33 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
           .update({ cover_image_url: uploadResult.url })
           .eq('id', user.id);
         
-        if (!error) {
-          onProfileUpdate({ cover_image_url: uploadResult.url });
-          toast({ title: "Titelbild hochgeladen", description: "Ihr Titelbild wurde erfolgreich aktualisiert." });
+        if (error) {
+          console.error('Error updating cover_image_url in database:', error);
+          throw error;
         }
+        
+        // Update local state
+        onProfileUpdate({ cover_image_url: uploadResult.url });
+        
+        // Also update cover_url and titelbild_url for backwards compatibility
+        await supabase
+          .from('profiles')
+          .update({ cover_url: uploadResult.url, titelbild_url: uploadResult.url })
+          .eq('id', user.id);
+        
+        // Invalidate and refetch profile data
+        queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+        await refetchProfile?.();
+        
+        toast({ title: "Titelbild hochgeladen", description: "Ihr Titelbild wurde erfolgreich aktualisiert." });
       }
     } catch (error) {
       console.error('Error uploading cover:', error);
-      // Fallback to base64 if Supabase upload fails
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        onProfileUpdate({ cover_image_url: result, cover_url: result, titelbild_url: result });
-        toast({ title: "Titelbild hochgeladen", description: "Ihr Titelbild wurde erfolgreich aktualisiert." });
-      };
-      reader.readAsDataURL(file);
+      toast({ 
+        title: "Upload fehlgeschlagen", 
+        description: "Das Titelbild konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut.",
+        variant: "destructive"
+      });
     } finally {
       // reset input so selecting the same file works again
       try { inputEl.value = ''; } catch {}
@@ -166,11 +182,27 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
       case 'schueler':
         return profile.geplanter_abschluss || 'Abitur';
       case 'azubi':
-        const currentJob = profile.berufserfahrung?.find((job: any) => !job.bis || new Date(job.bis) > new Date());
-        return currentJob?.position || profile.ausbildungsberuf || 'Ausbildung';
+        const currentJob = profile.berufserfahrung?.find((job: any) => {
+          if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
+          try {
+            const bisDate = new Date(job.zeitraum_bis);
+            return bisDate > new Date();
+          } catch {
+            return true;
+          }
+        });
+        return currentJob?.titel || profile.ausbildungsberuf || 'Ausbildung';
       case 'ausgelernt':
-        const currentEmployment = profile.berufserfahrung?.find((job: any) => !job.bis || new Date(job.bis) > new Date());
-        return currentEmployment?.position || profile.aktueller_beruf || 'Position';
+        const currentEmployment = profile.berufserfahrung?.find((job: any) => {
+          if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
+          try {
+            const bisDate = new Date(job.zeitraum_bis);
+            return bisDate > new Date();
+          } catch {
+            return true;
+          }
+        });
+        return currentEmployment?.titel || profile.aktueller_beruf || 'Position';
       default:
         return '';
     }
@@ -182,42 +214,58 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
     let updates: any = {};
     
     switch (profile.status) {
-      case 'Schueler':
+      case 'schueler':
         updates.geplanter_abschluss = newPosition;
         // Update schulbildung if exists
         if (profile.schulbildung && profile.schulbildung.length > 0) {
           const updatedSchulbildung = [...profile.schulbildung];
-          updatedSchulbildung[0] = { ...updatedSchulbildung[0], abschluss: newPosition };
+          updatedSchulbildung[0] = { ...updatedSchulbildung[0], schulform: newPosition };
           updates.schulbildung = updatedSchulbildung;
         }
         break;
         
-      case 'Azubi':
+      case 'azubi':
         updates.ausbildungsberuf = newPosition;
         // Update berufserfahrung if exists
         if (profile.berufserfahrung && profile.berufserfahrung.length > 0) {
           const updatedBerufserfahrung = [...profile.berufserfahrung];
-          const currentJobIndex = updatedBerufserfahrung.findIndex((job: any) => !job.bis || new Date(job.bis) > new Date());
+          const currentJobIndex = updatedBerufserfahrung.findIndex((job: any) => {
+            if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
+            try {
+              const bisDate = new Date(job.zeitraum_bis);
+              return bisDate > new Date();
+            } catch {
+              return true;
+            }
+          });
           if (currentJobIndex !== -1) {
             updatedBerufserfahrung[currentJobIndex] = { 
               ...updatedBerufserfahrung[currentJobIndex], 
-              position: newPosition 
+              titel: newPosition 
             };
             updates.berufserfahrung = updatedBerufserfahrung;
           }
         }
         break;
         
-      case 'Ausgelernt':
+      case 'ausgelernt':
         updates.aktueller_beruf = newPosition;
         // Update berufserfahrung if exists
         if (profile.berufserfahrung && profile.berufserfahrung.length > 0) {
           const updatedBerufserfahrung = [...profile.berufserfahrung];
-          const currentJobIndex = updatedBerufserfahrung.findIndex((job: any) => !job.bis || new Date(job.bis) > new Date());
+          const currentJobIndex = updatedBerufserfahrung.findIndex((job: any) => {
+            if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
+            try {
+              const bisDate = new Date(job.zeitraum_bis);
+              return bisDate > new Date();
+            } catch {
+              return true;
+            }
+          });
           if (currentJobIndex !== -1) {
             updatedBerufserfahrung[currentJobIndex] = { 
               ...updatedBerufserfahrung[currentJobIndex], 
-              position: newPosition 
+              titel: newPosition 
             };
             updates.berufserfahrung = updatedBerufserfahrung;
           }
@@ -243,11 +291,19 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
 
   const getEmployerOrSchool = (p: any) => {
     if (!p) return '';
-    if (p.status === 'Schueler') {
-      return p.schule || p.schulbildung?.[0]?.institution || '';
+    if (p.status === 'schueler') {
+      return p.schule || p.schulbildung?.[0]?.name || '';
     }
-    if (p.status === 'Azubi' || p.status === 'Ausgelernt') {
-      const current = p.berufserfahrung?.find((job: any) => !job.bis || new Date(job.bis) > new Date());
+    if (p.status === 'azubi' || p.status === 'ausgelernt') {
+      const current = p.berufserfahrung?.find((job: any) => {
+        if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
+        try {
+          const bisDate = new Date(job.zeitraum_bis);
+          return bisDate > new Date();
+        } catch {
+          return true;
+        }
+      });
       return current?.unternehmen || p.ausbildungsbetrieb || '';
     }
     return '';
@@ -259,26 +315,42 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
     const currentYear = new Date().getFullYear();
     
     switch (profile.status) {
-      case 'Schueler':
-        const schoolName = profile.schule || profile.schulbildung?.[0]?.institution || 'Schule';
+      case 'schueler':
+        const schoolName = profile.schule || profile.schulbildung?.[0]?.name || 'Schule';
         const graduationYear = profile.abschlussjahr || 
-          (profile.schulbildung?.[0]?.bis ? new Date(profile.schulbildung[0].bis).getFullYear() : currentYear + 1);
+          (profile.schulbildung?.[0]?.zeitraum_bis ? new Date(profile.schulbildung[0].zeitraum_bis).getFullYear() : currentYear + 1);
         const studentPosition = getCurrentPosition(profile);
         return `${studentPosition} an der ${schoolName}, Abschluss voraussichtlich ${graduationYear}`;
       
-      case 'Azubi':
-        const currentJob = profile.berufserfahrung?.find((job: any) => !job.bis || new Date(job.bis) > new Date());
+      case 'azubi':
+        const currentJob = profile.berufserfahrung?.find((job: any) => {
+          if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
+          try {
+            const bisDate = new Date(job.zeitraum_bis);
+            return bisDate > new Date();
+          } catch {
+            return true;
+          }
+        });
         const company = profile.ausbildungsbetrieb || currentJob?.unternehmen || 'Betrieb';
         const endDate = profile.voraussichtliches_ende || 
-          (currentJob?.bis ? new Date(currentJob.bis).getFullYear() : currentYear + 2);
+          (currentJob?.zeitraum_bis && currentJob.zeitraum_bis !== 'heute' ? new Date(currentJob.zeitraum_bis).getFullYear() : currentYear + 2);
         const apprenticePosition = getCurrentPosition(profile);
         return `${apprenticePosition} bei ${company} bis ${endDate}`;
       
-      case 'Ausgelernt':
-        const currentEmployment = profile.berufserfahrung?.find((job: any) => !job.bis || new Date(job.bis) > new Date());
+      case 'ausgelernt':
+        const currentEmployment = profile.berufserfahrung?.find((job: any) => {
+          if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
+          try {
+            const bisDate = new Date(job.zeitraum_bis);
+            return bisDate > new Date();
+          } catch {
+            return true;
+          }
+        });
         const employer = currentEmployment?.unternehmen || 'Unternehmen';
         const startYear = profile.abschlussjahr_ausgelernt || 
-          (currentEmployment?.von ? new Date(currentEmployment.von).getFullYear() : currentYear);
+          (currentEmployment?.zeitraum_von ? new Date(currentEmployment.zeitraum_von).getFullYear() : currentYear);
         const employeePosition = getCurrentPosition(profile);
         return `${employeePosition} bei ${employer} seit ${startYear}`;
       
@@ -293,12 +365,19 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
       <div className="relative h-32 sm:h-36 md:h-40 lg:h-48 overflow-hidden rounded-t-xl bg-gradient-to-r from-primary/20 to-accent/30">
         {profile?.cover_image_url || profile?.cover_url || profile?.titelbild_url ? (
           <img 
-            src={(profile.cover_image_url || profile.cover_url || profile.titelbild_url) as string}
+            src={normalizeImageUrl((profile.cover_image_url || profile.cover_url || profile.titelbild_url) as string) || (profile.cover_image_url || profile.cover_url || profile.titelbild_url) as string}
             alt={(profile?.vorname || profile?.nachname) ? `Titelbild von ${profile?.vorname ?? ''} ${profile?.nachname ?? ''}`.trim() : 'Titelbild'} 
             className="w-full h-full object-cover object-[center_top]"
             loading="lazy"
             decoding="async"
             sizes="(max-width: 768px) 100vw, 800px"
+            onError={(e) => {
+              const originalUrl = profile.cover_image_url || profile.cover_url || profile.titelbild_url;
+              console.error('Cover image load error:', originalUrl);
+              console.error('Normalized URL:', normalizeImageUrl(originalUrl as string));
+              // Don't hide the image, just log the error - might be a temporary network issue
+              // e.currentTarget.style.display = 'none';
+            }}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-primary/10 to-accent/20" />

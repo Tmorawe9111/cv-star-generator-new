@@ -161,6 +161,8 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
   onEducationUpdate,
   onEditingChange
 }) => {
+  // Ensure education is always an array
+  const safeEducation = Array.isArray(education) ? education : [];
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   
@@ -205,19 +207,19 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
       setEditingIndex(null);
     } else {
       // Add new
-      onEducationUpdate([...education, toSave]);
+      onEducationUpdate([...safeEducation, toSave]);
       setIsAddingNew(false);
     }
     resetForm();
   };
 
   const handleEdit = (index: number) => {
-    setFormData(education[index]);
+    setFormData(safeEducation[index]);
     setEditingIndex(index);
   };
 
   const handleDelete = (index: number) => {
-    const updated = education.filter((_, i) => i !== index);
+    const updated = safeEducation.filter((_, i) => i !== index);
     onEducationUpdate(updated);
   };
 
@@ -268,7 +270,7 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
     setEditingIndex(null);
   };
   const sortedEducation = useMemo(() => {
-    return education
+    return safeEducation
       .map((item, i) => ({ item, i }))
       .sort((a, b) => {
         const aEnd = parseInt(a.item.zeitraum_bis) || parseInt(a.item.zeitraum_von) || 0;
@@ -276,7 +278,7 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
         if (bEnd !== aEnd) return bEnd - aEnd;
         return a.i - b.i; // tie-breaker to keep original order stable
       });
-  }, [education]);
+  }, [safeEducation]);
 
   return (
     <Card>
@@ -311,7 +313,7 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
             <EducationForm formData={formData} setFormData={setFormData} years={years} currentYear={currentYear} />
           </div>
         )}
-        {education.length === 0 ? (
+        {safeEducation.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <GraduationCap className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>Noch keine Ausbildung hinzugefügt</p>

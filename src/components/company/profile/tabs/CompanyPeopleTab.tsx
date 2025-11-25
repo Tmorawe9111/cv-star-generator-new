@@ -17,7 +17,7 @@ export function CompanyPeopleTab({ companyId, isOwner }: CompanyPeopleTabProps) 
   const [showAddDialog, setShowAddDialog] = useState(false);
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="max-w-6xl mx-auto px-6 py-8">
       {isOwner && (
         <div className="mb-6 flex justify-end">
           <Button onClick={() => setShowAddDialog(true)}>

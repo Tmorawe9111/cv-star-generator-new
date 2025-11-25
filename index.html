@@ -20,7 +20,7 @@
     <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/UI8YLVTJZ8PM767Hyp7Ko0xYHGF3/social-images/social-1757606388818-Design ohne Titel (20).png">
 
     <!-- Preload critical resources for LCP optimization -->
-    <link rel="preload" href="/images/hero-mobile.webp" as="image" type="image/webp" fetchpriority="high" />
+    <!-- Removed hero-mobile.webp preload as it's not used on all pages -->
     
     <!-- Preconnect to Google Fonts early -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -41,8 +41,19 @@
       @media (min-width: 768px) { .hero-title { font-size: 4.5rem; } }
     </style>
     
-    <!-- Leadsy.ai Tracking Script -->
-    <script id="vtag-ai-js" async src="https://r2.leadsy.ai/tag.js" data-pid="1tYZkZ90z6G65js0s" data-version="062024"></script>
+    <!-- Leadsy.ai Tracking Script - Only load in production -->
+    <script>
+      // Only load Leadsy tracking in production (not localhost)
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        const script = document.createElement('script');
+        script.id = 'vtag-ai-js';
+        script.async = true;
+        script.src = 'https://r2.leadsy.ai/tag.js';
+        script.setAttribute('data-pid', '1tYZkZ90z6G65js0s');
+        script.setAttribute('data-version', '062024');
+        document.head.appendChild(script);
+      }
+    </script>
   </head>
 
   <body>

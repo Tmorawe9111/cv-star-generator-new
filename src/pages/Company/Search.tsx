@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -33,6 +34,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { sanitizePreviewProfile } from "@/utils/sanitizePreviewProfile";
+import { useGeocoding, useRadiusSearch } from "@/hooks/useGeocoding";
+import { LocationAutocomplete } from "@/components/Company/LocationAutocomplete";
+import { BRANCHES } from '@/lib/branches';
 
 interface Profile {
   id: string;
@@ -55,15 +60,42 @@ interface Profile {
 interface SearchFilters {
   keywords: string;
   targetGroup: string;
+  status: string[]; // Status filter: schueler, azubi, ausgelernt
   location: string;
   radius: number;
-  industry: string;
+  industry: string[]; // Changed to array for multiple selection
   availability: string;
   jobTitle: string;
   jobSearchType: string[];
+  abschluss: string[]; // Abschluss filter: Hauptschulabschluss, Realschulabschluss, Abitur, etc.
 }
 
 const ITEMS_PER_PAGE = 24;
+
+// Branchen options for filtering - use centralized branches
+const BRANCHEN_OPTIONS = BRANCHES.map(branch => ({
+  value: branch.key,
+  label: branch.label
+}));
+
+// Status options for filtering
+const STATUS_OPTIONS = [
+  { value: 'schueler', label: 'Schüler:in' },
+  { value: 'azubi', label: 'Auszubildender' },
+  { value: 'ausgelernt', label: 'Fachkraft' },
+];
+
+// Abschluss options for filtering
+const ABSCHLUSS_OPTIONS = [
+  { value: 'Hauptschulabschluss', label: 'Hauptschulabschluss' },
+  { value: 'Realschulabschluss', label: 'Realschulabschluss' },
+  { value: 'Abitur', label: 'Abitur' },
+  { value: 'Fachabitur', label: 'Fachabitur' },
+  { value: 'Fachhochschulreife', label: 'Fachhochschulreife' },
+  { value: 'Bachelor', label: 'Bachelor' },
+  { value: 'Master', label: 'Master' },
+  { value: 'Ausbildung abgeschlossen', label: 'Ausbildung abgeschlossen' },
+];
 
 const parseJsonField = (field: any) => {
   if (field === null || field === undefined) return null;
@@ -94,21 +126,27 @@ export default function CompanySearch() {
     profile: Profile | null;
   }>({ open: false, profile: null });
   const [currentPage, setCurrentPage] = useState(1);
+  const [dismissedProfileIds, setDismissedProfileIds] = useState<Set<string>>(new Set());
 
   const [filters, setFilters] = useState<SearchFilters>({
     keywords: "",
     targetGroup: "",
+    status: [], // Status filter array
     location: "",
     radius: 50,
-    industry: "",
+    industry: [], // Changed to array
     availability: "",
     jobTitle: "",
     jobSearchType: [],
+    abschluss: [], // Abschluss filter array
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedNeedId, setSelectedNeedId] = useState<string | null>(null);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
   const { toast } = useToast();
+  const { geocodeAddress, loading: geocodingLoading } = useGeocoding();
+  const { searchWithinRadius, loading: radiusSearchLoading } = useRadiusSearch();
 
   useEffect(() => {
     loadProfiles();
@@ -135,6 +173,81 @@ export default function CompanySearch() {
     }
   }, []);
 
+  // Initialize filters based on company data (only once, unless need parameter is set)
+  useEffect(() => {
+    if (!company || filtersInitialized) return;
+    
+    // Don't initialize filters if a need parameter is set (it has its own filtering)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('need')) {
+      setFiltersInitialized(true);
+      return;
+    }
+
+    const initializeFilters = async () => {
+      try {
+        // Set industry filter from company.industry
+        const newFilters: Partial<SearchFilters> = {};
+        
+        if (company.industry) {
+          // Convert single industry to array
+          newFilters.industry = Array.isArray(company.industry) 
+            ? company.industry 
+            : [company.industry];
+        }
+
+        // Load company settings to get target_status
+        const { data: companySettings } = await supabase
+          .from('company_settings')
+          .select('target_status')
+          .eq('company_id', company.id)
+          .maybeSingle();
+
+        if (companySettings?.target_status && Array.isArray(companySettings.target_status)) {
+          // Set status filter directly from target_status
+          // target_status: ["azubi", "schueler", "ausgelernt"]
+          newFilters.status = companySettings.target_status.filter(s => 
+            ['schueler', 'azubi', 'ausgelernt'].includes(s)
+          );
+          
+          // Also map target_status to jobSearchType for backward compatibility
+          // jobSearchType: ["Praktikum", "Ausbildung", "Nach der Ausbildung Job", "Ausbildungsplatzwechsel"]
+          const jobSearchTypes: string[] = [];
+          
+          // Map based on target_status values
+          if (companySettings.target_status.includes('schueler')) {
+            jobSearchTypes.push('Praktikum');
+          }
+          if (companySettings.target_status.includes('azubi')) {
+            jobSearchTypes.push('Ausbildung');
+            jobSearchTypes.push('Ausbildungsplatzwechsel');
+          }
+          if (companySettings.target_status.includes('ausgelernt')) {
+            jobSearchTypes.push('Nach der Ausbildung Job');
+          }
+
+          // Only set if we have mappings
+          if (jobSearchTypes.length > 0) {
+            newFilters.jobSearchType = jobSearchTypes;
+          }
+        }
+
+        // Update filters if we have any new values
+        if (Object.keys(newFilters).length > 0) {
+          setFilters(prev => ({ ...prev, ...newFilters }));
+        }
+
+        setFiltersInitialized(true);
+      } catch (error) {
+        console.error('Error initializing filters:', error);
+        // Still mark as initialized to avoid retrying
+        setFiltersInitialized(true);
+      }
+    };
+
+    initializeFilters();
+  }, [company, filtersInitialized]);
+
   const loadProfiles = async () => {
     setLoading(true);
     try {
@@ -152,10 +265,13 @@ export default function CompanySearch() {
 
       const unlockedIds = unlockedData?.map(item => item.candidate_id) || [];
 
+      // Only select needed fields for better performance
+      // Note: Use correct column names: faehigkeiten (not skills), sprachen (not languages), schulbildung (not education), berufserfahrung (not experience)
       let query = supabase
         .from('profiles')
-        .select('*', { count: 'exact' })
-        .eq('profile_published', true);
+        .select('id, vorname, nachname, avatar_url, headline, ort, plz, branche, status, aktueller_beruf, job_search_preferences, faehigkeiten, sprachen, schulbildung, berufserfahrung, visibility_mode, created_at, updated_at', { count: 'exact' })
+        .eq('profile_published', true)
+        .eq('visibility_mode', 'visible'); // Only show visible profiles
 
       // Exclude already unlocked profiles
       if (unlockedIds.length > 0) {
@@ -182,14 +298,64 @@ export default function CompanySearch() {
         }
       }
       
-      // Apply other filters
-      if (filters.targetGroup) {
+      // Apply status filter (multiple statuses)
+      if (filters.status && filters.status.length > 0) {
+        query = query.in('status', filters.status);
+      } else if (filters.targetGroup) {
+        // Fallback to old targetGroup filter for backward compatibility
         query = query.eq('status', filters.targetGroup);
       }
-      if (filters.industry) {
-        query = query.ilike('branche', `%${filters.industry}%`);
+
+      // Apply abschluss filter - will be filtered in memory after fetching
+      // Filter by multiple industries (branche field uses branch keys)
+      if (filters.industry && filters.industry.length > 0) {
+        // Use exact match for branch keys (e.g., 'handwerk', 'it', 'gesundheit')
+        query = query.in('branche', filters.industry);
       }
-      if (filters.location) {
+      
+      // Radius-Suche: Wenn location und radius gesetzt sind, verwende Geocoding + Radius-Suche
+      let radiusFilteredIds: string[] | null = null;
+      if (filters.location && filters.radius > 0) {
+        try {
+          // Parse PLZ und Stadt aus location String
+          const locationParts = filters.location.trim().split(/\s+/);
+          const plzMatch = locationParts.find(part => /^\d{5}$/.test(part));
+          const plz = plzMatch || null;
+          const city = plzMatch 
+            ? locationParts.filter(p => p !== plzMatch).join(' ') 
+            : filters.location;
+
+          // Geocode Adresse
+          const coords = await geocodeAddress(plz || undefined, city || undefined);
+          
+          if (coords && coords.latitude && coords.longitude) {
+            // Suche Profile im Radius
+            const radiusResults = await searchWithinRadius(
+              coords.latitude,
+              coords.longitude,
+              filters.radius
+            );
+
+            if (radiusResults && radiusResults.length > 0) {
+              radiusFilteredIds = radiusResults.map(r => r.profile_id);
+              query = query.in('id', radiusFilteredIds);
+            } else {
+              // Keine Ergebnisse im Radius, setze leere Liste
+              setProfiles([]);
+              setTotalCount(0);
+              return;
+            }
+          } else {
+            // Geocoding fehlgeschlagen, fallback zu normaler Text-Suche
+            query = query.ilike('ort', `%${filters.location}%`);
+          }
+        } catch (error) {
+          console.error('Radius search error:', error);
+          // Fallback zu normaler Text-Suche bei Fehler
+          query = query.ilike('ort', `%${filters.location}%`);
+        }
+      } else if (filters.location) {
+        // Normale Text-Suche wenn kein Radius gesetzt
         query = query.ilike('ort', `%${filters.location}%`);
       }
       if (filters.jobTitle) {
@@ -211,8 +377,49 @@ export default function CompanySearch() {
         .range(from, to);
 
       if (error) throw error;
-      setProfiles((data || []) as Profile[]);
-      setTotalCount(count || 0);
+      
+      // Parse JSON fields and apply abschluss filter in memory
+      let parsedProfiles = (data || []).map((profile: any) => ({
+        ...profile,
+        faehigkeiten: parseJsonField(profile.faehigkeiten),
+        job_search_preferences: parseJsonField(profile.job_search_preferences),
+        schulbildung: parseJsonField(profile.schulbildung),
+      }));
+
+      // Apply abschluss filter in memory (check geplanter_abschluss and schulbildung array)
+      if (filters.abschluss && filters.abschluss.length > 0) {
+        parsedProfiles = parsedProfiles.filter((profile: any) => {
+          // Check geplanter_abschluss
+          if (profile.geplanter_abschluss && filters.abschluss.includes(profile.geplanter_abschluss)) {
+            return true;
+          }
+          // Check schulbildung JSONB array
+          if (Array.isArray(profile.schulbildung)) {
+            const hasMatchingAbschluss = profile.schulbildung.some((edu: any) => {
+              const abschluss = edu.abschluss || edu.degree || edu.qualifikation;
+              return abschluss && filters.abschluss.includes(abschluss);
+            });
+            if (hasMatchingAbschluss) return true;
+          }
+          return false;
+        });
+      }
+
+      setProfiles(parsedProfiles as Profile[]);
+      // For abschluss filter, we need to get total count from all profiles, not just this page
+      if (filters.abschluss && filters.abschluss.length > 0) {
+        // Get all profiles to count properly
+        const { count: totalCount } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('profile_published', true)
+          .eq('visibility_mode', 'visible');
+        // Apply same filters and count
+        // For now, use the filtered length as approximation
+        setTotalCount(parsedProfiles.length);
+      } else {
+        setTotalCount(count || 0);
+      }
     } catch (error) {
       console.error('Error loading profiles:', error);
       toast({ title: "Fehler beim Laden der Profile", variant: "destructive" });
@@ -225,12 +432,15 @@ export default function CompanySearch() {
     if (!company) return;
 
     try {
-      const { data } = await supabase
-        .from('tokens_used')
-        .select('profile_id')
-        .eq('company_id', company.id);
+      const { data, error } = await supabase
+        .from('company_candidates')
+        .select('candidate_id')
+        .eq('company_id', company.id)
+        .not('unlocked_at', 'is', null);
 
-      setUnlockedProfiles(new Set(data?.map(item => item.profile_id) || []));
+      if (error) throw error;
+
+      setUnlockedProfiles(new Set(data?.map(item => item.candidate_id) || []));
     } catch (error) {
       console.error('Error loading unlocked profiles:', error);
     }
@@ -259,10 +469,9 @@ export default function CompanySearch() {
     setPreviewOpen(true);
     setLoadingPreview(true);
 
-    setPreviewProfile({
-      ...profile,
-      is_unlocked: isProfileUnlocked(profile.id),
-    });
+    const initialUnlocked = isProfileUnlocked(profile.id);
+    const initialPreview = sanitizePreviewProfile({ ...profile }, initialUnlocked);
+    setPreviewProfile(initialPreview);
 
     if (company && user) {
       try {
@@ -293,7 +502,7 @@ export default function CompanySearch() {
         faehigkeiten: parseJsonField(fullProfile.faehigkeiten) || [],
         sprachkenntnisse: parseJsonField(fullProfile.sprachkenntnisse) || [],
         sprachen: parseJsonField(fullProfile.sprachen) || [],
-        languages: parseJsonField(fullProfile.languages) || [],
+        languages: parseJsonField(fullProfile.sprachen) || [],
       };
 
       let isUnlocked = isProfileUnlocked(profile.id);
@@ -309,10 +518,8 @@ export default function CompanySearch() {
         isUnlocked = !!unlockData;
       }
 
-      setPreviewProfile({
-        ...parsedProfile,
-        is_unlocked: isUnlocked,
-      });
+      const sanitizedProfile = sanitizePreviewProfile(parsedProfile, isUnlocked);
+      setPreviewProfile(sanitizedProfile);
     } catch (error) {
       console.error('Error loading profile preview:', error);
       toast({
@@ -351,19 +558,45 @@ export default function CompanySearch() {
   };
 
   const updateFilter = (key: keyof SearchFilters, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => {
+      // Special handling for array filters to prevent duplicates
+      if ((key === 'industry' || key === 'status' || key === 'jobSearchType') && Array.isArray(value)) {
+        // Remove duplicates
+        const uniqueValues = Array.from(new Set(value));
+        return { ...prev, [key]: uniqueValues };
+      }
+      return { ...prev, [key]: value };
+    });
   };
 
   const isProfileUnlocked = (profileId: string) => unlockedProfiles.has(profileId);
+
+  const handleMarkNotFit = async (profileId: string) => {
+    setDismissedProfileIds((prev) => {
+      const next = new Set(prev);
+      next.add(profileId);
+      return next;
+    });
+    setProfiles((prev) => prev.filter((profile) => profile.id !== profileId));
+    setSavedMatches((prev) => prev.filter((profile) => profile.id !== profileId));
+    setPreviewOpen(false);
+    toast({
+      title: "Profil ausgeblendet",
+      description: "Dieses Profil wird nicht mehr angezeigt.",
+    });
+  };
 
   const calculateMatchPercentage = (profile: Profile) => {
     // Simple matching algorithm
     let score = 0;
     let totalWeight = 0;
 
-    // Industry match (40% weight)
-    if (profile.branche && filters.industry && profile.branche.toLowerCase().includes(filters.industry.toLowerCase())) {
-      score += 40;
+    // Industry match (40% weight) - exact match for branch keys
+    if (profile.branche && filters.industry && filters.industry.length > 0) {
+      const matchesIndustry = filters.industry.includes(profile.branche);
+      if (matchesIndustry) {
+        score += 40;
+      }
     }
     totalWeight += 40;
 
@@ -384,6 +617,9 @@ export default function CompanySearch() {
 
   // Use profiles directly since filtering is done at database level
   const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
+  const visibleProfiles = profiles.filter(
+    (profile) => !dismissedProfileIds.has(profile.id) && !unlockedProfiles.has(profile.id)
+  );
 
   return (
     <div className="p-3 md:p-6 min-h-screen bg-background max-w-full overflow-x-hidden space-y-6">
@@ -439,6 +675,64 @@ export default function CompanySearch() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
+              {/* Status Filter */}
+              <div>
+                <Label className="text-sm font-medium mb-3 block">Status</Label>
+                <Select
+                  value=""
+                  onValueChange={(value) => {
+                    // Prevent duplicate selection and empty values
+                    if (value && value !== "" && !filters.status.includes(value)) {
+                      const newStatuses = [...filters.status, value];
+                      // Double-check for duplicates before updating
+                      const uniqueStatuses = Array.from(new Set(newStatuses));
+                      updateFilter('status', uniqueStatuses);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={filters.status.length > 0 ? `${filters.status.length} ausgewählt` : "Status hinzufügen"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.filter(s => !filters.status.includes(s.value)).length > 0 ? (
+                      STATUS_OPTIONS.filter(s => !filters.status.includes(s.value)).map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        Alle Status ausgewählt
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+                {filters.status.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {filters.status.map((stat) => {
+                      const statusOption = STATUS_OPTIONS.find(s => s.value === stat);
+                      return (
+                        <Badge
+                          key={stat}
+                          variant="secondary"
+                          className="flex items-center gap-1 pr-1"
+                        >
+                          {statusOption?.label || stat}
+                          <button
+                            onClick={() => {
+                              updateFilter('status', filters.status.filter(s => s !== stat));
+                            }}
+                            className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Art der Suche */}
               <div>
                 <Label className="text-sm font-medium mb-3 block">Art der Suche</Label>
@@ -462,6 +756,64 @@ export default function CompanySearch() {
                 </div>
               </div>
 
+              {/* Abschluss Filter */}
+              <div>
+                <Label className="text-sm font-medium mb-3 block">Abschluss</Label>
+                <Select
+                  value=""
+                  onValueChange={(value) => {
+                    // Prevent duplicate selection and empty values
+                    if (value && value !== "" && !filters.abschluss.includes(value)) {
+                      const newAbschluesse = [...filters.abschluss, value];
+                      // Double-check for duplicates before updating
+                      const uniqueAbschluesse = Array.from(new Set(newAbschluesse));
+                      updateFilter('abschluss', uniqueAbschluesse);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={filters.abschluss.length > 0 ? `${filters.abschluss.length} ausgewählt` : "Abschluss hinzufügen"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ABSCHLUSS_OPTIONS.filter(a => !filters.abschluss.includes(a.value)).length > 0 ? (
+                      ABSCHLUSS_OPTIONS.filter(a => !filters.abschluss.includes(a.value)).map((abschluss) => (
+                        <SelectItem key={abschluss.value} value={abschluss.value}>
+                          {abschluss.label}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        Alle Abschlüsse ausgewählt
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+                {filters.abschluss.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {filters.abschluss.map((abschluss) => {
+                      const abschlussOption = ABSCHLUSS_OPTIONS.find(a => a.value === abschluss);
+                      return (
+                        <Badge
+                          key={abschluss}
+                          variant="secondary"
+                          className="flex items-center gap-1 pr-1"
+                        >
+                          {abschlussOption?.label || abschluss}
+                          <button
+                            onClick={() => {
+                              updateFilter('abschluss', filters.abschluss.filter(a => a !== abschluss));
+                            }}
+                            className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Weitere Filter */}
               <div>
                 <Label className="text-sm font-medium mb-3 block">Weitere Filter</Label>
@@ -477,24 +829,105 @@ export default function CompanySearch() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="industry-detailed">Branche</Label>
-                    <Input
-                      id="industry-detailed"
-                      placeholder="z. B. Bau, IT"
-                      value={filters.industry}
-                      onChange={(e) => updateFilter('industry', e.target.value)}
-                    />
+                    <Select
+                      value=""
+                      onValueChange={(value) => {
+                        // Prevent duplicate selection and empty values
+                        if (value && value !== "" && !filters.industry.includes(value)) {
+                          const newIndustries = [...filters.industry, value];
+                          // Double-check for duplicates before updating
+                          const uniqueIndustries = Array.from(new Set(newIndustries));
+                          updateFilter('industry', uniqueIndustries);
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="industry-detailed">
+                        <SelectValue placeholder={filters.industry.length > 0 ? `${filters.industry.length} ausgewählt` : "Branche hinzufügen"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BRANCHEN_OPTIONS.filter(b => !filters.industry.includes(b.value)).length > 0 ? (
+                          BRANCHEN_OPTIONS.filter(b => !filters.industry.includes(b.value)).map((branche) => (
+                            <SelectItem key={branche.value} value={branche.value}>
+                              {branche.label}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            Alle Branchen ausgewählt
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {filters.industry.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {filters.industry.map((ind) => {
+                          const branche = BRANCHEN_OPTIONS.find(b => b.value === ind);
+                          return (
+                            <Badge
+                              key={ind}
+                              variant="secondary"
+                              className="flex items-center gap-1 pr-1"
+                            >
+                              {branche?.label || ind}
+                              <button
+                                onClick={() => {
+                                  updateFilter('industry', filters.industry.filter(i => i !== ind));
+                                }}
+                                className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="location-detailed">Standort</Label>
-                    <Input
+                    <Label htmlFor="location-detailed">Standort (PLZ oder Stadt)</Label>
+                    <LocationAutocomplete
                       id="location-detailed"
-                      placeholder="z. B. Berlin"
                       value={filters.location}
-                      onChange={(e) => updateFilter('location', e.target.value)}
+                      onChange={(value) => updateFilter('location', value)}
+                      placeholder="z. B. 10115 Berlin oder Berlin"
                     />
                   </div>
                 </div>
               </div>
+
+              {/* Radius-Suche */}
+              {filters.location && (
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="radius" className="text-sm font-medium">
+                      Suchradius: {filters.radius} km
+                    </Label>
+                    <Badge variant="outline" className="text-xs">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      Radius-Suche aktiv
+                    </Badge>
+                  </div>
+                  <div className="px-2">
+                    <Slider
+                      id="radius"
+                      min={5}
+                      max={200}
+                      step={5}
+                      value={[filters.radius]}
+                      onValueChange={(value) => updateFilter('radius', value[0])}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>5 km</span>
+                      <span>100 km</span>
+                      <span>200 km</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Findet Kandidaten innerhalb von {filters.radius} km um {filters.location}
+                  </p>
+                </div>
+              )}
 
               {/* Reset Button */}
               <div className="flex justify-end pt-4">
@@ -503,12 +936,14 @@ export default function CompanySearch() {
                   onClick={() => setFilters({
                     keywords: filters.keywords,
                     targetGroup: filters.targetGroup,
+                    status: [],
                     location: "",
                     radius: 50,
-                    industry: "",
+                    industry: [],
                     availability: "",
                     jobTitle: "",
                     jobSearchType: [],
+                    abschluss: [],
                   })}
                 >
                   Zurücksetzen
@@ -525,7 +960,7 @@ export default function CompanySearch() {
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           </div>
-        ) : profiles.length === 0 ? (
+        ) : visibleProfiles.length === 0 ? (
           <div className="text-center py-20">
             <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold mb-2">Keine Kandidaten gefunden</h3>
@@ -535,8 +970,8 @@ export default function CompanySearch() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
-              {profiles.map((profile) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+              {visibleProfiles.map((profile) => {
                 const unlocked = isProfileUnlocked(profile.id);
                 const matchPercentage = calculateMatchPercentage(profile);
                 
@@ -556,6 +991,8 @@ export default function CompanySearch() {
                         : undefined,
                       skills: Array.isArray(profile.faehigkeiten) ? profile.faehigkeiten : [],
                       match: matchPercentage,
+                      available_from: (profile as any).available_from || undefined,
+                      visibility_mode: profile.visibility_mode || undefined,
                     }}
                     variant="search"
                     onUnlock={() => handleUnlockProfile(profile)}
@@ -654,6 +1091,11 @@ export default function CompanySearch() {
             });
           }
         }}
+        onMarkNotFit={
+          previewProfile?.id
+            ? () => handleMarkNotFit(previewProfile.id)
+            : undefined
+        }
       />
 
       {/* Unlock Modal */}

@@ -456,6 +456,35 @@ html.overflow-fix, .overflow-fix body {
     transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}
+
+/* Hide scrollbars globally but keep scroll functionality */
+html {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+html::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* Optional: Hide scrollbars on body as well */
+body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+body::-webkit-scrollbar {
+  display: none;
+
   /* Subtle background patterns */
   .bg-pattern-dots {
     background-image: radial-gradient(circle, hsl(214, 20%, 95%) 1px, transparent 1px);

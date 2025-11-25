@@ -120,6 +120,8 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
   onExperiencesUpdate,
   onEditingChange
 }) => {
+  // Ensure experiences is always an array
+  const safeExperiences = Array.isArray(experiences) ? experiences : [];
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   
@@ -159,7 +161,7 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
       setEditingIndex(null);
     } else {
       // Add new
-      onExperiencesUpdate([...experiences, toSave]);
+      onExperiencesUpdate([...safeExperiences, toSave]);
       setIsAddingNew(false);
     }
     resetForm();
@@ -171,7 +173,7 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
   };
 
   const handleDelete = (index: number) => {
-    const updated = experiences.filter((_, i) => i !== index);
+    const updated = safeExperiences.filter((_, i) => i !== index);
     onExperiencesUpdate(updated);
   };
 
@@ -228,7 +230,7 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
     setEditingIndex(null);
   };
   const sortedExperiences = useMemo(() => {
-    return experiences
+    return safeExperiences
       .map((item, i) => ({ item, i }))
       .sort((a, b) => {
         const aEnd = a.item.zeitraum_bis ? new Date(a.item.zeitraum_bis) : new Date(a.item.zeitraum_von);
@@ -236,7 +238,7 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
         if (bEnd.getTime() !== aEnd.getTime()) return bEnd.getTime() - aEnd.getTime();
         return a.i - b.i; // stable tie-breaker
       });
-  }, [experiences]);
+  }, [safeExperiences]);
 
   // Inline form component moved above for stable identity
 
@@ -274,7 +276,7 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
             <ExperienceForm formData={formData} setFormData={setFormData} />
           </div>
         )}
-        {experiences.length === 0 ? (
+        {safeExperiences.length === 0 ? (
           <div className="text-center py-6 md:py-8 text-muted-foreground">
             <Building className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 opacity-50" />
             <p className="text-sm md:text-base">Noch keine Berufserfahrung hinzugefügt</p>

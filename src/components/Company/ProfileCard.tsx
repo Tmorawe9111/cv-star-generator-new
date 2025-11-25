@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { MapPin, Briefcase, GraduationCap, Heart, Coins, Phone, Mail, Download, User, Car, Search } from "lucide-react";
+import { MapPin, Briefcase, GraduationCap, Heart, Coins, Phone, Mail, Download, User, Car, Search, Calendar } from "lucide-react";
 import { generatePDF } from "@/lib/pdf-generator";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,7 @@ interface Profile {
   job_search_preferences?: string[];
   has_drivers_license?: boolean;
   driver_license_class?: string;
+  available_from?: string | null;
 }
 
 interface ProfileCardProps {
@@ -141,6 +142,21 @@ export function ProfileCard({
       return profile.aktueller_beruf;
     }
     return profile.headline || profile.branche;
+  };
+
+  const formatAvailableFrom = (dateStr: string) => {
+    try {
+      // Format: YYYY-MM
+      const [year, month] = dateStr.split('-');
+      const monthNames = [
+        'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+        'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+      ];
+      const monthIndex = parseInt(month) - 1;
+      return `${monthNames[monthIndex]} ${year}`;
+    } catch {
+      return dateStr;
+    }
   };
 
   const prepareCVData = () => {
@@ -363,6 +379,16 @@ export function ProfileCard({
                     <span className="text-xs text-blue-600 font-semibold">
                       Sucht: {profile.job_search_preferences.slice(0, 2).join(', ')}
                       {profile.job_search_preferences.length > 2 && ` +${profile.job_search_preferences.length - 2}`}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Available From - displayed for both locked and unlocked */}
+                {profile.available_from && (
+                  <div className="flex items-center gap-1 mb-2">
+                    <Calendar className="h-3 w-3 text-emerald-600" />
+                    <span className="text-xs text-emerald-600 font-semibold">
+                      Verfügbar ab {formatAvailableFrom(profile.available_from)}
                     </span>
                   </div>
                 )}

@@ -23,11 +23,7 @@ export const useAuthForCV = () => {
       (event, session) => {
         setUser(session?.user ?? null);
         if (session?.user && !abortController.signal.aborted) {
-          setTimeout(() => {
-            if (!abortController.signal.aborted) {
-              loadProfile(session.user.id);
-            }
-          }, 100);
+          loadProfile(session.user.id);
         } else {
           setProfile(null);
         }
@@ -42,9 +38,10 @@ export const useAuthForCV = () => {
 
   const loadProfile = async (userId: string) => {
     try {
+      // Only select essential fields for faster loading
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, vorname, nachname, email, avatar_url, headline, ort, plz, branche, status, profile_complete, profile_published, visibility_mode')
         .eq('id', userId)
         .maybeSingle();
 

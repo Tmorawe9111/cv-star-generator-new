@@ -24,7 +24,10 @@ export type NotifType =
   | 'job_post_approved'
   | 'job_post_rejected'
   | 'job_post_expiring'
-  | 'billing_invoice_ready';
+  | 'billing_invoice_ready'
+  | 'interview_request_received'
+  | 'interview_request_accepted'
+  | 'interview_request_declined';
 
 export type NotifChannel = 'in_app' | 'email';
 

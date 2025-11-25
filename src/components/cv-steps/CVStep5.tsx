@@ -1,9 +1,75 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCVForm } from '@/contexts/CVFormContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Sparkles, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const CVStep5 = () => {
   const { formData, updateFormData } = useCVForm();
+  const { toast } = useToast();
+  const [generatingAboutMe, setGeneratingAboutMe] = useState(false);
+
+  // Check if user can generate (has skills and languages)
+  const canGenerateAboutMe = () => {
+    return (formData.faehigkeiten?.length || 0) > 0 && (formData.sprachen?.length || 0) > 0;
+  };
+
+  // Generate "About Me" text using AI
+  const generateAboutMeWithAI = async () => {
+    if (!canGenerateAboutMe()) {
+      toast({
+        title: "Fehler",
+        description: "Bitte wähle zuerst mindestens eine Fähigkeit und eine Sprache aus (Step 3).",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setGeneratingAboutMe(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-generate-about-me', {
+        body: { 
+          branche: formData.branche,
+          status: formData.status,
+          faehigkeiten: formData.faehigkeiten || [],
+          schulbildung: formData.schulbildung || [],
+          berufserfahrung: formData.berufserfahrung || [],
+          motivation: formData.motivation,
+          kenntnisse: formData.kenntnisse,
+          geburtsdatum: formData.geburtsdatum
+        }
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+
+      if (data.success && data.aboutMe) {
+        updateFormData({ ueberMich: data.aboutMe });
+        
+        toast({
+          title: "Erfolgreich generiert!",
+          description: "Dein persönlicher Text wurde erstellt. Du kannst ihn jederzeit bearbeiten."
+        });
+      } else {
+        throw new Error(data.error || 'Keine Antwort von der KI erhalten');
+      }
+    } catch (error: any) {
+      console.error('Error generating about me:', error);
+      toast({
+        title: "Fehler",
+        description: error.message || "Der Text konnte nicht generiert werden. Bitte versuche es erneut.",
+        variant: "destructive"
+      });
+    } finally {
+      setGeneratingAboutMe(false);
+    }
+  };
 
   const layouts = [
     {
@@ -106,6 +172,52 @@ const CVStep5 = () => {
 
   return (
     <div className="space-y-6">
+      {/* Motivation & Persönlichkeit */}
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-lg">💬 Motivation & Persönlichkeit</h3>
+            <Button
+              onClick={generateAboutMeWithAI}
+              disabled={generatingAboutMe || !canGenerateAboutMe()}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              {generatingAboutMe ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generiere...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Mit KI generieren
+                </>
+              )}
+            </Button>
+          </div>
+          {!canGenerateAboutMe() && (
+            <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded">
+              ⚠️ Bitte wähle zuerst mindestens eine Fähigkeit und eine Sprache aus (Step 3), um den Text generieren zu können.
+            </p>
+          )}
+          <p className="text-sm text-muted-foreground">
+            Beschreibe dich selbst, deine Motivation und deine Persönlichkeit. Du kannst den Text selbst schreiben oder mit KI generieren lassen.
+          </p>
+          <Textarea
+            value={formData.ueberMich || ''}
+            onChange={(e) => updateFormData({ ueberMich: e.target.value })}
+            placeholder="Ich bin... Besonders interessiere ich mich für... Meine Stärken sind..."
+            rows={6}
+            className="resize-none"
+          />
+          <p className="text-xs text-muted-foreground">
+            💡 Tipp: Dieser Text erscheint in deinem Lebenslauf und gibt Arbeitgebern einen persönlichen Einblick.
+          </p>
+        </div>
+      </Card>
+
       <div>
         <h2 className="text-xl font-semibold mb-2">Wählen Sie Ihr CV-Layout</h2>
         <p className="text-muted-foreground">

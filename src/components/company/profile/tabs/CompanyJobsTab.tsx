@@ -24,14 +24,19 @@ export function CompanyJobsTab({ companyId, isOwner }: CompanyJobsTabProps) {
     },
   });
 
+  const visibleJobs = (jobs ?? []).filter(job => {
+    const status = job.status?.toLowerCase();
+    return status !== "inactive" && status !== "deleted";
+  });
+
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="max-w-6xl mx-auto px-6 py-8">
       {isOwner && (
         <div className="mb-6 flex justify-end">
           <Button asChild>
             <Link to="/company/jobs/new">
               <Plus className="mr-2 h-4 w-4" />
-              Neue Stelle ausschreiben
+              Neue Stellenanzeige erstellen
             </Link>
           </Button>
         </div>
@@ -43,7 +48,7 @@ export function CompanyJobsTab({ companyId, isOwner }: CompanyJobsTabProps) {
         </div>
       )}
 
-      {!isLoading && jobs?.length === 0 && (
+      {!isLoading && visibleJobs.length === 0 && (
         <Card>
           <CardContent className="py-12">
             <div className="text-center">
@@ -64,7 +69,7 @@ export function CompanyJobsTab({ companyId, isOwner }: CompanyJobsTabProps) {
       )}
       
       <div className="space-y-4">
-        {jobs?.map((job) => (
+        {visibleJobs.map((job) => (
           <Card key={job.id}>
             <CardHeader>
               <div className="flex items-start justify-between">

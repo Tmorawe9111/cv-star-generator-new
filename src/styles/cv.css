@@ -9,6 +9,15 @@
   position: relative;
 }
 
+/* Preview mode - no shadow, exact PDF appearance */
+.cv-preview-mode .cv-a4-page {
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 .cv-a4-content {
   padding: 14mm 16mm;
 }

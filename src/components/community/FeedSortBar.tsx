@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export type FeedSortOption = "relevant" | "newest";
@@ -20,21 +19,19 @@ export const FeedSortBar: React.FC = () => {
   };
 
   return (
-    <div className="-mx-1 sm:mx-0">
-      <Card className="px-3 py-1.5 flex items-center justify-between gap-2 text-xs">
-        <div className="text-muted-foreground text-xs">Feed-Ansicht auswählen:</div>
-        <div className="min-w-0 w-[150px]">
-          <Select value={sort} onValueChange={(v) => onChange(v as FeedSortOption)}>
-            <SelectTrigger className="h-7 text-xs border-0 bg-transparent shadow-none">
-              <SelectValue placeholder="Relevanteste zuerst" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="relevant">Relevanteste zuerst</SelectItem>
-              <SelectItem value="newest">Neueste zuerst</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
+    <div className="flex items-center justify-between gap-2 w-full">
+      <div className="text-muted-foreground text-xs shrink-0">Feed-Ansicht:</div>
+      <div className="min-w-0 flex-1">
+        <Select value={sort} onValueChange={(v) => onChange(v as FeedSortOption)}>
+          <SelectTrigger className="h-7 text-xs border-0 bg-transparent shadow-none p-0 h-auto">
+            <SelectValue placeholder="Relevanteste zuerst" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="relevant">Relevanteste zuerst</SelectItem>
+            <SelectItem value="newest">Neueste zuerst</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 };

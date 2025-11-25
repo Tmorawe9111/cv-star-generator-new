@@ -21,7 +21,7 @@ const CompanyFeedLeft: React.FC = () => {
   const desc = firstWords(company?.description, 24);
 
   return (
-    <aside aria-label="Unternehmensprofil" className="space-y-4">
+    <div className="company-feed-left space-y-4">
       {/* Profilkarte */}
       <Card className="p-0 overflow-hidden">
         <div className="relative">
@@ -82,7 +82,7 @@ const CompanyFeedLeft: React.FC = () => {
           </Button>
         </div>
       </Card>
-    </aside>
+    </div>
   );
 };
 

@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
-import { CompanyProfileHeader } from "@/components/company/profile/CompanyProfileHeader";
+import { CompanyProfileHeader } from "@/components/Company/profile/CompanyProfileHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CompanyHomeTab } from "@/components/company/profile/tabs/CompanyHomeTab";
-import { CompanyAboutTab } from "@/components/company/profile/tabs/CompanyAboutTab";
-import { CompanyJobsTab } from "@/components/company/profile/tabs/CompanyJobsTab";
-import { CompanyPeopleTab } from "@/components/company/profile/tabs/CompanyPeopleTab";
-import { CompanyPostsTab } from "@/components/company/profile/tabs/CompanyPostsTab";
+import { CompanyHomeTab } from "@/components/Company/profile/tabs/CompanyHomeTab";
+import { CompanyAboutTab } from "@/components/Company/profile/tabs/CompanyAboutTab";
+import { CompanyJobsTab } from "@/components/Company/profile/tabs/CompanyJobsTab";
+import { CompanyPeopleTab } from "@/components/Company/profile/tabs/CompanyPeopleTab";
+import { CompanyPostsTab } from "@/components/Company/profile/tabs/CompanyPostsTab";
 import { useToast } from "@/hooks/use-toast";
 import { uploadFile } from "@/lib/supabase-storage";
 import { Building2 } from "lucide-react";
@@ -111,25 +111,29 @@ export default function CompanyProfile() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header Section */}
-      <CompanyProfileHeader 
-        company={{
-          id: company.id,
-          name: company.name || '',
-          logo_url: company.logo_url,
-          header_image: company.header_image,
-          description: company.description,
-          main_location: company.main_location,
-          industry: company.industry,
-        }}
-        isOwner={true}
-        onCoverUpload={handleCoverUpload}
-        onLogoUpload={handleLogoUpload}
-      />
+      <div className="mx-auto max-w-6xl px-6 pt-10">
+        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <CompanyProfileHeader 
+            company={{
+              id: company.id,
+              name: company.name || '',
+              logo_url: company.logo_url,
+              header_image: company.header_image,
+              description: company.description,
+              main_location: company.main_location,
+              industry: company.industry,
+              target_groups: company.target_groups,
+            }}
+            isOwner={true}
+            onCoverUpload={handleCoverUpload}
+            onLogoUpload={handleLogoUpload}
+          />
+        </div>
+      </div>
       
       {/* Tabs Navigation */}
-      <div className="border-b mt-8">
-        <div className="max-w-6xl mx-auto px-6">
+      <div className="mt-8">
+        <div className="mx-auto max-w-6xl px-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="h-auto p-0 bg-transparent border-b-0">
               <TabsTrigger 
@@ -175,6 +179,15 @@ export default function CompanyProfile() {
               id: company.id,
               name: company.name || '',
               description: company.description,
+              contact_person: company.contact_person,
+              contact_email: company.contact_email,
+              contact_phone: company.contact_phone,
+              contact_position: company.contact_position,
+              street: company.street,
+              house_number: company.house_number,
+              postal_code: company.postal_code,
+              city: company.city,
+              country: company.country,
             }} 
             isOwner={true} 
           />
@@ -190,6 +203,12 @@ export default function CompanyProfile() {
               employee_count: company.employee_count,
               size_range: company.size_range,
               main_location: company.main_location,
+              industry: company.industry,
+              target_groups: company.target_groups,
+              contact_person: (company as any).contact_person,
+              contact_email: (company as any).contact_email,
+              contact_phone: (company as any).contact_phone,
+              contact_position: (company as any).contact_position,
             }} 
             isOwner={true}
             onSave={handleSaveAboutTab}

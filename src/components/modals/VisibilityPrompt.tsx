@@ -3,9 +3,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { notifyVisibilityPromptOpened, notifyVisibilityPromptClosed } from "@/lib/event-bus";
 
 const JOB_OPTIONS = [
   { value: "Praktikum", label: "Praktikum" },
@@ -21,6 +24,9 @@ export function VisibilityPrompt() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<JobOption[]>([]);
+  const [availabilityType, setAvailabilityType] = useState<'immediate' | 'custom'>('immediate');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<string>('');
 
   const allowedOptions = useMemo<JobOption[]>(() => {
     const status = (profile as any)?.status;
@@ -80,12 +86,16 @@ export function VisibilityPrompt() {
 
         // Decide if we open the prompt
         if (!declined) {
-          setTimeout(() => setOpen(true), 0);
+          setTimeout(() => {
+            setOpen(true);
+            notifyVisibilityPromptOpened();
+          }, 0);
         } else {
           const n = parseInt(localStorage.getItem(counterKey) || "0", 10);
           if (n >= 3) {
             setTimeout(() => {
               setOpen(true);
+              notifyVisibilityPromptOpened();
               localStorage.setItem(counterKey, "0");
             }, 0);
           }
@@ -94,10 +104,124 @@ export function VisibilityPrompt() {
     }
   }, [isLoading, profile, session, allowedOptions, defaultByStatus]);
 
+  // Notify when dialog opens/closes
+  useEffect(() => {
+    if (open) {
+      notifyVisibilityPromptOpened();
+    } else {
+      notifyVisibilityPromptClosed();
+    }
+  }, [open]);
+
   const summary = useMemo(() => {
     if (!selected?.length) return "dein Profil";
     return selected.join(", ");
   }, [selected]);
+
+  // Calculate "Ab sofort" date: if today <= 10th, use current month, else next month
+  const getImmediateDate = (): string => {
+    const today = new Date();
+    const day = today.getDate();
+    let month = today.getMonth() + 1; // 1-12
+    let year = today.getFullYear();
+
+    if (day > 10) {
+      // If after 10th, use next month
+      month += 1;
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
+    }
+
+    // Format as YYYY-MM
+    return `${year}-${String(month).padStart(2, '0')}`;
+  };
+
+  // Generate month options
+  const allMonthOptions = [
+    { value: '01', label: 'Januar' },
+    { value: '02', label: 'Februar' },
+    { value: '03', label: 'März' },
+    { value: '04', label: 'April' },
+    { value: '05', label: 'Mai' },
+    { value: '06', label: 'Juni' },
+    { value: '07', label: 'Juli' },
+    { value: '08', label: 'August' },
+    { value: '09', label: 'September' },
+    { value: '10', label: 'Oktober' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'Dezember' },
+  ];
+
+  // Get available months based on selected year
+  const getAvailableMonths = (year?: string): typeof allMonthOptions => {
+    const yearToCheck = year || selectedYear;
+    if (!yearToCheck) return allMonthOptions;
+    
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+    const selectedYearNum = parseInt(yearToCheck);
+
+    // If current year is selected, only show future months
+    if (selectedYearNum === currentYear) {
+      return allMonthOptions.filter(month => parseInt(month.value) > currentMonth);
+    }
+
+    // If next year is selected, show all months
+    if (selectedYearNum === currentYear + 1) {
+      return allMonthOptions;
+    }
+
+    return allMonthOptions;
+  };
+
+  // Generate year options (current year to 1 year in the future)
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const maxYear = currentYear + 1;
+    const years: Array<{ value: string; label: string }> = [];
+    for (let y = currentYear; y <= maxYear; y++) {
+      years.push({ value: String(y), label: String(y) });
+    }
+    return years;
+  }, []);
+
+  // Get available date based on selection
+  const getAvailableFrom = (): string | null => {
+    if (availabilityType === 'immediate') {
+      return getImmediateDate();
+    } else {
+      if (selectedMonth && selectedYear) {
+        return `${selectedYear}-${selectedMonth}`;
+      }
+      return null;
+    }
+  };
+
+  // Validate custom date selection
+  const isCustomDateValid = (): boolean => {
+    if (availabilityType === 'immediate') return true;
+    if (!selectedMonth || !selectedYear) return false;
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+    const selectedYearNum = parseInt(selectedYear);
+    const selectedMonthNum = parseInt(selectedMonth);
+
+    // Must be in the future (not in the past)
+    if (selectedYearNum < currentYear) return false;
+    if (selectedYearNum === currentYear && selectedMonthNum <= currentMonth) return false;
+
+    // Must be within 1 year in the future
+    const maxYear = currentYear + 1;
+    if (selectedYearNum > maxYear) return false;
+    if (selectedYearNum === maxYear && selectedMonthNum > currentMonth) return false;
+
+    return true;
+  };
 
   const toggle = (value: JobOption) => {
     const DUAL_ALLOWED: JobOption[] = ["Praktikum", "Ausbildung"];
@@ -139,9 +263,25 @@ export function VisibilityPrompt() {
       return;
     }
 
+    if (availabilityType === 'custom' && !isCustomDateValid()) {
+      toast({
+        title: "Ungültiges Datum",
+        description: "Bitte wähle ein gültiges Datum in der Zukunft (max. 1 Jahr im Voraus).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const availableFrom = getAvailableFrom();
+
     const { error } = await supabase
       .from("profiles")
-      .update({ profile_published: true, job_search_preferences: selected })
+      .update({ 
+        profile_published: true, 
+        visibility_mode: 'visible', // Set visibility mode to visible
+        job_search_preferences: selected,
+        available_from: availableFrom // Store availability date
+      })
       .eq("id", profile.id);
 
     if (error) {
@@ -161,26 +301,52 @@ export function VisibilityPrompt() {
       localStorage.removeItem(`visibility_prompt_counter:${uid}`);
     } catch {}
     setOpen(false);
+    notifyVisibilityPromptClosed();
     toast({
       title: "Sichtbarkeit aktiviert",
-      description: `Du bist jetzt für Unternehmen sichtbar, die nach ${summary} suchen.`,
+      description: `Du bist jetzt für Unternehmen sichtbar, die nach ${summary} suchen. Du kannst dich weiterhin aktiv bewerben.`,
     });
   };
-  const stayHidden = () => {
+  const stayHidden = async () => {
     if (!profile) return;
+    
+    // Set visibility_mode to invisible
+    const { error } = await supabase
+      .from("profiles")
+      .update({ visibility_mode: 'invisible' })
+      .eq("id", profile.id);
+    
+    if (error) {
+      console.error('Error setting visibility to invisible:', error);
+    }
+    
     try {
       const uid = profile.id;
       localStorage.setItem(`visibility_prompt_declined:${uid}`, "1");
       localStorage.setItem(`visibility_prompt_counter:${uid}`, "0");
     } catch {}
     setOpen(false);
+    notifyVisibilityPromptClosed();
+    toast({
+      title: "Profil unsichtbar",
+      description: "Du erscheinst nicht in Unternehmenssuchen, kannst dich aber weiterhin aktiv bewerben.",
+    });
   };
 
   if (isLoading || !profile) return null;
 
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (isOpen) {
+      notifyVisibilityPromptOpened();
+    } else {
+      notifyVisibilityPromptClosed();
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
             <DialogTitle>Vorschau: Für Unternehmen sichtbar werden</DialogTitle>
             <DialogDescription>
@@ -211,6 +377,89 @@ export function VisibilityPrompt() {
               Mehrfachauswahl ist nur bei „Praktikum“ und „Ausbildung“ möglich. Andere Optionen sind Einzelwahl.
             </p>
           </div>
+
+          {/* Availability Date Selection - only show if at least one option is selected */}
+          {selected.length > 0 && (
+            <div className="space-y-3 border-t pt-4">
+              <Label>Ab wann bist du verfügbar?</Label>
+              <RadioGroup value={availabilityType} onValueChange={(value) => setAvailabilityType(value as 'immediate' | 'custom')}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="immediate" id="immediate" />
+                  <Label htmlFor="immediate" className="cursor-pointer font-normal">
+                    Ab sofort ({new Date(getImmediateDate() + '-01').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })})
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="custom" id="custom" />
+                  <Label htmlFor="custom" className="cursor-pointer font-normal">
+                    Ab einem bestimmten Datum
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              {availabilityType === 'custom' && (
+                <div className="grid grid-cols-2 gap-3 ml-6">
+                  <div className="space-y-1">
+                    <Label htmlFor="year" className="text-xs">Jahr</Label>
+                    <Select 
+                      value={selectedYear} 
+                      onValueChange={(value) => {
+                        setSelectedYear(value);
+                        // Reset month if it becomes invalid
+                        const availableMonths = getAvailableMonths(value);
+                        if (selectedMonth && !availableMonths.find(m => m.value === selectedMonth)) {
+                          setSelectedMonth('');
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="year">
+                        <SelectValue placeholder="Jahr wählen" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[200]">
+                        {yearOptions && yearOptions.length > 0 ? (
+                          yearOptions.map((year) => (
+                            <SelectItem key={year.value} value={year.value}>
+                              {year.label}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>Keine Jahre verfügbar</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="month" className="text-xs">Monat</Label>
+                    <Select 
+                      value={selectedMonth} 
+                      onValueChange={setSelectedMonth}
+                      disabled={!selectedYear}
+                    >
+                      <SelectTrigger id="month">
+                        <SelectValue placeholder={selectedYear ? "Monat wählen" : "Zuerst Jahr wählen"} />
+                      </SelectTrigger>
+                      <SelectContent className="z-[200]">
+                        {getAvailableMonths().length > 0 ? (
+                          getAvailableMonths().map((month) => (
+                            <SelectItem key={month.value} value={month.value}>
+                              {month.label}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>Keine Monate verfügbar</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {selectedMonth && selectedYear && !isCustomDateValid() && (
+                    <p className="text-xs text-red-500 col-span-2">
+                      Bitte wähle ein Datum in der Zukunft (max. 1 Jahr im Voraus).
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="rounded-md bg-muted p-3 text-sm">
             Bevor du zustimmst: Dein Profil wird für Unternehmen sichtbar, die nach {summary} suchen. Du kannst das später jederzeit in den Einstellungen ändern.

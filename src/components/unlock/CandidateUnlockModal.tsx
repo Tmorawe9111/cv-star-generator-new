@@ -9,6 +9,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { TokenDepletedModal } from "@/components/Company/TokenDepletedModal";
+import { useCompany } from "@/hooks/useCompany";
 
 type UnlockType = "bewerbung" | "initiativ";
 type ContextType = "application" | "match" | "none";
@@ -51,7 +53,15 @@ const StepBadge = ({ index, active, done }: { index: number; active: boolean; do
 );
 
 export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
-  const { open, onOpenChange, candidate, companyId, contextApplication, contextType = "none", onSuccess } = props;
+  const {
+    open,
+    onOpenChange,
+    candidate,
+    companyId,
+    contextApplication,
+    contextType = "none",
+    onSuccess,
+  } = props;
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -62,6 +72,8 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
   const [notes, setNotes] = useState("");
   const [alreadyUnlocked, setAlreadyUnlocked] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showTokenDepletedModal, setShowTokenDepletedModal] = useState(false);
+  const { company } = useCompany();
 
   useEffect(() => {
     if (jobsLoading) return;
@@ -134,17 +146,49 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
 
         if (jobsError) throw jobsError;
         
-        const filteredJobs = (jobsList || []).filter((job) => {
-          if (!job) return false;
-          if (job.is_active === true) return true;
-          const normalizedStatus = typeof job.status === "string" ? job.status.toLowerCase() : "";
-          return normalizedStatus === "published" || normalizedStatus === "active" || normalizedStatus === "online";
-        });
+        const ACTIVE_STATUS = new Set([
+          "published",
+          "active",
+          "aktiv",
+          "online",
+          "live",
+          "running",
+          "visible",
+          "open",
+        ]);
+
+        let filteredJobs =
+          jobsList?.filter((job) => {
+            if (!job) return false;
+            if (job.is_active === true) return true;
+            if (job.is_active === false) return false;
+            const normalizedStatus = typeof job.status === "string" ? job.status.toLowerCase() : "";
+            return normalizedStatus && ACTIVE_STATUS.has(normalizedStatus);
+          }) ?? [];
+
+        // Fallback: try legacy jobs table when nothing returned
+        if (filteredJobs.length === 0) {
+          const { data: legacyJobs, error: legacyError } = await supabase
+            .from("jobs")
+            .select("id, title, status, is_active")
+            .eq("company_id", companyId)
+            .order("title", { ascending: true });
+
+          if (!legacyError) {
+            filteredJobs =
+              legacyJobs?.filter((job) => {
+                if (!job) return false;
+                if (job.is_active === true) return true;
+                const normalizedStatus = typeof job.status === "string" ? job.status.toLowerCase() : "";
+                return normalizedStatus && ACTIVE_STATUS.has(normalizedStatus);
+              }) ?? [];
+          }
+        }
 
         console.log("🔍 Loaded jobs:", filteredJobs.length, filteredJobs);
         setJobs(filteredJobs);
 
-        if (!jobsList?.length) {
+        if (!jobsList?.length && filteredJobs.length === 0) {
           console.log("⚠️ No active jobs found, defaulting to initiativ");
           setUnlockType("initiativ");
           setSelectedJobId(null);
@@ -165,7 +209,6 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
     setNotes("");
     setAlreadyUnlocked(false);
   }
-
   function handleOpenChange(next: boolean) {
     if (!next) resetState();
     onOpenChange(next);
@@ -223,6 +266,13 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
         ? (selectedJobId || contextApplication?.job_id || null)
         : (selectedJobId || null);
 
+      // Check if company has enough tokens before attempting unlock
+      if (company && (company.active_tokens === null || company.active_tokens < tokenCost)) {
+        setShowTokenDepletedModal(true);
+        setLoading(false);
+        return;
+      }
+
       // Deduct tokens using the new RPC function (single call) - use user_id
       const { data: tokenResult, error: tokenError } = await supabase.rpc("use_company_token", {
         p_company_id: companyId,
@@ -234,6 +284,12 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
       const result = tokenResult as any;
       if (tokenError || !result?.success) {
         const errorMsg = result?.error || tokenError?.message || "Unbekannter Fehler";
+        // If error is about insufficient tokens, show token depleted modal
+        if (errorMsg.includes("Nicht genügend Tokens") || errorMsg.includes("tokens")) {
+          setShowTokenDepletedModal(true);
+          setLoading(false);
+          return;
+        }
         throw new Error(errorMsg);
       }
       
@@ -581,6 +637,13 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
           )}
         </DialogFooter>
       </DialogContent>
+
+      <TokenDepletedModal
+        open={showTokenDepletedModal}
+        onOpenChange={setShowTokenDepletedModal}
+        companyId={companyId}
+        context="unlock"
+      />
     </Dialog>
   );
 }

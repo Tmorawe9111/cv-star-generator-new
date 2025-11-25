@@ -11,9 +11,10 @@ import { CompanyProfile } from "@/types/company";
 
 interface EmploymentRequestsCardProps {
   company: CompanyProfile | null;
+  onAfterChange?: () => void;
 }
 
-export function EmploymentRequestsCard({ company }: EmploymentRequestsCardProps) {
+export function EmploymentRequestsCard({ company, onAfterChange }: EmploymentRequestsCardProps) {
   const { data: requests = [] } = useCompanyEmploymentRequests(company?.id);
   const updateRequest = useUpdateEmploymentRequest();
   const { toast } = useToast();
@@ -63,10 +64,14 @@ export function EmploymentRequestsCard({ company }: EmploymentRequestsCardProps)
               <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarFallback>
-                      {request.user_profile?.vorname?.charAt(0)?.toUpperCase() || 'U'}
-                      {request.user_profile?.nachname?.charAt(0)?.toUpperCase() || ''}
-                    </AvatarFallback>
+                    {request.user_profile?.avatar_url ? (
+                      <AvatarImage src={request.user_profile.avatar_url} />
+                    ) : (
+                      <AvatarFallback>
+                        {request.user_profile?.vorname?.charAt(0)?.toUpperCase() || "U"}
+                        {request.user_profile?.nachname?.charAt(0)?.toUpperCase() || ""}
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">

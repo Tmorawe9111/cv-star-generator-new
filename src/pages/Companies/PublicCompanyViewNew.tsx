@@ -26,6 +26,10 @@ type Company = {
   website_url?: string | null;
   main_location?: string | null;
   country?: string | null;
+  contact_person?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  contact_position?: string | null;
 };
 
 export default function PublicCompanyViewNew() {

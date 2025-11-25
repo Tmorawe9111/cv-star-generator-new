@@ -48,8 +48,62 @@ export const useConnections = () => {
 
   const requestConnection = useCallback(async (targetId: string) => {
     if (!user) throw new Error("not-authenticated");
-    const { error } = await supabase.from("connections").insert({ requester_id: user.id, addressee_id: targetId, status: "pending" });
-    if (error) throw error;
+    
+    // Check if connection already exists
+    const { data: existing } = await supabase
+      .from("connections")
+      .select("id, status")
+      .eq("requester_id", user.id)
+      .eq("addressee_id", targetId)
+      .maybeSingle();
+    
+    if (existing) {
+      // If declined, update to pending (resend request)
+      if (existing.status === "declined") {
+        const { error } = await supabase
+          .from("connections")
+          .update({ status: "pending" })
+          .eq("id", existing.id);
+        if (error) throw error;
+        return;
+      }
+      // If already pending or accepted, don't create duplicate
+      if (existing.status === "pending") {
+        return; // Already pending, no error
+      }
+      if (existing.status === "accepted") {
+        return; // Already connected, no error
+      }
+    }
+    
+    // Create new connection
+    const { error } = await supabase
+      .from("connections")
+      .insert({ requester_id: user.id, addressee_id: targetId, status: "pending" });
+    
+    if (error) {
+      // If duplicate key error, connection might exist in reverse direction
+      if (error.code === '23505') {
+        // Check reverse direction
+        const { data: reverse } = await supabase
+          .from("connections")
+          .select("id, status")
+          .eq("requester_id", targetId)
+          .eq("addressee_id", user.id)
+          .maybeSingle();
+        
+        if (reverse && reverse.status === "declined") {
+          // Update reverse connection to pending
+          const { error: updateError } = await supabase
+            .from("connections")
+            .update({ status: "pending" })
+            .eq("id", reverse.id);
+          if (updateError) throw updateError;
+          return;
+        }
+      }
+      throw error;
+    }
   }, [user]);
 
   const acceptRequest = useCallback(async (fromUserId: string) => {

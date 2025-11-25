@@ -67,18 +67,13 @@ const EXPERIENCE_LEVELS = [
   { id: "lead", label: "Führungsposition" },
 ];
 
-const INDUSTRIES = [
-  { id: "handwerk", label: "Handwerk" },
-  { id: "industrie", label: "Industrie" },
-  { id: "dienstleistung", label: "Dienstleistung" },
-  { id: "it", label: "IT & Technologie" },
-  { id: "gesundheit", label: "Gesundheit & Pflege" },
-  { id: "bildung", label: "Bildung" },
-  { id: "einzelhandel", label: "Einzelhandel" },
-  { id: "gastro", label: "Gastronomie & Hotel" },
-  { id: "logistik", label: "Logistik & Transport" },
-  { id: "bau", label: "Bau & Architektur" },
-];
+import { BRANCHES } from '@/lib/branches';
+
+// Use centralized branch definitions
+const INDUSTRIES = BRANCHES.map(branch => ({
+  id: branch.key,
+  label: branch.label
+}));
 
 export function JobFilters({
   selectedJobTypes,

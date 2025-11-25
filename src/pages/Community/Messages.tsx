@@ -7,6 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMessaging } from "@/hooks/useMessaging";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { NewMessageSearch } from "@/components/community/NewMessageSearch";
+import { useSearchParams } from "react-router-dom";
 
 const formatDate = (iso?: string | null) => {
   if (!iso) return "";
@@ -34,12 +37,52 @@ const formatDateTime = (iso?: string | null) => {
 export default function CommunityMessages() {
   const { loadConversationsWithLast, sendMessage } = useMessaging();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
 
   const [query, setQuery] = React.useState("");
   const [items, setItems] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [isNewMessageOpen, setIsNewMessageOpen] = React.useState(false);
   const selected = React.useMemo(() => items.find((c) => c.id === selectedId) || null, [items, selectedId]);
+
+  // Listen for new message event from TopNavBar
+  React.useEffect(() => {
+    const handleOpenNewMessage = () => {
+      setIsNewMessageOpen(true);
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('open-new-message', handleOpenNewMessage as EventListener);
+      return () => {
+        window.removeEventListener('open-new-message', handleOpenNewMessage as EventListener);
+      };
+    }
+  }, []);
+
+  // Listen for filter-messages event from TopNavBar
+  React.useEffect(() => {
+    const handleFilterMessages = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setQuery(customEvent.detail || "");
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('filter-messages', handleFilterMessages as EventListener);
+      return () => {
+        window.removeEventListener('filter-messages', handleFilterMessages as EventListener);
+      };
+    }
+  }, []);
+
+  // Set selected conversation from URL params
+  React.useEffect(() => {
+    const conversationId = searchParams.get('conversation');
+    if (conversationId) {
+      setSelectedId(conversationId);
+    }
+  }, [searchParams]);
 
   type Msg = { id: string; conversation_id: string; sender_id: string; content: string; created_at: string };
   const [messages, setMessages] = React.useState<Msg[]>([]);
@@ -112,21 +155,81 @@ export default function CommunityMessages() {
     }
   };
 
+  // Mobile View
+  if (isMobile) {
+    return (
+      <>
+        {/* New Message Search Modal */}
+        <NewMessageSearch open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen} />
+
+        <main className="w-full min-h-screen bg-background pb-20">
+          {/* Filter chips - sticky below TopNavBar */}
+          <div className="sticky top-12 z-30 bg-background border-b border-border px-3 py-2 overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary whitespace-nowrap">Nachrichten</span>
+              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted whitespace-nowrap">Ungelesen</span>
+              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted whitespace-nowrap">Meine Kontakte</span>
+              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted whitespace-nowrap">InMail</span>
+              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted whitespace-nowrap">Als Favorit markiert</span>
+            </div>
+          </div>
+
+          {/* Conversation list - full width on mobile */}
+          <div className="px-0">
+            {loading && <div className="p-3 text-sm text-muted-foreground text-center">Lade…</div>}
+            {!loading && filtered.length === 0 && (
+              <div className="p-3 text-sm text-muted-foreground text-center">Keine Konversationen gefunden.</div>
+            )}
+            {!loading && filtered.map((c) => {
+              const name = [c.otherUser?.vorname, c.otherUser?.nachname].filter(Boolean).join(" ") || "Unbekannt";
+              const active = selectedId === c.id;
+              return (
+                <button 
+                  key={c.id} 
+                  className={`w-full text-left px-4 py-3 border-b border-border flex items-start gap-3 ${active ? 'bg-muted' : 'hover:bg-muted/60'}`} 
+                  onClick={() => setSelectedId(c.id)}
+                >
+                  <Avatar className="h-12 w-12 shrink-0">
+                    <AvatarImage src={c.otherUser?.avatar_url ?? undefined} alt={name} />
+                    <AvatarFallback>{name.slice(0,2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="text-sm font-medium truncate flex-1">{name}</div>
+                      <div className="text-[11px] text-muted-foreground shrink-0">{formatDate(c.lastMessageAt)}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">{c.lastMessage?.content || '—'}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  // Desktop View
   return (
-    <main className="w-full py-2 sm:py-4 pb-[56px] md:pb-6">
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)_320px] gap-4">
-        {/* Left: Conversation list */}
-        <Card className="p-0 overflow-hidden">
-          <div className="p-3 border-b">
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-semibold">Nachrichten</h1>
-              <div className="ml-auto" />
-            </div>
-            <div className="mt-2">
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nachrichten durchsuchen" aria-label="Nachrichten durchsuchen" />
-            </div>
-            {/* Filter chips (UI only) */}
-            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+    <>
+      {/* New Message Search Modal */}
+      <NewMessageSearch open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen} />
+
+      <main className="w-full py-2 sm:py-4 pb-[56px] md:pb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)_320px] gap-4">
+          {/* Left: Conversation list */}
+          <Card className="p-0 overflow-hidden">
+            <div className="p-3 border-b">
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-semibold">Nachrichten</h1>
+                <div className="ml-auto" />
+              </div>
+              {/* Search only on desktop - mobile uses TopNavBar */}
+              <div className="mt-2">
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nachrichten durchsuchen" aria-label="Nachrichten durchsuchen" />
+              </div>
+              {/* Filter chips (UI only) */}
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
               <span className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary">Nachrichten</span>
               <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted">Ungelesen</span>
               <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted">Meine Kontakte</span>
@@ -233,5 +336,6 @@ export default function CommunityMessages() {
         </div>
       </div>
     </main>
+    </>
   );
 }

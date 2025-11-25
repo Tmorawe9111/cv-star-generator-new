@@ -157,11 +157,15 @@ export function useFollowRelations() {
         throw insertError;
       }
 
+      // 3. Immediately remove from pending requests list
+      setCompanyFollowRequests(prev => prev.filter(req => req.id !== followId));
+
       toast({
         title: 'Anfrage angenommen',
         description: 'Sie folgen dem Unternehmen jetzt und es kann Ihre Posts sehen.',
       });
 
+      // 4. Refetch both lists to ensure consistency
       await Promise.all([fetchCompanyFollowRequests(), fetchFollowedCompanies()]);
     } catch (error) {
       console.error('Error accepting company follow:', error);
@@ -178,18 +182,23 @@ export function useFollowRelations() {
   const declineCompanyFollow = useCallback(async (followId: string) => {
     setLoading(true);
     try {
+      // Delete the follow request instead of updating to 'rejected'
       const { error } = await supabase
         .from('follows')
-        .update({ status: 'rejected' })
+        .delete()
         .eq('id', followId);
 
       if (error) throw error;
+
+      // Immediately remove from pending requests list
+      setCompanyFollowRequests(prev => prev.filter(req => req.id !== followId));
 
       toast({
         title: 'Anfrage abgelehnt',
         description: 'Die Follow-Anfrage wurde abgelehnt.',
       });
 
+      // Refetch to ensure consistency
       await fetchCompanyFollowRequests();
     } catch (error) {
       console.error('Error declining company follow:', error);
@@ -236,6 +245,33 @@ export function useFollowRelations() {
       fetchCompanyFollowRequests();
       fetchFollowedCompanies();
     }
+  }, [user, fetchCompanyFollowRequests, fetchFollowedCompanies]);
+
+  // Realtime subscription for follows table to automatically update when status changes
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('follows-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'follows',
+          filter: `followee_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // Refetch when any follow request changes
+          fetchCompanyFollowRequests();
+          fetchFollowedCompanies();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, fetchCompanyFollowRequests, fetchFollowedCompanies]);
 
   return {

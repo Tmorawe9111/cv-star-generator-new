@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Lock, CheckCircle2, UserCheck, Clock, Download, ChevronRight } from "lucide-react";
+import { ArrowLeft, Lock, CheckCircle2, UserCheck, Clock, Download, ChevronRight, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { unlockService } from "@/services/unlockService";
@@ -31,6 +31,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useUpdateEmploymentRequest, EmploymentRequest } from "@/hooks/useEmploymentRequests";
 
 type CandidateNote = {
   id: string;
@@ -160,6 +161,7 @@ export default function ProfileView() {
   const location = useLocation();
   const { company } = useCompany();
   const { user } = useAuth();
+  const updateEmploymentRequest = useUpdateEmploymentRequest();
   
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -180,6 +182,8 @@ export default function ProfileView() {
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
   const [metaAccordionValue, setMetaAccordionValue] = useState<string | null>(null);
+  const [employmentRequest, setEmploymentRequest] = useState<EmploymentRequest | null>(null);
+  const [loadingEmploymentRequest, setLoadingEmploymentRequest] = useState(false);
 
   const navigationState = location.state as
     | {
@@ -200,6 +204,72 @@ export default function ProfileView() {
       return format(new Date(value), "yyyy-MM-dd'T'HH:mm");
     } catch {
       return "";
+    }
+  };
+
+  const loadEmploymentRequest = useCallback(async () => {
+    if (!company?.id || !id) return;
+
+    try {
+      setLoadingEmploymentRequest(true);
+      const { data, error } = await supabase
+        .from("company_employment_requests")
+        .select("id, user_id, company_id, status, created_at, confirmed_by")
+        .eq("company_id", company.id)
+        .eq("user_id", id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      setEmploymentRequest((data as EmploymentRequest) ?? null);
+    } catch (error) {
+      console.error("Error loading employment request:", error);
+    } finally {
+      setLoadingEmploymentRequest(false);
+    }
+  }, [company?.id, id]);
+
+  const handleEmploymentRequestStatus = useCallback(
+    async (nextStatus: "accepted" | "declined") => {
+      if (!employmentRequest) return;
+      try {
+        await updateEmploymentRequest.mutateAsync({
+          requestId: employmentRequest.id,
+          status: nextStatus,
+        });
+        await loadEmploymentRequest();
+      } catch (error) {
+        console.error("Error updating employment request from profile view:", error);
+      }
+    },
+    [employmentRequest, loadEmploymentRequest, updateEmploymentRequest],
+  );
+
+  const getEmploymentRequestBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return (
+          <Badge variant="secondary" className="gap-1">
+            <Clock className="h-3 w-3" />
+            Wartend
+          </Badge>
+        );
+      case "accepted":
+        return (
+          <Badge variant="default" className="gap-1 bg-green-100 text-green-700">
+            <CheckCircle2 className="h-3 w-3" />
+            Angenommen
+          </Badge>
+        );
+      case "declined":
+        return (
+          <Badge variant="destructive" className="gap-1">
+            <X className="h-3 w-3" />
+            Abgelehnt
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -600,52 +670,56 @@ export default function ProfileView() {
     }
   };
 
-useEffect(() => {
-  if (!id || !company) return;
-  loadProfile();
-  checkUnlockState();
-  checkFollowState();
-  loadApplications();
-  loadCandidateMeta();
-}, [id, company, loadCandidateMeta]);
+  useEffect(() => {
+    if (!id || !company) return;
+    loadProfile();
+    checkUnlockState();
+    checkFollowState();
+    loadApplications();
+    loadCandidateMeta();
+  }, [id, company, loadCandidateMeta]);
 
-useEffect(() => {
-  if (!candidateMeta) {
-    setPlannedAt("");
-    setCompletedAt("");
-    return;
-  }
-
-  if (candidateMeta.status === "INTERVIEW_GEPLANT") {
-    const inputValue = toInputDateTime(candidateMeta.interview_date);
-    setPlannedAt(inputValue);
-    setCompletedAt(inputValue);
-  } else {
-    setPlannedAt("");
-    if (candidateMeta.interview_date) {
-      setCompletedAt(toInputDateTime(candidateMeta.interview_date));
-    } else {
+  useEffect(() => {
+    if (!candidateMeta) {
+      setPlannedAt("");
       setCompletedAt("");
+      return;
     }
-  }
-}, [candidateMeta]);
 
-useEffect(() => {
-  loadJobs();
-}, [loadJobs]);
+    if (candidateMeta.status === "INTERVIEW_GEPLANT") {
+      const inputValue = toInputDateTime(candidateMeta.interview_date);
+      setPlannedAt(inputValue);
+      setCompletedAt(inputValue);
+    } else {
+      setPlannedAt("");
+      if (candidateMeta.interview_date) {
+        setCompletedAt(toInputDateTime(candidateMeta.interview_date));
+      } else {
+        setCompletedAt("");
+      }
+    }
+  }, [candidateMeta]);
 
-useEffect(() => {
-  if (linkedJobs.length === 0) return;
-  setJobOptions((prev) => {
-    const missing = linkedJobs
-      .filter((job) => job.id && !prev.some((option) => option.value === job.id))
-      .map((job) => ({
-        value: job.id,
-        label: job.city ? `${job.title} · ${job.city}` : job.title,
-      }));
-    return missing.length > 0 ? [...prev, ...missing] : prev;
-  });
-}, [linkedJobs]);
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
+
+  useEffect(() => {
+    loadEmploymentRequest();
+  }, [loadEmploymentRequest]);
+
+  useEffect(() => {
+    if (linkedJobs.length === 0) return;
+    setJobOptions((prev) => {
+      const missing = linkedJobs
+        .filter((job) => job.id && !prev.some((option) => option.value === job.id))
+        .map((job) => ({
+          value: job.id,
+          label: job.city ? `${job.title} · ${job.city}` : job.title,
+        }));
+      return missing.length > 0 ? [...prev, ...missing] : prev;
+    });
+  }, [linkedJobs]);
 
   const loadProfile = async () => {
     try {
@@ -1094,6 +1168,58 @@ useEffect(() => {
           {/* Right Column - Sidebar */}
           <div className="lg:col-span-4">
             <div className="lg:sticky lg:top-20 space-y-4">
+              {(loadingEmploymentRequest || employmentRequest) && (
+                <div className="rounded-lg border bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Beschäftigungsanfrage
+                    </p>
+                    {employmentRequest && getEmploymentRequestBadge(employmentRequest.status)}
+                  </div>
+                  {loadingEmploymentRequest ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Anfrage wird geladen ...
+                    </div>
+                  ) : employmentRequest ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        Eingegangen am{" "}
+                        {format(new Date(employmentRequest.created_at), "dd.MM.yyyy", { locale: de })}
+                      </p>
+                      {employmentRequest.status === "pending" ? (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleEmploymentRequestStatus("accepted")}
+                            disabled={updateEmploymentRequest.isPending}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-1" />
+                            Annehmen
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEmploymentRequestStatus("declined")}
+                            disabled={updateEmploymentRequest.isPending}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Ablehnen
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Diese Anfrage wurde{" "}
+                          {employmentRequest.status === "accepted" ? "bereits angenommen." : "bereits abgelehnt."}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Keine offene Anfrage.</p>
+                  )}
+                </div>
+              )}
               {/* Contact Info Card - only when unlocked */}
               {isUnlocked && (
                 <ContactInfoCard

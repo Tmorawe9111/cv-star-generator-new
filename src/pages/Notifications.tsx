@@ -26,7 +26,7 @@ export default function NotificationsPage() {
         <div className="flex gap-4 lg:gap-6">
           {/* Left column (fixed width) */}
           <aside className="hidden lg:block w-[280px] xl:w-[320px] shrink-0">
-            <div className="sticky top-14 space-y-4">
+            <div className="sticky top-12 md:top-14 space-y-4">
               <LeftPanel />
             </div>
           </aside>
@@ -80,7 +80,7 @@ export default function NotificationsPage() {
 
           {/* Right column (fixed width) */}
           <aside className="hidden xl:block w-[320px] shrink-0">
-            <div className="sticky top-14 space-y-4">
+            <div className="sticky top-12 md:top-14 space-y-4">
               <RightPanel />
             </div>
           </aside>

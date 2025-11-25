@@ -284,7 +284,7 @@ export const CandidatePipelineBoard: React.FC = () => {
   const filtersActive = (selectedStages.length !== STAGES.length) || unlockedOnly || !!jobTitleFilter || !!industryFilter || !!locationFilter || (searchKinds.length !== STATUS_KINDS.length);
   return (
     <div className="space-y-4">
-      <div className="sticky top-14 z-40 bg-background border-b border-border py-2">
+      <div className="sticky top-12 md:top-14 z-40 bg-background border-b border-border py-2">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold mr-2">Pipeline</h1>
           <div className="w-full sm:w-auto">

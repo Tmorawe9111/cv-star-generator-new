@@ -2,28 +2,30 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { OnboardingPopup } from './OnboardingPopup';
+import { BRANCHES } from '@/lib/branches';
 
 interface BrancheSelectorProps {
   onNext: (industry: string) => void;
+  onSkip?: () => void;
+  stepNumber?: number;
+  totalSteps?: number;
 }
 
-const branches = [
-  { key: 'handwerk', emoji: '👷', title: 'Handwerk', desc: 'Bau, Elektro, Sanitär, KFZ und mehr' },
-  { key: 'it', emoji: '💻', title: 'IT', desc: 'Programmierung, Support, Systemadmin' },
-  { key: 'gesundheit', emoji: '🩺', title: 'Gesundheit', desc: 'Pflege, Therapie, medizinische Assistenz' },
-  { key: 'buero', emoji: '📊', title: 'Büro & Verwaltung', desc: 'Organisation, Kommunikation, Administration' },
-  { key: 'verkauf', emoji: '🛍️', title: 'Verkauf & Handel', desc: 'Beratung, Kundenservice, Einzelhandel' },
-  { key: 'gastronomie', emoji: '🍽️', title: 'Gastronomie', desc: 'Service, Küche, Hotellerie' },
-  { key: 'bau', emoji: '🏗️', title: 'Bau & Architektur', desc: 'Konstruktion, Planung, Ausführung' }
-];
+// Use centralized branch definitions
+const branches = BRANCHES.map(branch => ({
+  key: branch.key,
+  emoji: branch.emoji || '',
+  title: branch.label,
+  desc: branch.desc || ''
+}));
 
-export function BrancheSelector({ onNext }: BrancheSelectorProps) {
+export function BrancheSelector({ onNext, onSkip, stepNumber, totalSteps }: BrancheSelectorProps) {
   const [selected, setSelected] = useState<string>('');
 
   return (
-    <OnboardingPopup>
+    <OnboardingPopup onSkip={onSkip} showSkip={!!onSkip} stepNumber={stepNumber} totalSteps={totalSteps}>
       <div className="p-8">
-        <h2 className="text-3xl font-bold mb-2">Willkommen bei Norothy! 👋</h2>
+        <h2 className="text-3xl font-bold mb-2">Willkommen bei BeVisiblle! 👋</h2>
         <p className="text-muted-foreground mb-6">
           In welcher Branche ist Ihr Unternehmen tätig?
         </p>
@@ -48,14 +50,25 @@ export function BrancheSelector({ onNext }: BrancheSelectorProps) {
           ))}
         </div>
 
-        <Button
-          onClick={() => selected && onNext(selected)}
-          disabled={!selected}
-          className="w-full"
-          size="lg"
-        >
-          Weiter
-        </Button>
+        <div className="flex gap-3">
+          {onSkip && (
+            <Button
+              variant="outline"
+              onClick={onSkip}
+              className="flex-1"
+            >
+              Überspringen
+            </Button>
+          )}
+          <Button
+            onClick={() => selected && onNext(selected)}
+            disabled={!selected}
+            className={onSkip ? "flex-1" : "w-full"}
+            size="lg"
+          >
+            Weiter
+          </Button>
+        </div>
       </div>
     </OnboardingPopup>
   );

@@ -9,19 +9,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-
-const INDUSTRIES = [
-  'IT & Technologie',
-  'Handwerk',
-  'Gesundheit & Pflege',
-  'Einzelhandel',
-  'Gastronomie',
-  'Logistik',
-  'Finanzwesen',
-  'Bildung',
-  'Industrie',
-  'Öffentlicher Dienst'
-];
+import { BRANCHES } from "@/lib/branches";
 
 export function JobFormStep1({ isEditMode = false }: { isEditMode?: boolean }) {
   const { formData, setFormData, nextStep } = useJobForm();
@@ -165,9 +153,9 @@ export function JobFormStep1({ isEditMode = false }: { isEditMode?: boolean }) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {INDUSTRIES.map((industry) => (
-                      <SelectItem key={industry} value={industry}>
-                        {industry}
+                    {BRANCHES.map((branch) => (
+                      <SelectItem key={branch.key} value={branch.key}>
+                        {branch.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

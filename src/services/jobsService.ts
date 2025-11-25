@@ -38,6 +38,7 @@ export class JobsService {
     employment_type?: string;
     profession_id?: string;
     location?: string;
+    work_mode?: string;
   }): Promise<any[]> {
     // Build base query
     const baseQuery = supabase
@@ -55,6 +56,10 @@ export class JobsService {
     
     if (filters?.employment_type) {
       query = query.eq('employment_type', filters.employment_type);
+    }
+    
+    if (filters?.work_mode) {
+      query = query.eq('work_mode', filters.work_mode);
     }
     
     if (filters?.location) {
