@@ -53,11 +53,14 @@ const Profile = () => {
         .eq('id', profile.id);
       if (error) throw error;
 
-      // Update local profile state
-      setProfile((prev) => ({
-        ...prev,
-        ...updates,
-      }));
+      // Update local profile state immediately with new object reference
+      setProfile((prev: any) => {
+        const updated = { ...prev };
+        Object.keys(updates).forEach(key => {
+          updated[key] = updates[key];
+        });
+        return updated;
+      });
 
       // Ensure latest data is fetched from server
       refetchProfile?.();

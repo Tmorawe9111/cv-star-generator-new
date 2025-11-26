@@ -74,7 +74,11 @@ export function LinkedInProfileSidebar({
 
   const saveSkills = async () => {
     if (onProfileUpdate) {
-      await onProfileUpdate({ faehigkeiten: tempSkills });
+      try {
+        await onProfileUpdate({ faehigkeiten: tempSkills });
+      } catch (error) {
+        console.error('Error saving skills:', error);
+      }
     }
     setEditingSkills(false);
   };
@@ -96,7 +100,11 @@ export function LinkedInProfileSidebar({
 
   const saveLanguages = async () => {
     if (onProfileUpdate) {
-      await onProfileUpdate({ sprachen: tempLanguages });
+      try {
+        await onProfileUpdate({ sprachen: tempLanguages });
+      } catch (error) {
+        console.error('Error saving languages:', error);
+      }
     }
     setEditingLanguages(false);
     setNewLanguage('');
