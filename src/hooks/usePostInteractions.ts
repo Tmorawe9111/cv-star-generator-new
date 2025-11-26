@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useTrackInteraction } from "@/hooks/useTrackInteraction";
 
 export interface PostComment {
   id: string;
@@ -34,10 +35,11 @@ export interface PostComment {
   } | null;
 }
 
-export const usePostLikes = (postId: string) => {
+export const usePostLikes = (postId: string, postMetadata?: { branche?: string; thema?: string }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { track } = useTrackInteraction();
 
   const { data, isLoading } = useQuery<{ count: number; liked: boolean }>({
     queryKey: ["post-likes", postId, user?.id ?? "anon"],
@@ -105,6 +107,9 @@ export const usePostLikes = (postId: string) => {
           });
         
         if (error) throw error;
+        
+        // Track like interaction for personalization
+        track('like', 'post', postId, postMetadata || {});
       }
       return { changed: true };
     },

@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useTrackInteraction, extractCompanyMetadata } from '@/hooks/useTrackInteraction';
 
-export function useFollowCompany(companyId?: string) {
+export function useFollowCompany(companyId?: string, companyData?: { branche?: string; city?: string; name?: string }) {
   const { user } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { track } = useTrackInteraction();
 
   const fetchStatus = useCallback(async () => {
     if (!user || !companyId) return;
@@ -65,6 +67,10 @@ export function useFollowCompany(companyId?: string) {
           });
         
         if (insertError) throw insertError;
+        
+        // Track follow interaction for personalization
+        const metadata = companyData ? extractCompanyMetadata(companyData) : {};
+        track('follow', 'company', companyId, metadata);
         
         // If company already follows user (mutual follow), accept the company's follow request
         if (companyFollowsUser && companyFollowsUser.status === 'pending') {

@@ -1,11 +1,13 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTrackInteraction } from "@/hooks/useTrackInteraction";
 
 export type ConnectionState = "none" | "pending" | "incoming" | "accepted" | "declined";
 
 export const useConnections = () => {
   const { user } = useAuth();
+  const { track } = useTrackInteraction();
 
   const getStatuses = useCallback(async (targetIds: string[]) => {
     if (!user || targetIds.length === 0) return {} as Record<string, ConnectionState>;
@@ -46,7 +48,7 @@ export const useConnections = () => {
     return result;
   }, [user]);
 
-  const requestConnection = useCallback(async (targetId: string) => {
+  const requestConnection = useCallback(async (targetId: string, profileMetadata?: { branche?: string; region?: string; berufsfeld?: string }) => {
     if (!user) throw new Error("not-authenticated");
     
     // Check if connection already exists
@@ -80,6 +82,9 @@ export const useConnections = () => {
     const { error } = await supabase
       .from("connections")
       .insert({ requester_id: user.id, addressee_id: targetId, status: "pending" });
+    
+    // Track connection request for personalization
+    track('connect', 'profile', targetId, profileMetadata || {});
     
     if (error) {
       // If duplicate key error, connection might exist in reverse direction

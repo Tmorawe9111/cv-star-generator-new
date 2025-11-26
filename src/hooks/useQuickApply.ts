@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "./useAuth";
+import { useTrackInteraction } from "./useTrackInteraction";
 
-export function useQuickApply(jobId: string) {
+export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; berufsfeld?: string; region?: string; company?: string }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { track } = useTrackInteraction();
 
   const { data: hasApplied, isLoading } = useQuery({
     queryKey: ["application-status", jobId, user?.id],
@@ -192,6 +194,9 @@ export function useQuickApply(jobId: string) {
         });
 
       if (appError) throw appError;
+      
+      // Track application for personalization (strongest signal!)
+      track('apply', 'job', jobId, jobMetadata || {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["application-status", jobId, user?.id] });
