@@ -34,24 +34,25 @@ export function CompanyPeopleTab({ companyId, companyName, isOwner }: CompanyPeo
   const [showAllCurrent, setShowAllCurrent] = useState(false);
   const [showAllFormer, setShowAllFormer] = useState(false);
 
-  // Fetch employees from profiles.berufserfahrung JSON
+  // Fetch employees from profiles.berufserfahrung JSON (by company ID for exact match)
   const { data: profileEmployees, isLoading: profileLoading } = useQuery({
-    queryKey: ['company-team-profiles', companyName],
+    queryKey: ['company-team-profiles', companyId],
     queryFn: async () => {
-      if (!companyName) return [];
+      if (!companyId) return [];
       
-      const { data, error } = await supabase.rpc('get_company_team_from_profiles', {
-        p_company_name: companyName,
+      // Try new function first (exact match by ID)
+      const { data, error } = await supabase.rpc('get_company_team_by_id', {
+        p_company_id: companyId,
         p_include_former: true
       });
 
       if (error) {
-        console.log('get_company_team_from_profiles not available:', error.message);
+        console.log('get_company_team_by_id not available:', error.message);
         return [];
       }
       return data as ProfileEmployee[];
     },
-    enabled: !!companyName
+    enabled: !!companyId
   });
 
   const currentEmployees = profileEmployees?.filter(e => e.is_current) || [];
