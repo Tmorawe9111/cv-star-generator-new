@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { 
   UserPlus, Heart, MessageCircle, Building2, ChevronRight, 
-  Sparkles, Users, FileText, Briefcase, MapPin, ChevronLeft
+  Sparkles, Users, FileText, Briefcase, MapPin, ChevronLeft, X, CheckCircle2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +13,13 @@ import { useConnections, type ConnectionState } from '@/hooks/useConnections';
 import { useFollowCompany } from '@/hooks/useFollowCompany';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 // Fisher-Yates shuffle algorithm
 function shuffleArray<T>(array: T[]): T[] {
@@ -426,31 +433,77 @@ const PostCardSlider: React.FC<{
   );
 };
 
-// Job Card
-const JobCard: React.FC<{ job: Job; companyName?: string; companyLogo?: string | null }> = ({ 
-  job, companyName, companyLogo 
-}) => (
-  <Link to={`/stelle/${job.id}`} className="block">
-    <div className="min-w-[200px] bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-      <div className="flex items-center gap-2 mb-2">
-        <div className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
-          {companyLogo ? (
-            <img src={companyLogo} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <Briefcase className="h-4 w-4 text-gray-400" />
-          )}
+// Job Card - Apple Style mit Bewerben Button
+const JobCard: React.FC<{ 
+  job: Job; 
+  companyName?: string; 
+  companyLogo?: string | null;
+  onApply?: (job: Job) => void;
+}> = ({ job, companyName, companyLogo, onApply }) => {
+  const gradients = [
+    'from-blue-500/10 via-indigo-500/5 to-violet-500/10',
+    'from-emerald-500/10 via-teal-500/5 to-cyan-500/10',
+    'from-orange-500/10 via-amber-500/5 to-yellow-500/10',
+    'from-rose-500/10 via-pink-500/5 to-red-500/10',
+  ];
+  const gradient = gradients[Math.floor(Math.random() * gradients.length)];
+
+  return (
+    <div className={cn(
+      "min-w-[180px] w-[180px] h-[200px] rounded-[20px] p-3 flex flex-col relative overflow-hidden",
+      "bg-gradient-to-br", gradient,
+      "border border-white/60 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.1)]",
+      "backdrop-blur-sm"
+    )}>
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      
+      <Link to={`/stelle/${job.id}`} className="flex flex-col relative z-10">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center overflow-hidden shadow-md ring-1 ring-black/5 shrink-0">
+            {companyLogo ? (
+              <img src={companyLogo} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <Briefcase className="h-5 w-5 text-gray-400" />
+            )}
+          </div>
+          <p className="text-[10px] text-gray-600 truncate flex-1">{companyName || 'Unternehmen'}</p>
         </div>
-        <p className="text-xs text-gray-500 truncate">{companyName || 'Unternehmen'}</p>
+        <p className="font-semibold text-[13px] text-gray-900 line-clamp-2 leading-tight mb-1">{job.title}</p>
+        {job.location && (
+          <p className="text-[10px] text-gray-500 flex items-center gap-0.5">
+            <MapPin className="h-2.5 w-2.5" /> {job.location}
+          </p>
+        )}
+        {job.employment_type && (
+          <span className="mt-1 inline-block text-[9px] bg-black/5 text-gray-600 px-2 py-0.5 rounded-full w-fit">
+            {job.employment_type}
+          </span>
+        )}
+      </Link>
+      
+      {/* Bewerben Button */}
+      <div className="mt-auto pt-2 relative z-10">
+        <Button 
+          size="sm"
+          onClick={(e) => { e.preventDefault(); onApply?.(job); }}
+          className="w-full h-9 text-xs rounded-full bg-black hover:bg-gray-800 text-white font-semibold shadow-lg shadow-black/20 active:scale-95 transition-all"
+        >
+          Bewerben
+        </Button>
       </div>
-      <p className="font-semibold text-sm text-gray-900 line-clamp-2 mb-1">{job.title}</p>
-      {job.location && (
-        <p className="text-xs text-gray-500 flex items-center gap-1">
-          <MapPin className="h-3 w-3" /> {job.location}
-        </p>
-      )}
     </div>
-  </Link>
-);
+  );
+};
+
+// Dummy Jobs für Demo
+const DUMMY_JOBS: Job[] = [
+  { id: 'demo-1', title: 'Frontend Developer (React)', company_id: 'demo', location: 'Berlin', employment_type: 'Vollzeit' },
+  { id: 'demo-2', title: 'UX/UI Designer', company_id: 'demo', location: 'München', employment_type: 'Vollzeit' },
+  { id: 'demo-3', title: 'Product Manager', company_id: 'demo', location: 'Hamburg', employment_type: 'Vollzeit' },
+  { id: 'demo-4', title: 'Backend Engineer (Node.js)', company_id: 'demo', location: 'Remote', employment_type: 'Vollzeit' },
+  { id: 'demo-5', title: 'Marketing Manager', company_id: 'demo', location: 'Frankfurt', employment_type: 'Teilzeit' },
+  { id: 'demo-6', title: 'Data Analyst', company_id: 'demo', location: 'Köln', employment_type: 'Vollzeit' },
+];
 
 
 export default function MarketplaceMobile() {
@@ -461,6 +514,8 @@ export default function MarketplaceMobile() {
   const [companyMap, setCompanyMap] = React.useState<Record<string, { name: string; logo_url: string | null }>>({});
   const postsScrollRef = useRef<HTMLDivElement>(null);
   const [postIndex, setPostIndex] = React.useState(0);
+  const [applyJob, setApplyJob] = React.useState<Job | null>(null);
+  const [applySuccess, setApplySuccess] = React.useState(false);
   
   // Session ID for randomization - changes on page reload
   const [sessionId] = React.useState(() => Math.random().toString(36).slice(2));
@@ -777,26 +832,25 @@ export default function MarketplaceMobile() {
         )}
       </div>
 
-      {/* 4. Jobs */}
+      {/* 4. Jobs - mit Dummy-Fallback */}
       <div className="mt-6">
         <SectionHeader 
-          title="Jobs" 
+          title="Jobs für dich" 
           icon={<Briefcase className="h-5 w-5 text-purple-500" />}
           onSeeAll={() => {}}
           seeAllText="Alle Jobs"
         />
         <div className="overflow-x-auto no-scrollbar">
           <div className="flex gap-3 px-4 pb-2">
-            {jobs.length > 0 ? jobs.slice(0, 6).map((job) => (
+            {(jobs.length > 0 ? jobs : DUMMY_JOBS).slice(0, 6).map((job) => (
               <JobCard 
                 key={job.id} 
                 job={job} 
-                companyName={companyMap[job.company_id]?.name}
+                companyName={companyMap[job.company_id]?.name || (job.id.startsWith('demo') ? 'Top Unternehmen' : undefined)}
                 companyLogo={companyMap[job.company_id]?.logo_url}
+                onApply={(j) => setApplyJob(j)}
               />
-            )) : (
-              <p className="text-sm text-gray-400 px-2">Keine Jobs verfügbar</p>
-            )}
+            ))}
           </div>
         </div>
       </div>
@@ -851,6 +905,80 @@ export default function MarketplaceMobile() {
 
       {/* Bottom Spacer */}
       <div className="h-20" />
+
+      {/* Apply Job Dialog */}
+      <Dialog open={!!applyJob && !applySuccess} onOpenChange={(open) => !open && setApplyJob(null)}>
+        <DialogContent className="max-w-[340px] rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-center">Bewerben</DialogTitle>
+            <DialogDescription className="text-center text-gray-500 mt-1">
+              Möchtest du dich auf diese Stelle bewerben?
+            </DialogDescription>
+          </DialogHeader>
+          
+          {applyJob && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-2xl">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-12 w-12 rounded-xl bg-white flex items-center justify-center shadow-sm">
+                  <Briefcase className="h-6 w-6 text-gray-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-gray-900">{applyJob.title}</p>
+                  <p className="text-xs text-gray-500">
+                    {companyMap[applyJob.company_id]?.name || 'Top Unternehmen'}
+                  </p>
+                </div>
+              </div>
+              {applyJob.location && (
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <MapPin className="h-3 w-3" /> {applyJob.location}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3 mt-6">
+            <Button 
+              onClick={() => {
+                setApplySuccess(true);
+                setTimeout(() => {
+                  setApplySuccess(false);
+                  setApplyJob(null);
+                  toast({ 
+                    title: '🎉 Bewerbung gesendet!', 
+                    description: 'Das Unternehmen wird sich bei dir melden.' 
+                  });
+                }, 1500);
+              }}
+              className="w-full h-12 rounded-full bg-black hover:bg-gray-800 text-white font-semibold text-base"
+            >
+              Jetzt bewerben
+            </Button>
+            <Button 
+              variant="ghost"
+              onClick={() => setApplyJob(null)}
+              className="w-full h-10 rounded-full text-gray-500"
+            >
+              Abbrechen
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Dialog */}
+      <Dialog open={applySuccess} onOpenChange={() => {}}>
+        <DialogContent className="max-w-[300px] rounded-3xl p-8 text-center">
+          <div className="flex flex-col items-center">
+            <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <CheckCircle2 className="h-10 w-10 text-green-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Bewerbung gesendet!</h3>
+            <p className="text-sm text-gray-500">
+              Viel Erfolg! 🍀
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
