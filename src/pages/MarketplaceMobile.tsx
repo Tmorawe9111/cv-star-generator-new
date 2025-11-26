@@ -390,8 +390,8 @@ export default function MarketplaceMobile() {
     }
   };
 
-  const filteredPeople = (peopleQuery.data || []).filter(p => p.id !== user?.id);
-  const companies = companiesQuery.data || [];
+  const allPeople = (peopleQuery.data || []).filter(p => p.id !== user?.id);
+  const allCompanies = companiesQuery.data || [];
   const posts = postsQuery.data || [];
   const jobs = jobsQuery.data || [];
 
@@ -407,14 +407,24 @@ export default function MarketplaceMobile() {
     return () => el.removeEventListener('scroll', handleScroll);
   }, [posts]);
 
-  // "Für dich" - Mix aus Personen und Unternehmen
+  // "Für dich" - Mix aus Personen und Unternehmen (erste 5 von jedem)
+  const forYouPeople = allPeople.slice(0, 5);
+  const forYouCompanies = allCompanies.slice(0, 5);
   const forYouItems: { item: Person | Company; type: 'person' | 'company' }[] = [];
   const maxForYou = 10;
   let pIdx = 0, cIdx = 0;
-  while (forYouItems.length < maxForYou && (pIdx < filteredPeople.length || cIdx < companies.length)) {
-    if (pIdx < filteredPeople.length) forYouItems.push({ item: filteredPeople[pIdx++], type: 'person' });
-    if (forYouItems.length < maxForYou && cIdx < companies.length) forYouItems.push({ item: companies[cIdx++], type: 'company' });
+  while (forYouItems.length < maxForYou && (pIdx < forYouPeople.length || cIdx < forYouCompanies.length)) {
+    if (pIdx < forYouPeople.length) forYouItems.push({ item: forYouPeople[pIdx++], type: 'person' });
+    if (forYouItems.length < maxForYou && cIdx < forYouCompanies.length) forYouItems.push({ item: forYouCompanies[cIdx++], type: 'company' });
   }
+
+  // IDs die in "Für dich" verwendet werden
+  const forYouPersonIds = new Set(forYouPeople.map(p => p.id));
+  const forYouCompanyIds = new Set(forYouCompanies.map(c => c.id));
+
+  // Separate Listen ohne Überschneidung
+  const companiesSection = allCompanies.filter(c => !forYouCompanyIds.has(c.id));
+  const peopleSection = allPeople.filter(p => !forYouPersonIds.has(p.id));
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-24">
@@ -454,21 +464,23 @@ export default function MarketplaceMobile() {
         </div>
       </div>
 
-      {/* 2. Unternehmen */}
-      <div className="mt-6">
-        <SectionHeader 
-          title="Unternehmen" 
-          icon={<Building2 className="h-5 w-5 text-blue-500" />}
-          onSeeAll={() => {}}
-        />
-        <div className="overflow-x-auto no-scrollbar">
-          <div className="flex gap-3 px-4 pb-2">
-            {companies.slice(0, 8).map((company) => (
-              <CompanyCardSmall key={company.id} company={company} />
-            ))}
+      {/* 2. Unternehmen (ohne die aus "Für dich") */}
+      {companiesSection.length > 0 && (
+        <div className="mt-6">
+          <SectionHeader 
+            title="Unternehmen" 
+            icon={<Building2 className="h-5 w-5 text-blue-500" />}
+            onSeeAll={() => {}}
+          />
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="flex gap-3 px-4 pb-2">
+              {companiesSection.slice(0, 8).map((company) => (
+                <CompanyCardSmall key={company.id} company={company} />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 3. Beiträge - Swipeable Cards */}
       <div className="mt-6">
@@ -543,26 +555,28 @@ export default function MarketplaceMobile() {
         </div>
       </div>
 
-      {/* 5. Personen */}
-      <div className="mt-6">
-        <SectionHeader 
-          title="Personen" 
-          icon={<Users className="h-5 w-5 text-pink-500" />}
-          onSeeAll={() => {}}
-        />
-        <div className="overflow-x-auto no-scrollbar">
-          <div className="flex gap-3 px-4 pb-2">
-            {filteredPeople.slice(0, 8).map((person) => (
-              <PersonCardSmall 
-                key={person.id} 
-                person={person}
-                onConnect={() => onConnect(person.id)}
-                status={statusMap[person.id] ?? 'none'}
-              />
-            ))}
+      {/* 5. Personen (ohne die aus "Für dich") */}
+      {peopleSection.length > 0 && (
+        <div className="mt-6">
+          <SectionHeader 
+            title="Personen" 
+            icon={<Users className="h-5 w-5 text-pink-500" />}
+            onSeeAll={() => {}}
+          />
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="flex gap-3 px-4 pb-2">
+              {peopleSection.slice(0, 8).map((person) => (
+                <PersonCardSmall 
+                  key={person.id} 
+                  person={person}
+                  onConnect={() => onConnect(person.id)}
+                  status={statusMap[person.id] ?? 'none'}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 6. Gruppen - Coming Soon */}
       <div className="mt-6 px-4">
