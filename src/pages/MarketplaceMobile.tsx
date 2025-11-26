@@ -925,36 +925,113 @@ export default function MarketplaceMobile() {
 
       {/* Apply Job Dialog */}
       <Dialog open={!!applyJob && !applySuccess} onOpenChange={(open) => !open && setApplyJob(null)}>
-        <DialogContent className="max-w-[340px] rounded-3xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-center">Bewerben</DialogTitle>
-            <DialogDescription className="text-center text-gray-500 mt-1">
-              Möchtest du dich auf diese Stelle bewerben?
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-[360px] max-h-[85vh] rounded-3xl p-0 flex flex-col overflow-hidden">
+          {/* Header - fixed */}
+          <div className="p-5 pb-3 border-b border-gray-100">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-center">Bewerben</DialogTitle>
+              <DialogDescription className="text-center text-gray-500 mt-1 text-sm">
+                Alle Details zur Stelle
+              </DialogDescription>
+            </DialogHeader>
+          </div>
           
+          {/* Scrollable Content */}
           {applyJob && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-2xl">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-12 w-12 rounded-xl bg-white flex items-center justify-center shadow-sm">
-                  <Briefcase className="h-6 w-6 text-gray-400" />
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Job Header */}
+              <div className="flex items-start gap-3">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center shadow-sm shrink-0">
+                  {companyMap[applyJob.company_id]?.logo_url ? (
+                    <img src={companyMap[applyJob.company_id].logo_url!} alt="" className="h-full w-full object-cover rounded-2xl" />
+                  ) : (
+                    <Briefcase className="h-7 w-7 text-gray-400" />
+                  )}
                 </div>
-                <div>
-                  <p className="font-semibold text-sm text-gray-900">{applyJob.title}</p>
-                  <p className="text-xs text-gray-500">
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-base text-gray-900 leading-tight">{applyJob.title}</p>
+                  <p className="text-sm text-gray-600 mt-0.5">
                     {companyMap[applyJob.company_id]?.name || 'Top Unternehmen'}
                   </p>
                 </div>
               </div>
-              {applyJob.location && (
-                <p className="text-xs text-gray-500 flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> {applyJob.location}
-                </p>
-              )}
+
+              {/* Quick Info Badges */}
+              <div className="flex flex-wrap gap-2">
+                {applyJob.location && (
+                  <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full">
+                    <MapPin className="h-3 w-3" /> {applyJob.location}
+                  </span>
+                )}
+                {applyJob.employment_type && (
+                  <span className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full">
+                    <Briefcase className="h-3 w-3" /> {applyJob.employment_type}
+                  </span>
+                )}
+                {(applyJob.salary_min || applyJob.salary_max) && (
+                  <span className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-full">
+                    💰 {applyJob.salary_min && applyJob.salary_max 
+                      ? `${Math.round(applyJob.salary_min/1000)}k - ${Math.round(applyJob.salary_max/1000)}k €/Jahr`
+                      : applyJob.salary_max 
+                        ? `bis ${Math.round(applyJob.salary_max/1000)}k €/Jahr`
+                        : `ab ${Math.round(applyJob.salary_min!/1000)}k €/Jahr`
+                    }
+                  </span>
+                )}
+              </div>
+
+              {/* Details Section */}
+              <div className="space-y-3 pt-2">
+                <h4 className="font-semibold text-sm text-gray-900">Details</h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Standort</p>
+                    <p className="text-sm font-medium text-gray-900">{applyJob.location || 'Flexibel'}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Anstellung</p>
+                    <p className="text-sm font-medium text-gray-900">{applyJob.employment_type || 'Vollzeit'}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Gehalt</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {applyJob.salary_min && applyJob.salary_max 
+                        ? `${Math.round(applyJob.salary_min/1000)}k - ${Math.round(applyJob.salary_max/1000)}k €`
+                        : 'Nach Vereinbarung'
+                      }
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Start</p>
+                    <p className="text-sm font-medium text-gray-900">Ab sofort</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* What we offer */}
+              <div className="space-y-3 pt-2">
+                <h4 className="font-semibold text-sm text-gray-900">Das erwartet dich</h4>
+                <ul className="space-y-2">
+                  <li className="flex items-center gap-2 text-sm text-gray-600">
+                    <span className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xs">✓</span>
+                    Flexibles Arbeiten & Home Office
+                  </li>
+                  <li className="flex items-center gap-2 text-sm text-gray-600">
+                    <span className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xs">✓</span>
+                    Weiterbildungsbudget
+                  </li>
+                  <li className="flex items-center gap-2 text-sm text-gray-600">
+                    <span className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xs">✓</span>
+                    Modernes Equipment
+                  </li>
+                </ul>
+              </div>
             </div>
           )}
 
-          <div className="flex flex-col gap-3 mt-6">
+          {/* Fixed Footer */}
+          <div className="p-5 pt-3 border-t border-gray-100 bg-white">
             <Button 
               onClick={() => {
                 setApplySuccess(true);
@@ -967,17 +1044,16 @@ export default function MarketplaceMobile() {
                   });
                 }, 1500);
               }}
-              className="w-full h-12 rounded-full bg-black hover:bg-gray-800 text-white font-semibold text-base"
+              className="w-full h-12 rounded-full bg-black hover:bg-gray-800 text-white font-semibold text-base shadow-lg"
             >
               Jetzt bewerben
             </Button>
-            <Button 
-              variant="ghost"
+            <button 
               onClick={() => setApplyJob(null)}
-              className="w-full h-10 rounded-full text-gray-500"
+              className="w-full mt-2 text-sm text-gray-500 py-2"
             >
               Abbrechen
-            </Button>
+            </button>
           </div>
         </DialogContent>
       </Dialog>
