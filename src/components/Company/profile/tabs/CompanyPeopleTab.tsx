@@ -1,14 +1,17 @@
 import { useCompanyPeople } from "@/hooks/useCompanyPeople";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Trash2, Users, Building2, MapPin, Calendar, ChevronRight, Briefcase } from "lucide-react";
+import { Plus, Trash2, Users, Building2, MapPin, Calendar, ChevronRight, Briefcase, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { AddEmployeeDialog } from "../AddEmployeeDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { FirstEmployeeCTA } from "@/components/shared/FirstEmployeeCTA";
+import { toast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface CompanyPeopleTabProps {
   companyId: string;
@@ -30,9 +33,12 @@ interface Employee {
 
 export function CompanyPeopleTab({ companyId, isOwner }: CompanyPeopleTabProps) {
   const { data: people, refetch, isLoading: legacyLoading } = useCompanyPeople(companyId);
+  const queryClient = useQueryClient();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showAllCurrent, setShowAllCurrent] = useState(false);
   const [showAllFormer, setShowAllFormer] = useState(false);
+  const [employeeToRemove, setEmployeeToRemove] = useState<Employee | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   // New: Fetch employees from user_experiences
   const { data: linkedEmployees, isLoading: linkedLoading } = useQuery({
@@ -66,48 +72,96 @@ export function CompanyPeopleTab({ companyId, isOwner }: CompanyPeopleTabProps) 
 
   const isLoading = legacyLoading || linkedLoading;
 
+  // Handle removing employee link (Veto-Recht)
+  const handleRemoveEmployee = async () => {
+    if (!employeeToRemove) return;
+    
+    setIsRemoving(true);
+    try {
+      const { data, error } = await supabase.rpc('company_remove_employee_link', {
+        p_company_id: companyId,
+        p_user_id: employeeToRemove.user_id
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Verknüpfung aufgehoben',
+        description: `${employeeToRemove.vorname} ${employeeToRemove.nachname} wurde benachrichtigt.`,
+      });
+
+      // Refresh the list
+      queryClient.invalidateQueries({ queryKey: ['company-employees', companyId] });
+    } catch (error) {
+      console.error('Error removing employee:', error);
+      toast({
+        title: 'Fehler',
+        description: 'Die Verknüpfung konnte nicht aufgehoben werden.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsRemoving(false);
+      setEmployeeToRemove(null);
+    }
+  };
+
   const EmployeeCard = ({ employee, isCurrent }: { employee: Employee; isCurrent: boolean }) => (
-    <Link
-      to={`/profil/${employee.user_id}`}
+    <div
       className={cn(
-        "block p-4 rounded-2xl border border-gray-100 bg-white shadow-sm",
-        "hover:shadow-md hover:border-primary/30 transition-all",
-        "active:scale-[0.98]"
+        "relative p-4 rounded-2xl border border-gray-100 bg-white shadow-sm",
+        "hover:shadow-md hover:border-primary/30 transition-all"
       )}
     >
-      <div className="flex items-start gap-3">
-        <Avatar className="h-12 w-12 ring-2 ring-white shadow">
-          <AvatarImage src={employee.avatar_url || undefined} />
-          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
-            {employee.vorname?.[0]}{employee.nachname?.[0]}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 truncate">
-            {employee.vorname} {employee.nachname}
-          </p>
-          <p className="text-sm text-primary font-medium truncate">{employee.position}</p>
-          
-          <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-gray-500">
-            {employee.location && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {employee.location}
-              </span>
-            )}
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {isCurrent ? (
-                <>seit {formatDate(employee.start_date)}</>
-              ) : (
-                <>{formatDate(employee.start_date)} - {formatDate(employee.end_date!)}</>
+      <Link to={`/profil/${employee.user_id}`} className="block">
+        <div className="flex items-start gap-3">
+          <Avatar className="h-12 w-12 ring-2 ring-white shadow">
+            <AvatarImage src={employee.avatar_url || undefined} />
+            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
+              {employee.vorname?.[0]}{employee.nachname?.[0]}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900 truncate">
+              {employee.vorname} {employee.nachname}
+            </p>
+            <p className="text-sm text-primary font-medium truncate">{employee.position}</p>
+            
+            <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-gray-500">
+              {employee.location && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {employee.location}
+                </span>
               )}
-            </span>
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {isCurrent ? (
+                  <>seit {formatDate(employee.start_date)}</>
+                ) : (
+                  <>{formatDate(employee.start_date)} - {formatDate(employee.end_date!)}</>
+                )}
+              </span>
+            </div>
           </div>
+          <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
         </div>
-        <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
-      </div>
-    </Link>
+      </Link>
+      
+      {/* Veto Button for owners */}
+      {isOwner && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2 h-7 w-7 text-gray-400 hover:text-red-500 hover:bg-red-50"
+          onClick={(e) => {
+            e.preventDefault();
+            setEmployeeToRemove(employee);
+          }}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
   );
 
   return (
@@ -262,6 +316,30 @@ export function CompanyPeopleTab({ companyId, isOwner }: CompanyPeopleTabProps) 
           onSuccess={refetch}
         />
       )}
+
+      {/* Remove Employee Confirmation Dialog */}
+      <AlertDialog open={!!employeeToRemove} onOpenChange={() => setEmployeeToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Verknüpfung aufheben?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Die Verknüpfung von <strong>{employeeToRemove?.vorname} {employeeToRemove?.nachname}</strong> mit 
+              deinem Unternehmen wird aufgehoben. Die Person wird benachrichtigt und erscheint nicht mehr 
+              im Team-Bereich.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRemoving}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRemoveEmployee}
+              disabled={isRemoving}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isRemoving ? 'Wird entfernt...' : 'Verknüpfung aufheben'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

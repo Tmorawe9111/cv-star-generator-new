@@ -89,9 +89,11 @@ CREATE TABLE IF NOT EXISTS public.user_education (
   school_name TEXT NOT NULL,
   degree TEXT, -- e.g., "Abitur", "Bachelor", "Master"
   field_of_study TEXT, -- e.g., "Informatik", "BWL"
+  field_of_study_category TEXT CHECK (field_of_study_category IN ('handwerk', 'it', 'kaufmaennisch', 'gesundheit', 'soziales', 'technik', 'gastronomie', 'sonstige')), -- For filtering
   location TEXT,
   start_date DATE,
   end_date DATE, -- NULL = current student
+  graduation_year INTEGER, -- Important for "Jahrgang 2024" feature
   grade TEXT, -- e.g., "1.5", "sehr gut"
   description TEXT,
   
@@ -332,6 +334,190 @@ $$;
 -- Enable pg_trgm extension for fuzzy matching (if not already enabled)
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
+-- 11. Function to get classmates by graduation year (Jahrgangs-Feature)
+CREATE OR REPLACE FUNCTION public.get_classmates_by_year(
+  p_school_id UUID,
+  p_graduation_year INTEGER
+)
+RETURNS TABLE (
+  user_id UUID,
+  vorname TEXT,
+  nachname TEXT,
+  avatar_url TEXT,
+  degree TEXT,
+  field_of_study TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    ue.user_id,
+    p.vorname,
+    p.nachname,
+    p.avatar_url,
+    ue.degree,
+    ue.field_of_study
+  FROM user_education ue
+  JOIN profiles p ON p.id = ue.user_id
+  WHERE ue.linked_school_id = p_school_id
+    AND ue.graduation_year = p_graduation_year
+    AND COALESCE(p.show_as_former_employee, true) = true
+  ORDER BY p.nachname, p.vorname;
+END;
+$$;
+
+-- 12. Function for company to remove employee link (Veto-Recht)
+CREATE OR REPLACE FUNCTION public.company_remove_employee_link(
+  p_company_id UUID,
+  p_user_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_experience_id UUID;
+  v_company_name TEXT;
+BEGIN
+  -- Verify caller is admin of the company
+  IF NOT EXISTS (
+    SELECT 1 FROM company_users 
+    WHERE company_id = p_company_id 
+      AND user_id = auth.uid() 
+      AND role = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Not authorized to remove employees';
+  END IF;
+
+  -- Get company name for notification
+  SELECT name INTO v_company_name FROM companies WHERE id = p_company_id;
+
+  -- Remove the link (set to NULL, don't delete the experience)
+  UPDATE user_experiences 
+  SET linked_company_id = NULL, 
+      linked_location_id = NULL,
+      updated_at = NOW()
+  WHERE linked_company_id = p_company_id 
+    AND user_id = p_user_id
+  RETURNING id INTO v_experience_id;
+
+  -- Create notification for the user
+  IF v_experience_id IS NOT NULL THEN
+    INSERT INTO notifications (user_id, type, title, message, data)
+    VALUES (
+      p_user_id,
+      'company_link_removed',
+      'Verknüpfung aufgehoben',
+      'Die Verknüpfung mit ' || v_company_name || ' wurde aufgehoben.',
+      jsonb_build_object('company_id', p_company_id, 'company_name', v_company_name)
+    );
+  END IF;
+
+  RETURN v_experience_id IS NOT NULL;
+END;
+$$;
+
+-- 13. Trigger to notify colleagues when new employee joins (Viralität)
+CREATE OR REPLACE FUNCTION public.notify_colleagues_on_join()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_name TEXT;
+  v_company_name TEXT;
+  v_colleague RECORD;
+BEGIN
+  -- Only trigger when a company link is established
+  IF NEW.linked_company_id IS NOT NULL AND (OLD IS NULL OR OLD.linked_company_id IS NULL) THEN
+    -- Get user name
+    SELECT vorname || ' ' || nachname INTO v_user_name 
+    FROM profiles WHERE id = NEW.user_id;
+    
+    -- Get company name
+    SELECT name INTO v_company_name 
+    FROM companies WHERE id = NEW.linked_company_id;
+
+    -- Notify all current colleagues (max 50 to avoid spam)
+    FOR v_colleague IN (
+      SELECT DISTINCT ue.user_id 
+      FROM user_experiences ue
+      WHERE ue.linked_company_id = NEW.linked_company_id
+        AND ue.user_id != NEW.user_id
+        AND ue.is_current = true
+      LIMIT 50
+    ) LOOP
+      INSERT INTO notifications (user_id, type, title, message, data)
+      VALUES (
+        v_colleague.user_id,
+        'new_colleague',
+        'Neuer Kollege bei ' || v_company_name,
+        v_user_name || ' ist jetzt auch auf BeVisiblle!',
+        jsonb_build_object(
+          'company_id', NEW.linked_company_id,
+          'new_user_id', NEW.user_id,
+          'new_user_name', v_user_name
+        )
+      );
+    END LOOP;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_notify_colleagues_on_join ON public.user_experiences;
+CREATE TRIGGER trg_notify_colleagues_on_join
+AFTER INSERT OR UPDATE ON public.user_experiences
+FOR EACH ROW EXECUTE FUNCTION public.notify_colleagues_on_join();
+
+-- 14. Function to get user's dual status (Azubi: Firma + Schule gleichzeitig)
+CREATE OR REPLACE FUNCTION public.get_user_current_affiliations(p_user_id UUID)
+RETURNS TABLE (
+  type TEXT, -- 'company' or 'school'
+  entity_id UUID,
+  entity_name TEXT,
+  entity_logo TEXT,
+  position_or_degree TEXT,
+  start_date DATE,
+  graduation_year INTEGER
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Current companies
+  RETURN QUERY
+  SELECT 
+    'company'::TEXT as type,
+    ue.linked_company_id as entity_id,
+    COALESCE(c.name, ue.company_name) as entity_name,
+    c.logo_url as entity_logo,
+    ue.position as position_or_degree,
+    ue.start_date,
+    NULL::INTEGER as graduation_year
+  FROM user_experiences ue
+  LEFT JOIN companies c ON c.id = ue.linked_company_id
+  WHERE ue.user_id = p_user_id AND ue.is_current = true;
+
+  -- Current schools
+  RETURN QUERY
+  SELECT 
+    'school'::TEXT as type,
+    ed.linked_school_id as entity_id,
+    COALESCE(s.name, ed.school_name) as entity_name,
+    s.logo_url as entity_logo,
+    ed.degree as position_or_degree,
+    ed.start_date,
+    ed.graduation_year
+  FROM user_education ed
+  LEFT JOIN schools s ON s.id = ed.linked_school_id
+  WHERE ed.user_id = p_user_id AND ed.is_current = true;
+END;
+$$;
+
 -- Grant permissions
 GRANT SELECT ON public.schools TO anon, authenticated;
 GRANT ALL ON public.user_experiences TO authenticated;
@@ -341,9 +527,14 @@ GRANT EXECUTE ON FUNCTION public.get_school_members TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_colleague_counts TO authenticated;
 GRANT EXECUTE ON FUNCTION public.search_companies_for_linking TO authenticated;
 GRANT EXECUTE ON FUNCTION public.search_schools_for_linking TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_classmates_by_year TO authenticated;
+GRANT EXECUTE ON FUNCTION public.company_remove_employee_link TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_current_affiliations TO authenticated;
 
 -- Comments
 COMMENT ON TABLE public.schools IS 'Registered schools/universities for alumni networking';
 COMMENT ON TABLE public.user_experiences IS 'User work experiences with optional company linking';
 COMMENT ON TABLE public.user_education IS 'User education with optional school linking';
+COMMENT ON COLUMN public.user_education.graduation_year IS 'Year of graduation for "Jahrgang 2024" feature';
+COMMENT ON COLUMN public.user_education.field_of_study_category IS 'Category for filtering: handwerk, it, kaufmaennisch, etc.';
 
