@@ -382,7 +382,7 @@ export default function NewPostComposer() {
       <Sheet open={isOpen} onOpenChange={handleClose}>
         <SheetContent 
           side="bottom" 
-          className="h-[85vh] p-0 flex flex-col [&>button]:hidden mt-[15vh]"
+          className="h-[75vh] p-0 flex flex-col [&>button]:hidden"
         >
           {Content}
         </SheetContent>
