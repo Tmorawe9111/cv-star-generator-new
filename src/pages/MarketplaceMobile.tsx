@@ -266,26 +266,18 @@ export default function MarketplaceMobile() {
   const peopleQuery = useQuery<Person[]>({
     queryKey: ['mp-people-mobile'],
     queryFn: async () => {
-      console.log('🔍 Fetching profiles...');
-      
-      // Direct query without RLS filter
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, vorname, nachname, avatar_url, bio, wunschberuf')
+        .select('id, vorname, nachname, avatar_url, bio')
         .order('created_at', { ascending: false })
         .limit(20);
       
-      console.log('📊 Profiles result:', { data, error, count: data?.length });
-      
       if (error) {
-        console.error('❌ Error fetching profiles:', error);
+        console.error('Error fetching profiles:', error);
         return [];
       }
       
-      // Filter out profiles without names client-side
-      const filtered = (data || []).filter(p => p.vorname || p.nachname);
-      console.log('✅ Filtered profiles:', filtered.length);
-      return filtered as Person[];
+      return (data || []).filter(p => p.vorname || p.nachname) as Person[];
     },
   });
 
