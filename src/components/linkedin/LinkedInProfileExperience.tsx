@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Building, Plus, Edit3, Trash2, MapPin, Calendar } from 'lucide-react';
+import { Building, Plus, Edit3, Trash2, MapPin, Calendar, Users, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { capitalizeFirst, capitalizeWords, capitalizeSentences } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 // Dialog removed for inline editing
 import { Switch } from '@/components/ui/switch';
+import { CompanyAutocomplete } from '@/components/shared/CompanyAutocomplete';
+import { ColleaguesDialog } from '@/components/shared/ColleaguesDialog';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Experience {
   titel: string;
@@ -16,6 +21,8 @@ interface Experience {
   zeitraum_von: string;
   zeitraum_bis: string;
   beschreibung?: string;
+  linked_company_id?: string | null;
+  linked_company_logo?: string | null;
 }
 
 type ExperienceFormProps = {
@@ -26,6 +33,18 @@ type ExperienceFormProps = {
 const ExperienceForm: React.FC<ExperienceFormProps> = React.memo(({ formData, setFormData }) => {
   return (
     <div className="space-y-4 w-full max-w-full overflow-hidden">
+      <div>
+        <Label htmlFor="ort">Standort</Label>
+        <Input
+          id="ort"
+          value={formData.ort}
+          onChange={(e) => setFormData({ ...formData, ort: e.target.value })}
+          placeholder="z.B. Berlin, Deutschland"
+          className="text-sm w-full"
+        />
+        <p className="text-xs text-muted-foreground mt-1">Zuerst den Standort eingeben für bessere Firmenvorschläge</p>
+      </div>
+
       <div className="grid grid-cols-1 gap-4">
         <div>
           <Label htmlFor="titel">Position</Label>
@@ -39,25 +58,36 @@ const ExperienceForm: React.FC<ExperienceFormProps> = React.memo(({ formData, se
         </div>
         <div>
           <Label htmlFor="unternehmen">Unternehmen</Label>
-          <Input
-            id="unternehmen"
+          <CompanyAutocomplete
             value={formData.unternehmen}
-            onChange={(e) => setFormData({ ...formData, unternehmen: e.target.value })}
+            onChange={(value) => setFormData({ ...formData, unternehmen: value })}
+            onCompanySelect={(company) => {
+              if (company) {
+                setFormData({ 
+                  ...formData, 
+                  unternehmen: company.name,
+                  linked_company_id: company.id,
+                  linked_company_logo: company.logo_url
+                });
+              } else {
+                setFormData({ 
+                  ...formData, 
+                  linked_company_id: null,
+                  linked_company_logo: null
+                });
+              }
+            }}
+            location={formData.ort}
             placeholder="z.B. Tech AG"
             className="text-sm w-full"
           />
+          {formData.linked_company_id && (
+            <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+              <Check className="h-3 w-3" />
+              Mit registriertem Unternehmen verknüpft
+            </p>
+          )}
         </div>
-      </div>
-
-      <div>
-        <Label htmlFor="ort">Ort</Label>
-        <Input
-          id="ort"
-          value={formData.ort}
-          onChange={(e) => setFormData({ ...formData, ort: e.target.value })}
-          placeholder="z.B. Berlin, Deutschland"
-          className="text-sm w-full"
-        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
