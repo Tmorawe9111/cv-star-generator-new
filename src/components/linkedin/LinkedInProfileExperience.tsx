@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Building, Plus, Edit3, Trash2, MapPin, Calendar, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { capitalizeFirst, capitalizeWords, capitalizeSentences } from '@/lib/utils';
@@ -353,8 +354,8 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
               <div key={i} className="relative group">
                 <div className="flex items-start gap-3 md:gap-4">
                   {exp.linked_company_logo ? (
-                    <a 
-                      href={`/unternehmen/${exp.linked_company_id}`}
+                    <Link 
+                      to={`/companies/${exp.linked_company_id}`}
                       className="w-10 h-10 md:w-12 md:h-12 rounded-lg flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity"
                     >
                       <img 
@@ -362,7 +363,7 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
                         alt={exp.unternehmen}
                         className="w-full h-full object-cover"
                       />
-                    </a>
+                    </Link>
                   ) : (
                     <div className="w-10 h-10 md:w-12 md:h-12 bg-accent/20 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Building className="h-5 w-5 md:h-6 md:w-6 text-accent-foreground" />
@@ -374,12 +375,12 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-base md:text-lg truncate">{exp.titel}</h3>
                         {exp.linked_company_id ? (
-                          <a 
-                            href={`/unternehmen/${exp.linked_company_id}`}
+                          <Link 
+                            to={`/companies/${exp.linked_company_id}`}
                             className="text-primary font-medium text-sm md:text-base truncate hover:underline block"
                           >
                             {exp.unternehmen}
-                          </a>
+                          </Link>
                         ) : (
                           <p className="text-primary font-medium text-sm md:text-base truncate">{exp.unternehmen}</p>
                         )}

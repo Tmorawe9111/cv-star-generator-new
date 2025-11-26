@@ -71,7 +71,7 @@ export function CompanyPeopleTab({ companyId, companyName, isOwner }: CompanyPeo
 
   const EmployeeCard = ({ employee, isCurrent }: { employee: ProfileEmployee; isCurrent: boolean }) => (
     <Link
-      to={`/profil/${employee.user_id}`}
+      to={`/u/${employee.user_id}`}
       className={cn(
         "block p-4 rounded-2xl border border-gray-100 bg-white shadow-sm",
         "hover:shadow-md hover:border-primary/30 transition-all",
