@@ -36,7 +36,76 @@ export function CompanyLocationsCard({ companyId, isOwner }: CompanyLocationsCar
         .order('is_primary', { ascending: false })
         .limit(5);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching locations:', error);
+        return [];
+      }
+      
+      // If no locations in company_locations, create from companies table
+      if (!data || data.length === 0) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('street, house_number, postal_code, city, location, country')
+          .eq('id', companyId)
+          .single();
+        
+        if (companyData && (companyData.city || companyData.location || companyData.street)) {
+          // Get coordinates
+          let lat: number | null = null;
+          let lon: number | null = null;
+          
+          if (companyData.postal_code) {
+            const { data: plzData } = await supabase
+              .from('postal_codes')
+              .select('lat, lon')
+              .eq('plz', companyData.postal_code)
+              .single();
+            
+            if (plzData) {
+              lat = plzData.lat;
+              lon = plzData.lon;
+            }
+          }
+          
+          // Try to insert into company_locations
+          const { data: newLocation, error: insertError } = await supabase
+            .from('company_locations')
+            .insert({
+              company_id: companyId,
+              name: 'Hauptstandort',
+              street: companyData.street || null,
+              house_number: companyData.house_number || null,
+              postal_code: companyData.postal_code || '',
+              city: companyData.city || companyData.location || '',
+              country: companyData.country || 'Deutschland',
+              is_primary: true,
+              is_active: true,
+              lat,
+              lon,
+            })
+            .select()
+            .single();
+          
+          if (!insertError && newLocation) {
+            return [newLocation] as Location[];
+          }
+          
+          // If insert failed (RLS), return a virtual location for display
+          return [{
+            id: 'virtual-' + companyId,
+            name: 'Hauptstandort',
+            street: companyData.street,
+            house_number: companyData.house_number,
+            postal_code: companyData.postal_code,
+            city: companyData.city || companyData.location,
+            country: companyData.country || 'Deutschland',
+            is_primary: true,
+            lat,
+            lon,
+          }] as Location[];
+        }
+      }
+      
       return (data || []) as Location[];
     },
     enabled: !!companyId,

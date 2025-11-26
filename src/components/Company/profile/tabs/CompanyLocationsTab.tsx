@@ -35,7 +35,51 @@ export function CompanyLocationsTab({ companyId, isOwner }: CompanyLocationsTabP
         .order('is_primary', { ascending: false })
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching locations:', error);
+        return [];
+      }
+      
+      // Fallback: Create location from companies table if none exist
+      if (!data || data.length === 0) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('street, house_number, postal_code, city, location, country')
+          .eq('id', companyId)
+          .single();
+        
+        if (companyData && (companyData.city || companyData.location || companyData.street)) {
+          let lat: number | null = null;
+          let lon: number | null = null;
+          
+          if (companyData.postal_code) {
+            const { data: plzData } = await supabase
+              .from('postal_codes')
+              .select('lat, lon')
+              .eq('plz', companyData.postal_code)
+              .single();
+            if (plzData) {
+              lat = plzData.lat;
+              lon = plzData.lon;
+            }
+          }
+          
+          // Return virtual location for display
+          return [{
+            id: 'virtual-' + companyId,
+            name: 'Hauptstandort',
+            street: companyData.street,
+            house_number: companyData.house_number,
+            postal_code: companyData.postal_code,
+            city: companyData.city || companyData.location,
+            country: companyData.country || 'Deutschland',
+            is_primary: true,
+            lat,
+            lon,
+          }] as Location[];
+        }
+      }
+      
       return (data || []) as Location[];
     },
     enabled: !!companyId,
