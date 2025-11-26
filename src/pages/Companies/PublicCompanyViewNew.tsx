@@ -218,7 +218,7 @@ export default function PublicCompanyViewNew() {
         </TabsContent>
         
         <TabsContent value="people" className="mt-0">
-          <CompanyPeopleTab companyId={company.id} isOwner={!!isOwner} />
+          <CompanyPeopleTab companyId={company.id} companyName={company.name} isOwner={!!isOwner} />
         </TabsContent>
         
         <TabsContent value="posts" className="mt-0">

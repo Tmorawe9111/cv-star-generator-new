@@ -227,7 +227,7 @@ export default function CompanyProfile() {
         </TabsContent>
         
         <TabsContent value="people" className="mt-0">
-          <CompanyPeopleTab companyId={company.id} isOwner={true} />
+          <CompanyPeopleTab companyId={company.id} companyName={company.name} isOwner={true} />
         </TabsContent>
         
         <TabsContent value="posts" className="mt-0">

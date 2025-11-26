@@ -271,9 +271,25 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
     return safeExperiences
       .map((item, i) => ({ item, i }))
       .sort((a, b) => {
-        const aEnd = a.item.zeitraum_bis ? new Date(a.item.zeitraum_bis) : new Date(a.item.zeitraum_von);
-        const bEnd = b.item.zeitraum_bis ? new Date(b.item.zeitraum_bis) : new Date(b.item.zeitraum_von);
+        // "Heute" (kein zeitraum_bis) immer ganz oben
+        const aIsCurrent = !a.item.zeitraum_bis;
+        const bIsCurrent = !b.item.zeitraum_bis;
+        
+        if (aIsCurrent && !bIsCurrent) return -1;
+        if (!aIsCurrent && bIsCurrent) return 1;
+        
+        // Beide "Heute": nach Startdatum sortieren (neuestes zuerst)
+        if (aIsCurrent && bIsCurrent) {
+          const aStart = new Date(a.item.zeitraum_von);
+          const bStart = new Date(b.item.zeitraum_von);
+          return bStart.getTime() - aStart.getTime();
+        }
+        
+        // Beide haben Enddatum: nach Enddatum sortieren (neuestes zuerst)
+        const aEnd = new Date(a.item.zeitraum_bis!);
+        const bEnd = new Date(b.item.zeitraum_bis!);
         if (bEnd.getTime() !== aEnd.getTime()) return bEnd.getTime() - aEnd.getTime();
+        
         return a.i - b.i; // stable tie-breaker
       });
   }, [safeExperiences]);
