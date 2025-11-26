@@ -398,9 +398,9 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
         )}
       </CardContent>
       {isEditing && (isAddingNew || editingIndex !== null) && (
-        <div className="fixed bottom-3 left-0 right-0 z-50">
+        <div className="fixed bottom-20 md:bottom-4 left-0 right-0 z-[100]">
           <div className="mx-auto max-w-screen-sm px-4">
-            <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border rounded-md shadow-sm p-2 flex gap-2 justify-end">
+            <div className="bg-background border rounded-lg shadow-lg p-3 flex gap-2 justify-end">
               <Button variant="outline" size="sm" onClick={handleCancel}>Abbrechen</Button>
               <Button size="sm" onClick={handleSaveWithValidation}>Speichern</Button>
               {isAddingNew && (
