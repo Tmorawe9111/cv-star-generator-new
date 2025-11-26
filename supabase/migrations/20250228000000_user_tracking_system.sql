@@ -291,10 +291,10 @@ BEGIN
     ON CONFLICT (user_id, interest_type, interest_value) DO NOTHING;
   END IF;
   
-  -- Add wunschberuf as berufsfeld
-  IF v_profile.wunschberuf IS NOT NULL THEN
+  -- Add aktueller_beruf as berufsfeld
+  IF v_profile.aktueller_beruf IS NOT NULL THEN
     INSERT INTO public.user_interests (user_id, interest_type, interest_value, score, interaction_count)
-    VALUES (p_user_id, 'berufsfeld', v_profile.wunschberuf, 0.6, 1)
+    VALUES (p_user_id, 'berufsfeld', v_profile.aktueller_beruf, 0.6, 1)
     ON CONFLICT (user_id, interest_type, interest_value) DO NOTHING;
   END IF;
   
@@ -324,7 +324,7 @@ $$;
 
 DROP TRIGGER IF EXISTS on_profile_update_interests ON public.profiles;
 CREATE TRIGGER on_profile_update_interests
-  AFTER INSERT OR UPDATE OF branche, ort, wunschberuf, berufserfahrung
+  AFTER INSERT OR UPDATE OF branche, ort, aktueller_beruf, berufserfahrung
   ON public.profiles
   FOR EACH ROW
   EXECUTE FUNCTION public.trigger_initialize_interests();
