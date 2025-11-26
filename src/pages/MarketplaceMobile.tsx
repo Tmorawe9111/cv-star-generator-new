@@ -14,6 +14,16 @@ import { useFollowCompany } from '@/hooks/useFollowCompany';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
+// Fisher-Yates shuffle algorithm
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 type Person = { 
   id: string; 
   vorname?: string | null; 
@@ -452,41 +462,48 @@ export default function MarketplaceMobile() {
   const postsScrollRef = useRef<HTMLDivElement>(null);
   const [postIndex, setPostIndex] = React.useState(0);
 
-  // Fetch People (Users)
+  // Fetch People (Users) - randomized on each load
   const peopleQuery = useQuery<Person[]>({
-    queryKey: ['mp-people-mobile'],
+    queryKey: ['mp-people-mobile', Date.now()], // Force refetch on mount
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, vorname, nachname, avatar_url, bio, branche, stadt')
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(50); // Fetch more, then shuffle
       
       if (error) {
         console.error('Error fetching profiles:', error);
         return [];
       }
       
-      return (data || []).filter(p => p.vorname || p.nachname) as Person[];
+      // Shuffle array randomly
+      const filtered = (data || []).filter(p => p.vorname || p.nachname);
+      return shuffleArray(filtered).slice(0, 20) as Person[];
     },
+    staleTime: 0, // Always refetch
+    gcTime: 0,
   });
 
-  // Fetch Companies
+  // Fetch Companies - randomized on each load
   const companiesQuery = useQuery<Company[]>({
-    queryKey: ['mp-companies-mobile'],
+    queryKey: ['mp-companies-mobile', Date.now()],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
         .select('id, name, logo_url, industry, city')
-        .limit(15);
+        .limit(30);
       if (error) return [];
-      return (data || []) as Company[];
+      return shuffleArray(data || []).slice(0, 15) as Company[];
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
-  // Fetch Posts with likes and comments count
+  // Fetch Posts with likes and comments count - randomized
   const postsQuery = useQuery<Post[]>({
-    queryKey: ['mp-posts-mobile'],
+    queryKey: ['mp-posts-mobile', Date.now()],
+    staleTime: 0,
+    gcTime: 0,
     queryFn: async () => {
       const { data: postsData, error } = await supabase
         .from('posts')
@@ -528,18 +545,19 @@ export default function MarketplaceMobile() {
     },
   });
 
-  // Fetch Jobs
+  // Fetch Jobs - randomized
   const jobsQuery = useQuery<Job[]>({
-    queryKey: ['mp-jobs-mobile'],
+    queryKey: ['mp-jobs-mobile', Date.now()],
+    staleTime: 0,
+    gcTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('job_posts')
         .select('id, title, company_id, location, employment_type')
         .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
       if (error) return [];
-      return (data || []) as Job[];
+      return shuffleArray(data || []).slice(0, 10) as Job[];
     },
   });
 
