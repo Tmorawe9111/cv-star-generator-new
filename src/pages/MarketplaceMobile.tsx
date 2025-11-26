@@ -118,11 +118,9 @@ const ForYouCard: React.FC<{
         )}
         <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{name}</p>
         {/* Branche & Standort */}
-        <p className="text-[10px] text-gray-500 truncate w-full text-center">
-          {branche || 'Keine Branche'}
-        </p>
+        <p className="text-[10px] text-gray-500 truncate w-full text-center">{branche}</p>
         <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5">
-          <MapPin className="h-2.5 w-2.5" /> {stadt || 'Unbekannt'}
+          <MapPin className="h-2.5 w-2.5" /> {stadt}
         </p>
       </Link>
       
@@ -216,11 +214,9 @@ const PersonCard: React.FC<{
         </Avatar>
         <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{name}</p>
         {/* Branche & Standort */}
-        <p className="text-[10px] text-gray-500 truncate w-full text-center">
-          {person.branche || 'Keine Branche'}
-        </p>
+        <p className="text-[10px] text-gray-500 truncate w-full text-center">{person.branche}</p>
         <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5">
-          <MapPin className="h-2.5 w-2.5" /> {person.stadt || 'Unbekannt'}
+          <MapPin className="h-2.5 w-2.5" /> {person.stadt}
         </p>
       </Link>
       
@@ -282,11 +278,9 @@ const CompanyCard: React.FC<{
         </div>
         <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{company.name}</p>
         {/* Branche & Standort */}
-        <p className="text-[10px] text-gray-500 truncate w-full text-center">
-          {company.industry || 'Keine Branche'}
-        </p>
+        <p className="text-[10px] text-gray-500 truncate w-full text-center">{company.industry}</p>
         <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5">
-          <MapPin className="h-2.5 w-2.5" /> {company.city || 'Unbekannt'}
+          <MapPin className="h-2.5 w-2.5" /> {company.city}
         </p>
       </Link>
       
