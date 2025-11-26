@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFollowRelations } from '@/hooks/useFollowRelations';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -6,8 +7,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { ChevronRight, Check, X } from 'lucide-react';
 
 export function FollowRequestsBanner() {
+  const navigate = useNavigate();
   const { companyFollowRequests, loading, acceptCompanyFollow, declineCompanyFollow } = useFollowRelations();
   const [isOpen, setIsOpen] = useState(false);
+
+  const handleViewProfile = (companyId: string) => {
+    setIsOpen(false);
+    navigate(`/firma/${companyId}`);
+  };
 
   if (companyFollowRequests.length === 0) return null;
 
@@ -71,19 +78,26 @@ export function FollowRequestsBanner() {
                 key={req.id}
                 className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl"
               >
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={req.company.logo_url || undefined} alt={req.company.name} />
-                  <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                    {req.company.name.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                {/* Clickable Avatar and Name - Navigate to Profile */}
+                <button
+                  onClick={() => handleViewProfile(req.company.id)}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+                >
+                  <Avatar className="h-12 w-12 shrink-0">
+                    <AvatarImage src={req.company.logo_url || undefined} alt={req.company.name} />
+                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                      {req.company.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
 
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{req.company.name}</p>
-                  {req.company.industry && (
-                    <p className="text-xs text-gray-500 truncate">{req.company.industry}</p>
-                  )}
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate hover:underline">{req.company.name}</p>
+                    {req.company.industry && (
+                      <p className="text-xs text-gray-500 truncate">{req.company.industry}</p>
+                    )}
+                    <p className="text-xs text-blue-600 mt-0.5">Profil ansehen</p>
+                  </div>
+                </button>
 
                 <div className="flex items-center gap-2 shrink-0">
                   <Button
@@ -92,6 +106,7 @@ export function FollowRequestsBanner() {
                     className="h-8 w-8 p-0 rounded-full"
                     onClick={() => declineCompanyFollow(req.id)}
                     disabled={loading}
+                    title="Ablehnen"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -100,6 +115,7 @@ export function FollowRequestsBanner() {
                     className="h-8 w-8 p-0 rounded-full bg-blue-600 hover:bg-blue-700"
                     onClick={() => acceptCompanyFollow(req.id, req.company.id)}
                     disabled={loading}
+                    title="Annehmen"
                   >
                     <Check className="h-4 w-4" />
                   </Button>
