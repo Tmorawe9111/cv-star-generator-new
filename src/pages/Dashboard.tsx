@@ -4,10 +4,13 @@ import { ComposerTeaser } from '@/components/dashboard/ComposerTeaser';
 import FeedSortBar from '@/components/community/FeedSortBar';
 import { LeftPanel } from '@/components/dashboard/LeftPanel';
 import { RightPanel } from '@/components/dashboard/RightPanel';
+import { WelcomePopup } from '@/components/welcome/WelcomePopup';
 
 const Dashboard = () => {
 
   return (
+    <>
+      <WelcomePopup type="user" />
     <main className="w-full min-h-dvh pb-[56px] md:pb-0">
       <h1 className="sr-only">Dashboard</h1>
       
@@ -56,6 +59,7 @@ const Dashboard = () => {
       
       {/* NewPostComposer is in AuthenticatedLayout - no need here */}
     </main>
+    </>
   );
 };
 

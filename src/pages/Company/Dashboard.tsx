@@ -31,6 +31,7 @@ import { useSearchParams } from "react-router-dom";
 import { getStripeSession } from "@/lib/api/stripe-session";
 import { TOKEN_PACKS } from "@/lib/billing-v2/stripe-prices";
 import type { PlanKey } from "@/lib/billing-v2/plans";
+import { WelcomePopup } from "@/components/welcome/WelcomePopup";
 
 type ListState = {
   items: CandidateListItem[];
@@ -1346,7 +1347,9 @@ export default function CompanyDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <WelcomePopup type="company" companyId={companyId ?? undefined} />
+      <div className="min-h-screen bg-background">
       <div className="flex w-full flex-col gap-6 px-4 pb-12 pt-4 sm:px-6 lg:px-8 xl:px-12">
         <div className="sticky top-0 z-40 bg-background/95 backdrop-blur">
           <div className="px-2 pt-3 sm:px-4 lg:px-8 xl:px-12">
@@ -1482,5 +1485,6 @@ export default function CompanyDashboard() {
         planKey={successModal.planKey}
       />
     </div>
+    </>
   );
 }
