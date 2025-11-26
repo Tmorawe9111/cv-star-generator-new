@@ -41,37 +41,24 @@ const Profile = () => {
 
   // All hooks must be called before any conditional returns
   const handleProfileUpdateImmediate = useCallback(async (updates: any) => {
-    console.log('📝 handleProfileUpdateImmediate called with:', updates);
-    console.log('📝 Profile ID:', profile?.id);
-    if (!profile?.id) {
-      console.error('❌ No profile ID');
-      return;
-    }
+    if (!profile?.id) return;
     setIsSaving(true);
     try {
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', profile.id)
-        .select();
+        .eq('id', profile.id);
       
-      console.log('📝 Supabase response:', { error, data });
       if (error) throw error;
 
-      // Update local profile state immediately with new object reference
-      setProfile((prev: any) => {
-        const updated = { ...prev };
-        Object.keys(updates).forEach(key => {
-          updated[key] = updates[key];
-        });
-        return updated;
-      });
-
-      // Ensure latest data is fetched from server
-      refetchProfile?.();
+      // Update local profile state immediately
+      setProfile((prev: any) => ({
+        ...prev,
+        ...updates
+      }));
 
       toast({
         title: "Profil aktualisiert",
@@ -87,7 +74,7 @@ const Profile = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [profile?.id, refetchProfile]);
+  }, [profile?.id]);
 
   // Simple profile update without debouncing for form submissions
   const handleProfileUpdate = handleProfileUpdateImmediate;
