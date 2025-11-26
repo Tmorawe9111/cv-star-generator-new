@@ -48,24 +48,24 @@ type Job = {
   employment_type?: string | null;
 };
 
-// Section Header - Einheitlich
+// Section Header - Einheitlich (fixed height)
 const SectionHeader: React.FC<{ 
   title: string; 
   icon: React.ReactNode; 
   onSeeAll?: () => void;
   seeAllText?: string;
 }> = ({ title, icon, onSeeAll, seeAllText = 'Alle' }) => (
-  <div className="flex items-center justify-between px-4 mb-3 h-8">
-    <div className="flex items-center gap-2">
-      {icon}
-      <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+  <div className="flex items-center justify-between px-4 mb-2 h-7">
+    <div className="flex items-center gap-1.5">
+      <span className="flex items-center justify-center w-5 h-5">{icon}</span>
+      <h2 className="text-base font-semibold text-gray-900 leading-none">{title}</h2>
     </div>
     {onSeeAll && (
       <button 
         onClick={onSeeAll}
-        className="text-blue-500 text-sm font-medium flex items-center gap-0.5 active:opacity-70"
+        className="text-blue-500 text-xs font-medium flex items-center active:opacity-70"
       >
-        {seeAllText} <ChevronRight className="h-4 w-4" />
+        {seeAllText} <ChevronRight className="h-3.5 w-3.5" />
       </button>
     )}
   </div>
@@ -591,12 +591,14 @@ export default function MarketplaceMobile() {
       {/* 6. Gruppen - Coming Soon */}
       <div className="mt-6 px-4">
         <SectionHeader title="Gruppen" icon={<Users className="h-5 w-5 text-purple-500" />} />
-        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-4 sm:p-5 text-center">
-          <Users className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-2 text-purple-400" />
-          <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-1">Gruppen kommen bald!</h3>
-          <p className="text-xs sm:text-sm text-gray-600">
-            Tausche dich mit Gleichgesinnten aus.
-          </p>
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-3 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+            <Users className="h-5 w-5 text-purple-500" />
+          </div>
+          <div className="text-left">
+            <p className="font-medium text-gray-900 text-sm">Gruppen kommen bald!</p>
+            <p className="text-xs text-gray-500">Tausche dich mit Gleichgesinnten aus.</p>
+          </div>
         </div>
       </div>
 
