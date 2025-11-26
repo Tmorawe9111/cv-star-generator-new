@@ -260,6 +260,7 @@ export default function MarketplaceMobile() {
   const [authors, setAuthors] = React.useState<Record<string, { name: string; avatar_url: string | null }>>({});
   const [companyMap, setCompanyMap] = React.useState<Record<string, { name: string; logo_url: string | null }>>({});
   const postsScrollRef = useRef<HTMLDivElement>(null);
+  const [postIndex, setPostIndex] = React.useState(0);
 
   // Fetch People
   const peopleQuery = useQuery<Person[]>({
@@ -389,15 +390,17 @@ export default function MarketplaceMobile() {
     }
   };
 
-  const scrollPosts = (dir: 'left' | 'right') => {
-    if (postsScrollRef.current) {
-      const scrollAmount = 300;
-      postsScrollRef.current.scrollBy({ 
-        left: dir === 'left' ? -scrollAmount : scrollAmount, 
-        behavior: 'smooth' 
-      });
-    }
-  };
+  // Track scroll position for dots
+  React.useEffect(() => {
+    const el = postsScrollRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const idx = Math.round(el.scrollLeft / 296);
+      setPostIndex(idx);
+    };
+    el.addEventListener('scroll', handleScroll);
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [posts]);
 
   const filteredPeople = (peopleQuery.data || []).filter(p => p.id !== user?.id);
   const companies = companiesQuery.data || [];
@@ -467,39 +470,44 @@ export default function MarketplaceMobile() {
         </div>
       </div>
 
-      {/* 3. Beiträge - Slider */}
+      {/* 3. Beiträge - Swipeable Cards */}
       <div className="mt-6">
         <SectionHeader 
           title="Beiträge" 
           icon={<FileText className="h-5 w-5 text-green-500" />}
         />
-        <div className="relative">
-          {posts.length > 2 && (
-            <>
-              <button 
-                onClick={() => scrollPosts('left')}
-                className="absolute left-1 top-1/2 -translate-y-1/2 z-10 bg-white/90 shadow-md rounded-full p-1.5 active:scale-95"
-              >
-                <ChevronLeft className="h-4 w-4 text-gray-600" />
-              </button>
-              <button 
-                onClick={() => scrollPosts('right')}
-                className="absolute right-1 top-1/2 -translate-y-1/2 z-10 bg-white/90 shadow-md rounded-full p-1.5 active:scale-95"
-              >
-                <ChevronRight className="h-4 w-4 text-gray-600" />
-              </button>
-            </>
-          )}
-          <div ref={postsScrollRef} className="overflow-x-auto no-scrollbar scroll-smooth">
-            <div className="flex gap-3 px-4 pb-2">
-              {posts.length > 0 ? posts.slice(0, 5).map((post) => (
-                <PostCardSlider key={post.id} post={post} author={authors[post.user_id]} />
-              )) : (
-                <p className="text-sm text-gray-400 px-2">Keine Beiträge</p>
-              )}
+        {posts.length > 0 ? (
+          <div className="relative px-4">
+            {/* Swipeable Container */}
+            <div 
+              ref={postsScrollRef}
+              className="overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth"
+              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+            >
+              <div className="flex gap-3" style={{ width: `${posts.slice(0, 5).length * 296}px` }}>
+                {posts.slice(0, 5).map((post, idx) => (
+                  <div key={post.id} className="snap-center shrink-0">
+                    <PostCardSlider post={post} author={authors[post.user_id]} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Dots Indicator */}
+            <div className="flex justify-center gap-1.5 mt-3">
+              {posts.slice(0, 5).map((_, idx) => (
+                <div 
+                  key={idx} 
+                  className={cn(
+                    "h-1.5 rounded-full transition-all",
+                    idx === postIndex ? "w-4 bg-blue-500" : "w-1.5 bg-gray-300"
+                  )}
+                />
+              ))}
             </div>
           </div>
-        </div>
+        ) : (
+          <p className="text-sm text-gray-400 px-4">Keine Beiträge</p>
+        )}
         {posts.length > 0 && (
           <div className="px-4 mt-3">
             <Link to="/community">
