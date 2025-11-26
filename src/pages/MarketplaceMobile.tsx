@@ -1,11 +1,12 @@
-import React, { useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useRef, useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { 
   UserPlus, Heart, MessageCircle, Building2, ChevronRight, 
-  Sparkles, Users, FileText, Briefcase, MapPin, ChevronLeft, X, CheckCircle2
+  Sparkles, Users, FileText, Briefcase, MapPin, ChevronLeft, X, CheckCircle2,
+  WifiOff, RefreshCw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +21,34 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+
+// Haptic feedback helper
+const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
+  if ('vibrate' in navigator) {
+    const patterns = { light: 10, medium: 25, heavy: 50 };
+    navigator.vibrate(patterns[type]);
+  }
+};
+
+// Online status hook
+const useOnlineStatus = () => {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  
+  return isOnline;
+};
 
 // Fisher-Yates shuffle algorithm
 function shuffleArray<T>(array: T[]): T[] {
@@ -535,6 +564,7 @@ const DUMMY_JOBS: Job[] = [
 
 export default function MarketplaceMobile() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { getStatuses, requestConnection } = useConnections();
   const [statusMap, setStatusMap] = React.useState<Record<string, ConnectionState>>({});
   const [authors, setAuthors] = React.useState<Record<string, { name: string; avatar_url: string | null }>>({});
@@ -543,6 +573,15 @@ export default function MarketplaceMobile() {
   const [postIndex, setPostIndex] = React.useState(0);
   const [applyJob, setApplyJob] = React.useState<Job | null>(null);
   const [applySuccess, setApplySuccess] = React.useState(false);
+  
+  // Pull-to-refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const startY = useRef(0);
+  
+  // Online status
+  const isOnline = useOnlineStatus();
   const [commentPost, setCommentPost] = React.useState<Post | null>(null);
   const [commentText, setCommentText] = React.useState('');
   
@@ -723,26 +762,76 @@ export default function MarketplaceMobile() {
     })();
   }, [user]);
 
+  // Pull-to-refresh handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (containerRef.current?.scrollTop === 0) {
+      startY.current = e.touches[0].clientY;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (containerRef.current?.scrollTop === 0 && !isRefreshing) {
+      const currentY = e.touches[0].clientY;
+      const diff = currentY - startY.current;
+      if (diff > 0 && diff < 150) {
+        setPullDistance(diff);
+      }
+    }
+  }, [isRefreshing]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (pullDistance > 80 && !isRefreshing) {
+      setIsRefreshing(true);
+      triggerHaptic('medium');
+      
+      // Refresh all queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['mp-people-mobile'] }),
+        queryClient.invalidateQueries({ queryKey: ['mp-companies-mobile'] }),
+        queryClient.invalidateQueries({ queryKey: ['mp-posts-mobile'] }),
+        queryClient.invalidateQueries({ queryKey: ['mp-jobs-mobile'] }),
+      ]);
+      
+      // Generate new session ID for fresh random order
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setPullDistance(0);
+        toast({ title: '✨ Aktualisiert!' });
+      }, 800);
+    } else {
+      setPullDistance(0);
+    }
+  }, [pullDistance, isRefreshing, queryClient]);
+
   const onConnect = async (targetId: string) => {
     if (!user) {
       window.location.href = '/anmelden';
       return;
     }
+    
+    // Optimistic update
+    setStatusMap(prev => ({ ...prev, [targetId]: 'pending' }));
+    triggerHaptic('light');
+    toast({ title: '✨ Anfrage gesendet' });
+    
     try {
       await requestConnection(targetId);
-      setStatusMap(prev => ({ ...prev, [targetId]: 'pending' }));
-      toast({ title: '✨ Anfrage gesendet' });
     } catch (e) {
+      // Revert on error
+      setStatusMap(prev => ({ ...prev, [targetId]: 'none' }));
       toast({ title: 'Fehler', variant: 'destructive' });
     }
   };
 
-  // Like a post
+  // Like a post with haptic + optimistic update
   const handleLikePost = async (postId: string, liked: boolean) => {
     if (!user) {
       toast({ title: 'Bitte anmelden', variant: 'destructive' });
       return;
     }
+    
+    // Haptic feedback
+    triggerHaptic('light');
     try {
       if (liked) {
         await supabase.from('post_likes').insert({ post_id: postId, user_id: user.id });
@@ -818,9 +907,40 @@ export default function MarketplaceMobile() {
   const peopleSection = allPeople.slice(3);
 
   return (
-    <div className="min-h-screen bg-gray-50/50 pb-24">
+    <div 
+      ref={containerRef}
+      className="min-h-screen bg-gray-50/50 pb-24 overflow-y-auto"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-gray-900 text-white py-2 px-4 flex items-center justify-center gap-2 text-sm animate-in slide-in-from-top">
+          <WifiOff className="h-4 w-4" />
+          <span>Keine Verbindung</span>
+        </div>
+      )}
+
+      {/* Pull-to-refresh indicator */}
+      <div 
+        className="flex items-center justify-center overflow-hidden transition-all duration-200"
+        style={{ height: isRefreshing ? 60 : Math.min(pullDistance, 80) }}
+      >
+        <div className={cn(
+          "flex items-center gap-2 text-gray-500 text-sm",
+          isRefreshing && "animate-pulse"
+        )}>
+          <RefreshCw className={cn("h-5 w-5", isRefreshing && "animate-spin")} />
+          <span>{isRefreshing ? 'Aktualisiere...' : pullDistance > 80 ? 'Loslassen' : 'Runterziehen'}</span>
+        </div>
+      </div>
+
       {/* Header */}
-      <div className="bg-white pt-4 pb-5 px-4">
+      <div className={cn(
+        "bg-white pt-4 pb-5 px-4 transition-transform duration-200",
+        !isOnline && "mt-10"
+      )}>
         <div className="flex items-center gap-2 mb-1">
           <Sparkles className="h-4 w-4 text-blue-500" />
           <span className="text-xs font-medium text-blue-500">Entdecken</span>
@@ -837,18 +957,23 @@ export default function MarketplaceMobile() {
           onSeeAll={() => {}}
           seeAllText="Weitere"
         />
-        <div className="overflow-x-auto no-scrollbar">
+        <div className="overflow-x-auto no-scrollbar scroll-smooth">
           <div className="flex gap-3 px-4 pb-2">
             {forYouItems.length > 0 ? forYouItems.map(({ item, type }, index) => (
-              <ForYouCard 
+              <div 
                 key={item.id}
-                item={item}
-                type={type}
-                index={index}
-                onAction={() => type === 'person' ? onConnect(item.id) : {}}
-                actionLabel={type === 'person' ? 'Vernetzen' : 'Folgen'}
-                actionDone={type === 'person' && statusMap[item.id] === 'accepted'}
-              />
+                className="animate-in fade-in slide-in-from-right-4 duration-300"
+                style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' }}
+              >
+                <ForYouCard 
+                  item={item}
+                  type={type}
+                  index={index}
+                  onAction={() => type === 'person' ? onConnect(item.id) : {}}
+                  actionLabel={type === 'person' ? 'Vernetzen' : 'Folgen'}
+                  actionDone={type === 'person' && statusMap[item.id] === 'accepted'}
+                />
+              </div>
             )) : (
               <p className="text-sm text-gray-400 px-2">Keine Vorschläge</p>
             )}
@@ -864,10 +989,16 @@ export default function MarketplaceMobile() {
             icon={<Building2 className="h-5 w-5 text-blue-500" />}
             onSeeAll={() => {}}
           />
-          <div className="overflow-x-auto no-scrollbar">
+          <div className="overflow-x-auto no-scrollbar scroll-smooth">
             <div className="flex gap-3 px-4 pb-2">
               {allCompanies.slice(0, 8).map((company, idx) => (
-                <CompanyCard key={company.id} company={company} index={idx} />
+                <div 
+                  key={company.id}
+                  className="animate-in fade-in slide-in-from-right-4 duration-300"
+                  style={{ animationDelay: `${idx * 50}ms`, animationFillMode: 'backwards' }}
+                >
+                  <CompanyCard company={company} index={idx} />
+                </div>
               ))}
             </div>
           </div>
@@ -970,13 +1101,18 @@ export default function MarketplaceMobile() {
               ))
             ) : allPeople.length > 0 ? (
               allPeople.slice(0, 10).map((person, idx) => (
-                <PersonCard 
-                  key={person.id} 
-                  person={person}
-                  index={idx}
-                  onConnect={() => onConnect(person.id)}
-                  status={statusMap[person.id] ?? 'none'}
-                />
+                <div 
+                  key={person.id}
+                  className="animate-in fade-in slide-in-from-right-4 duration-300"
+                  style={{ animationDelay: `${idx * 50}ms`, animationFillMode: 'backwards' }}
+                >
+                  <PersonCard 
+                    person={person}
+                    index={idx}
+                    onConnect={() => onConnect(person.id)}
+                    status={statusMap[person.id] ?? 'none'}
+                  />
+                </div>
               ))
             ) : (
               <p className="text-sm text-gray-400">Noch keine Nutzer registriert</p>
