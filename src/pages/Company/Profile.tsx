@@ -196,7 +196,8 @@ export default function CompanyProfile() {
               city: company.city,
               country: company.country,
             }} 
-            isOwner={true} 
+            isOwner={true}
+            onViewPeople={() => setActiveTab('people')}
           />
         </TabsContent>
         

@@ -24,9 +24,10 @@ interface CompanyHomeTabProps {
   };
   isOwner?: boolean;
   onAddPerson?: () => void;
+  onViewPeople?: () => void;
 }
 
-export function CompanyHomeTab({ company, isOwner, onAddPerson }: CompanyHomeTabProps) {
+export function CompanyHomeTab({ company, isOwner, onAddPerson, onViewPeople }: CompanyHomeTabProps) {
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
       {/* About Preview Card */}
@@ -95,8 +96,10 @@ export function CompanyHomeTab({ company, isOwner, onAddPerson }: CompanyHomeTab
         {/* Team Members Card (Carousel) */}
         <CompanyPeopleCarousel 
           companyId={company.id} 
+          companyName={company.name}
           isOwner={isOwner}
           onAddPerson={onAddPerson}
+          onViewAll={onViewPeople}
         />
       </div>
       

@@ -206,7 +206,11 @@ export default function PublicCompanyViewNew() {
       {/* Tab Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsContent value="home" className="mt-0">
-          <CompanyHomeTab company={company} isOwner={!!isOwner} />
+          <CompanyHomeTab 
+            company={company} 
+            isOwner={!!isOwner}
+            onViewPeople={() => setActiveTab('people')}
+          />
         </TabsContent>
         
         <TabsContent value="about" className="mt-0">

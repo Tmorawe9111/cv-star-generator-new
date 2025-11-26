@@ -12,6 +12,7 @@ interface CompanyPeopleCarouselProps {
   companyName?: string;
   isOwner?: boolean;
   onAddPerson?: () => void;
+  onViewAll?: () => void;
 }
 
 interface TeamMember {
@@ -23,12 +24,12 @@ interface TeamMember {
   is_current: boolean;
 }
 
-export function CompanyPeopleCarousel({ companyId, companyName, isOwner, onAddPerson }: CompanyPeopleCarouselProps) {
+export function CompanyPeopleCarousel({ companyId, companyName, isOwner, onAddPerson, onViewAll }: CompanyPeopleCarouselProps) {
   // Fetch team from profiles.berufserfahrung via RPC
   const { data: teamMembers, isLoading } = useQuery({
     queryKey: ['company-team-preview', companyId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_company_team_by_id', {
+      const { data, error } = await (supabase.rpc as any)('get_company_team_by_id', {
         p_company_id: companyId,
         p_include_former: false // Only current employees for preview
       });
@@ -81,7 +82,10 @@ export function CompanyPeopleCarousel({ companyId, companyName, isOwner, onAddPe
         )}
         
         {!isLoading && currentEmployees.length > 0 && (
-          <Link to="?tab=people" className="block group">
+          <div 
+            onClick={onViewAll} 
+            className="block group cursor-pointer"
+          >
             {/* Instagram-style overlapping avatars */}
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center">
@@ -130,7 +134,7 @@ export function CompanyPeopleCarousel({ companyId, companyName, isOwner, onAddPe
               {/* Arrow */}
               <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors" />
             </div>
-          </Link>
+          </div>
         )}
       </CardContent>
     </Card>
