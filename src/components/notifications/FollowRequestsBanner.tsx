@@ -13,7 +13,8 @@ export function FollowRequestsBanner() {
 
   const handleViewProfile = (companyId: string) => {
     setIsOpen(false);
-    navigate(`/firma/${companyId}`);
+    // Use /companies/:id route which accepts UUID directly
+    navigate(`/companies/${companyId}`);
   };
 
   if (companyFollowRequests.length === 0) return null;
