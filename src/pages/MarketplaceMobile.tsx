@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { UserPlus, Heart, MessageCircle, Building2, ChevronRight, Sparkles } from 'lucide-react';
+import { UserPlus, Heart, MessageCircle, Building2, ChevronRight, Sparkles, Users, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useConnections, type ConnectionState } from '@/hooks/useConnections';
@@ -25,6 +25,14 @@ type Company = {
   name: string; 
   logo_url?: string | null;
   industry?: string | null;
+};
+
+type Post = {
+  id: string;
+  content: string;
+  image_url?: string | null;
+  user_id: string;
+  created_at: string;
 };
 
 // Stories-Style Person Circle
@@ -221,10 +229,41 @@ const SectionHeader: React.FC<{ title: string; icon?: React.ReactNode; onSeeAll?
   </div>
 );
 
+// Post Card Component
+const PostCard: React.FC<{ post: Post; author?: { name: string; avatar_url: string | null } }> = ({ post, author }) => (
+  <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+    <div className="flex items-center gap-3 mb-3">
+      <Avatar className="h-10 w-10">
+        <AvatarImage src={author?.avatar_url ?? undefined} />
+        <AvatarFallback>{(author?.name || 'U').slice(0, 2).toUpperCase()}</AvatarFallback>
+      </Avatar>
+      <div>
+        <p className="font-medium text-sm text-gray-900">{author?.name || 'Unbekannt'}</p>
+        <p className="text-xs text-gray-500">
+          {new Date(post.created_at).toLocaleDateString('de-DE')}
+        </p>
+      </div>
+    </div>
+    <p className="text-sm text-gray-700 line-clamp-3 leading-relaxed">{post.content}</p>
+    {post.image_url && (
+      <img src={post.image_url} alt="" className="mt-3 rounded-xl w-full h-40 object-cover" />
+    )}
+    <div className="flex gap-4 mt-4 pt-3 border-t border-gray-100">
+      <button className="flex items-center gap-1.5 text-gray-500 text-sm active:scale-95 transition-transform">
+        <Heart className="h-4 w-4" /> Gefällt mir
+      </button>
+      <button className="flex items-center gap-1.5 text-gray-500 text-sm active:scale-95 transition-transform">
+        <MessageCircle className="h-4 w-4" /> Kommentieren
+      </button>
+    </div>
+  </div>
+);
+
 export default function MarketplaceMobile() {
   const { user } = useAuth();
   const { getStatuses, requestConnection } = useConnections();
   const [statusMap, setStatusMap] = React.useState<Record<string, ConnectionState>>({});
+  const [authors, setAuthors] = React.useState<Record<string, { name: string; avatar_url: string | null }>>({});
 
   // Fetch People
   const peopleQuery = useQuery<Person[]>({
@@ -235,7 +274,10 @@ export default function MarketplaceMobile() {
         .select('id, vorname, nachname, avatar_url, bio, wunschberuf')
         .order('created_at', { ascending: false })
         .limit(20);
-      if (error) throw error;
+      if (error) {
+        console.error('People query error:', error);
+        return [];
+      }
       return (data || []) as Person[];
     },
   });
@@ -244,19 +286,60 @@ export default function MarketplaceMobile() {
   const companiesQuery = useQuery<Company[]>({
     queryKey: ['mp-companies-mobile'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_companies_public', {
-        search: null,
-        limit_count: 10,
-        offset_count: 0,
-      });
-      if (error) return [];
+      // Try direct query first
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name, logo_url, industry')
+        .limit(10);
+      if (error) {
+        console.error('Companies query error:', error);
+        return [];
+      }
       return (data || []) as Company[];
     },
   });
 
+  // Fetch Posts
+  const postsQuery = useQuery<Post[]>({
+    queryKey: ['mp-posts-mobile'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('id, content, image_url, user_id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) {
+        console.error('Posts query error:', error);
+        return [];
+      }
+      return (data || []) as Post[];
+    },
+  });
+
+  // Fetch authors for posts
+  React.useEffect(() => {
+    if (!postsQuery.data || postsQuery.data.length === 0) return;
+    const ids = Array.from(new Set(postsQuery.data.map(p => p.user_id)));
+    if (ids.length === 0) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, vorname, nachname, avatar_url')
+        .in('id', ids);
+      if (!error && data) {
+        const map: Record<string, { name: string; avatar_url: string | null }> = {};
+        (data as any[]).forEach((p) => {
+          const name = [p.vorname, p.nachname].filter(Boolean).join(' ') || 'Unbekannt';
+          map[p.id] = { name, avatar_url: p.avatar_url ?? null };
+        });
+        setAuthors(map);
+      }
+    })();
+  }, [postsQuery.data]);
+
   // Load connection statuses
   React.useEffect(() => {
-    if (!user || !peopleQuery.data) return;
+    if (!user || !peopleQuery.data || peopleQuery.data.length === 0) return;
     const ids = peopleQuery.data.map(p => p.id).filter(id => id !== user.id);
     if (ids.length === 0) return;
     (async () => {
@@ -287,6 +370,7 @@ export default function MarketplaceMobile() {
   const filteredPeople = (peopleQuery.data || []).filter(p => p.id !== user?.id);
   const storyPeople = filteredPeople.slice(0, 8);
   const featuredPeople = filteredPeople.slice(0, 6);
+  const posts = postsQuery.data || [];
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-24">
@@ -364,16 +448,17 @@ export default function MarketplaceMobile() {
       <div className="mt-8 px-5">
         <SectionHeader title="Für dich" icon={<Heart className="h-5 w-5 text-pink-500" />} />
         <div className="space-y-4">
-          {featuredPeople.map((person, index) => (
-            <FeaturedPersonCard 
-              key={person.id} 
-              person={person}
-              index={index}
-              onConnect={() => onConnect(person.id)}
-              status={statusMap[person.id] ?? 'none'}
-            />
-          ))}
-          {peopleQuery.isLoading && (
+          {featuredPeople.length > 0 ? (
+            featuredPeople.map((person, index) => (
+              <FeaturedPersonCard 
+                key={person.id} 
+                person={person}
+                index={index}
+                onConnect={() => onConnect(person.id)}
+                status={statusMap[person.id] ?? 'none'}
+              />
+            ))
+          ) : peopleQuery.isLoading ? (
             <div className="space-y-4">
               {[1,2,3].map(i => (
                 <div key={i} className="rounded-3xl bg-white p-5 animate-pulse">
@@ -388,12 +473,61 @@ export default function MarketplaceMobile() {
                 </div>
               ))}
             </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p>Noch keine Personen zum Vernetzen</p>
+            </div>
           )}
         </div>
       </div>
 
+      {/* Posts / Beiträge */}
+      <div className="mt-8 px-5">
+        <SectionHeader title="Beiträge" icon={<FileText className="h-5 w-5 text-blue-500" />} />
+        <div className="space-y-4">
+          {posts.length > 0 ? (
+            posts.slice(0, 5).map((post) => (
+              <PostCard key={post.id} post={post} author={authors[post.user_id]} />
+            ))
+          ) : postsQuery.isLoading ? (
+            <div className="space-y-4">
+              {[1,2].map(i => (
+                <div key={i} className="rounded-2xl bg-white p-4 animate-pulse">
+                  <div className="flex gap-3 mb-3">
+                    <div className="h-10 w-10 rounded-full bg-gray-200" />
+                    <div className="space-y-2">
+                      <div className="h-4 w-24 rounded bg-gray-200" />
+                      <div className="h-3 w-16 rounded bg-gray-200" />
+                    </div>
+                  </div>
+                  <div className="h-16 rounded bg-gray-200" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p>Noch keine Beiträge</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Gruppen Teaser */}
+      <div className="mt-8 px-5">
+        <SectionHeader title="Gruppen" icon={<Users className="h-5 w-5 text-purple-500" />} />
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-6 text-center">
+          <Users className="h-12 w-12 mx-auto mb-3 text-purple-400" />
+          <h3 className="font-semibold text-gray-900 mb-1">Gruppen kommen bald!</h3>
+          <p className="text-sm text-gray-600">
+            Tausche dich mit Gleichgesinnten aus und finde deine Community.
+          </p>
+        </div>
+      </div>
+
       {/* Bottom Spacer */}
-      <div className="h-8" />
+      <div className="h-24" />
     </div>
   );
 }
