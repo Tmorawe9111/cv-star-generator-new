@@ -390,6 +390,11 @@ export default function MarketplaceMobile() {
     }
   };
 
+  const filteredPeople = (peopleQuery.data || []).filter(p => p.id !== user?.id);
+  const companies = companiesQuery.data || [];
+  const posts = postsQuery.data || [];
+  const jobs = jobsQuery.data || [];
+
   // Track scroll position for dots
   React.useEffect(() => {
     const el = postsScrollRef.current;
@@ -401,11 +406,6 @@ export default function MarketplaceMobile() {
     el.addEventListener('scroll', handleScroll);
     return () => el.removeEventListener('scroll', handleScroll);
   }, [posts]);
-
-  const filteredPeople = (peopleQuery.data || []).filter(p => p.id !== user?.id);
-  const companies = companiesQuery.data || [];
-  const posts = postsQuery.data || [];
-  const jobs = jobsQuery.data || [];
 
   // "Für dich" - Mix aus Personen und Unternehmen
   const forYouItems: { item: Person | Company; type: 'person' | 'company' }[] = [];
