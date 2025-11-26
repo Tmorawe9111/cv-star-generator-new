@@ -11,11 +11,22 @@ type Props = {
   recipientId: string | null;
   filter?: NotifType[] | 'unread' | null;
   onAction?: Parameters<typeof NotificationCard>[0]['onAction'];
+  onMarkAllReadCallback?: () => void;
 };
 
-export default function NotificationsList({ recipientType, recipientId, filter, onAction }: Props) {
-  const { items, loading, hasMore, error, fetchPage, markRead, reset } =
+export default function NotificationsList({ recipientType, recipientId, filter, onAction, onMarkAllReadCallback }: Props) {
+  const { items, loading, hasMore, error, fetchPage, markRead, markAllRead, reset } =
     useNotifications(recipientType, recipientId);
+
+  // Provide markAllRead to parent component
+  const handleMarkAllRead = async () => {
+    await markAllRead();
+  };
+
+  // Store reference for parent to call
+  if (typeof window !== 'undefined') {
+    (window as any).__notificationsMarkAllRead = handleMarkAllRead;
+  }
 
   // Filter items: exclude older than 14 days and apply filter prop
   const now = new Date();

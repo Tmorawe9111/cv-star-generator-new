@@ -7,6 +7,7 @@ interface Props {
   recipientType: RecipientType;
   recipientId: string | null;
   onAction?: (notification: any, action: string) => void;
+  onMarkAllRead?: () => void;
 }
 
 const FILTER_GROUPS: Record<string, NotifType[] | 'unread' | null> = {
@@ -17,7 +18,7 @@ const FILTER_GROUPS: Record<string, NotifType[] | 'unread' | null> = {
   social: ['post_interaction', 'follow_accepted_chat_unlocked', 'employment_request', 'employment_accepted', 'employment_declined', 'candidate_message', 'billing_update', 'billing_invoice_ready', 'low_tokens'],
 };
 
-export function NotificationsListWithFilters({ recipientType, recipientId, onAction }: Props) {
+export function NotificationsListWithFilters({ recipientType, recipientId, onAction, onMarkAllRead }: Props) {
   const [filter, setFilter] = useState<keyof typeof FILTER_GROUPS>('all');
 
   return (
@@ -39,6 +40,7 @@ export function NotificationsListWithFilters({ recipientType, recipientId, onAct
             recipientId={recipientId}
             filter={FILTER_GROUPS[filter]}
             onAction={onAction}
+            onMarkAllReadCallback={onMarkAllRead}
           />
         </TabsContent>
       </Tabs>

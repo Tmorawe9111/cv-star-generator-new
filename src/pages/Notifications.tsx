@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { NotificationsListWithFilters } from '@/components/notifications/NotificationsListWithFilters';
 import { NotificationPreferencesDialog } from '@/components/notifications/NotificationPreferencesDialog';
 import { useAuth } from '@/hooks/useAuth';
-import { useNotifications } from '@/hooks/useNotifications';
 import { LeftPanel } from '@/components/dashboard/LeftPanel';
 import { RightPanel } from '@/components/dashboard/RightPanel';
 import { Settings } from 'lucide-react';
@@ -14,10 +13,12 @@ export default function NotificationsPage() {
   const companyId = null;
   const [prefsOpen, setPrefsOpen] = useState(false);
 
-  const { markAllRead } = useNotifications(
-    isCompany ? 'company' : 'profile',
-    isCompany ? companyId : profile?.id ?? null
-  );
+  const handleMarkAllRead = () => {
+    // Call the function stored by NotificationsList
+    if (typeof window !== 'undefined' && (window as any).__notificationsMarkAllRead) {
+      (window as any).__notificationsMarkAllRead();
+    }
+  };
 
   return (
     <main className="w-full overflow-x-hidden">
@@ -48,7 +49,7 @@ export default function NotificationsPage() {
                     <span className="hidden sm:inline">Einstellungen</span>
                   </Button>
                   <button
-                    onClick={markAllRead}
+                    onClick={handleMarkAllRead}
                     className="rounded-lg border px-2 sm:px-3 py-1.5 text-xs hover:bg-accent whitespace-nowrap"
                     title="Alle ungelesenen Benachrichtigungen als gelesen markieren"
                   >
