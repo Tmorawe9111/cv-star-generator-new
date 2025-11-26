@@ -6,9 +6,9 @@ import WeitereDokumenteWidget from '@/components/profile/WeitereDokumenteWidget'
 import { AvailabilityCard } from '@/components/linkedin/right-rail/AvailabilityCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Award, Languages, Edit3, Plus, X, Check } from 'lucide-react';
+import { SkillSelector } from '@/components/shared/SkillSelector';
 
 interface LinkedInProfileSidebarProps {
   profile: any;
@@ -51,7 +51,6 @@ export function LinkedInProfileSidebar({
   // Skills editing state
   const [editingSkills, setEditingSkills] = useState(false);
   const [tempSkills, setTempSkills] = useState<string[]>([]);
-  const [newSkill, setNewSkill] = useState('');
   
   // Languages editing state
   const [editingLanguages, setEditingLanguages] = useState(false);
@@ -71,7 +70,6 @@ export function LinkedInProfileSidebar({
 
   const cancelEditingSkills = () => {
     setEditingSkills(false);
-    setNewSkill('');
   };
 
   const saveSkills = async () => {
@@ -79,18 +77,10 @@ export function LinkedInProfileSidebar({
       await onProfileUpdate({ faehigkeiten: tempSkills });
     }
     setEditingSkills(false);
-    setNewSkill('');
   };
 
-  const addSkill = () => {
-    if (newSkill.trim() && !tempSkills.includes(newSkill.trim())) {
-      setTempSkills([...tempSkills, newSkill.trim()]);
-      setNewSkill('');
-    }
-  };
-
-  const removeSkill = (skillToRemove: string) => {
-    setTempSkills(tempSkills.filter(s => s !== skillToRemove));
+  const handleSkillsChange = (skills: string[]) => {
+    setTempSkills(skills);
   };
 
   // Languages handlers
@@ -172,37 +162,19 @@ export function LinkedInProfileSidebar({
           <CardContent className="px-4 pb-4">
             {editingSkills ? (
               <div className="space-y-3">
-                {/* Current skills with remove option */}
-                <div className="flex flex-wrap gap-2">
-                  {tempSkills.map((skill, index) => (
-                    <Badge key={index} variant="secondary" className="pr-1 flex items-center gap-1">
-                      {skill}
-                      <button 
-                        onClick={() => removeSkill(skill)}
-                        className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-                
-                {/* Add new skill */}
-                <div className="flex gap-2">
-                  <Input
-                    value={newSkill}
-                    onChange={(e) => setNewSkill(e.target.value)}
-                    placeholder="Neue Fähigkeit..."
-                    className="flex-1"
-                    onKeyDown={(e) => e.key === 'Enter' && addSkill()}
-                  />
-                  <Button size="sm" variant="outline" onClick={addSkill}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                {/* Branch-based skill selector */}
+                <SkillSelector
+                  selectedSkills={tempSkills}
+                  onSkillsChange={handleSkillsChange}
+                  branch={profile?.branche}
+                  statusLevel={profile?.status}
+                  maxSkills={10}
+                  label=""
+                  placeholder="Fähigkeit auswählen..."
+                />
                 
                 {/* Save/Cancel buttons */}
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-2 border-t">
                   <Button size="sm" variant="outline" onClick={cancelEditingSkills}>
                     Abbrechen
                   </Button>
