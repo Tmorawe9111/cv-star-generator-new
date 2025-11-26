@@ -121,39 +121,142 @@ const ForYouCard: React.FC<{
   );
 };
 
-// Kompakte Company Card
-const CompanyCardSmall: React.FC<{ company: Company }> = ({ company }) => {
+// Placeholder avatars for demo
+const DEMO_AVATARS = [
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
+  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
+];
+
+// Overlapping Avatars Component
+const OverlappingAvatars: React.FC<{ 
+  avatars: (string | null)[]; 
+  count: number;
+  label: string;
+}> = ({ avatars, count, label }) => (
+  <div className="flex items-center gap-1.5">
+    <div className="flex -space-x-2">
+      {avatars.slice(0, 3).map((url, i) => (
+        <Avatar key={i} className="h-5 w-5 border-2 border-white">
+          <AvatarImage src={url || DEMO_AVATARS[i]} className="object-cover" />
+          <AvatarFallback className="text-[8px] bg-gray-200">U</AvatarFallback>
+        </Avatar>
+      ))}
+    </div>
+    {count > 0 && (
+      <span className="text-[10px] text-gray-500 leading-none">{label}</span>
+    )}
+  </div>
+);
+
+// Neue Person Card mit gemeinsamen Kontakten
+const PersonCard: React.FC<{ 
+  person: Person; 
+  onConnect: () => void; 
+  status: ConnectionState;
+  mutualCount?: number;
+  mutualAvatars?: (string | null)[];
+  mutualName?: string;
+}> = ({ person, onConnect, status, mutualCount = 3, mutualAvatars = DEMO_AVATARS, mutualName = 'Max' }) => {
+  const name = `${person.vorname ?? ''} ${person.nachname ?? ''}`.trim() || 'Unbekannt';
+  const isConnected = status === 'accepted';
+  const isPending = status === 'pending';
+
+  return (
+    <div className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
+      <Link to={`/u/${person.id}`} className="flex flex-col items-center">
+        <Avatar className="h-14 w-14 mb-2">
+          <AvatarImage src={person.avatar_url ?? undefined} className="object-cover" />
+          <AvatarFallback className="text-lg font-semibold bg-gradient-to-br from-blue-50 to-purple-50">
+            {name.slice(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{name}</p>
+      </Link>
+      
+      {/* Gemeinsame Kontakte */}
+      <div className="flex-1 flex items-center justify-center mt-1">
+        <OverlappingAvatars 
+          avatars={mutualAvatars} 
+          count={mutualCount}
+          label={mutualCount > 1 ? `${mutualName} +${mutualCount - 1}` : mutualName}
+        />
+      </div>
+
+      {/* Button - immer unten */}
+      <div className="mt-auto pt-2">
+        {!isConnected && !isPending ? (
+          <Button 
+            size="sm" 
+            onClick={onConnect}
+            className="w-full h-8 text-xs rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-medium"
+          >
+            <UserPlus className="h-3 w-3 mr-1" /> Vernetzen
+          </Button>
+        ) : (
+          <Button 
+            size="sm" 
+            variant="secondary"
+            disabled
+            className="w-full h-8 text-xs rounded-xl bg-gray-100 text-gray-500"
+          >
+            {isPending ? 'Angefragt' : 'Vernetzt ✓'}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Neue Company Card mit Mitarbeitern
+const CompanyCard: React.FC<{ 
+  company: Company;
+  employeeCount?: number;
+  employeeAvatars?: (string | null)[];
+}> = ({ company, employeeCount = 12, employeeAvatars = DEMO_AVATARS }) => {
   const { isFollowing, toggleFollow, loading } = useFollowCompany(company.id);
   
   return (
-    <div className="min-w-[160px] bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center gap-3">
-      <Link to={`/companies/${company.id}`}>
-        <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
+    <div className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
+      <Link to={`/companies/${company.id}`} className="flex flex-col items-center">
+        <div className="h-14 w-14 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-2">
           {company.logo_url ? (
             <img src={company.logo_url} alt={company.name} className="h-full w-full object-cover" />
           ) : (
-            <Building2 className="h-5 w-5 text-gray-400" />
+            <Building2 className="h-7 w-7 text-gray-400" />
           )}
         </div>
-      </Link>
-      <div className="flex-1 min-w-0">
-        <Link to={`/companies/${company.id}`}>
-          <p className="font-medium text-sm text-gray-900 truncate">{company.name}</p>
-        </Link>
-        <p className="text-xs text-gray-500 truncate">{company.industry || 'Unternehmen'}</p>
-      </div>
-      <Button 
-        size="sm" 
-        variant={isFollowing ? 'secondary' : 'default'}
-        onClick={toggleFollow}
-        disabled={loading}
-        className={cn(
-          "h-7 px-2 text-xs rounded-lg shrink-0",
-          isFollowing ? "bg-gray-100 text-gray-600" : "bg-blue-500 text-white"
+        <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{company.name}</p>
+        {company.industry && (
+          <p className="text-[10px] text-gray-500 truncate w-full text-center">{company.industry}</p>
         )}
-      >
-        {isFollowing ? '✓' : 'Folgen'}
-      </Button>
+      </Link>
+      
+      {/* Mitarbeiter */}
+      <div className="flex-1 flex items-center justify-center mt-1">
+        <OverlappingAvatars 
+          avatars={employeeAvatars} 
+          count={employeeCount}
+          label={`${employeeCount} Mitarbeiter`}
+        />
+      </div>
+
+      {/* Button - immer unten */}
+      <div className="mt-auto pt-2">
+        <Button 
+          size="sm" 
+          onClick={toggleFollow}
+          disabled={loading}
+          className={cn(
+            "w-full h-8 text-xs rounded-xl font-medium",
+            isFollowing 
+              ? "bg-gray-100 hover:bg-gray-200 text-gray-600" 
+              : "bg-blue-500 hover:bg-blue-600 text-white"
+          )}
+        >
+          {isFollowing ? 'Gefolgt ✓' : 'Folgen'}
+        </Button>
+      </div>
     </div>
   );
 };
@@ -214,44 +317,6 @@ const JobCard: React.FC<{ job: Job; companyName?: string; companyLogo?: string |
   </Link>
 );
 
-// Person Card (kompakt)
-const PersonCardSmall: React.FC<{ 
-  person: Person; 
-  onConnect: () => void; 
-  status: ConnectionState 
-}> = ({ person, onConnect, status }) => {
-  const name = `${person.vorname ?? ''} ${person.nachname ?? ''}`.trim() || 'Unbekannt';
-  const isConnected = status === 'accepted';
-  const isPending = status === 'pending';
-
-  return (
-    <div className="min-w-[140px] bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex flex-col items-center text-center">
-      <Link to={`/u/${person.id}`}>
-        <Avatar className="h-12 w-12 mb-2">
-          <AvatarImage src={person.avatar_url ?? undefined} className="object-cover" />
-          <AvatarFallback className="text-sm font-semibold bg-gradient-to-br from-blue-50 to-purple-50">
-            {name.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      </Link>
-      <Link to={`/u/${person.id}`}>
-        <p className="font-medium text-sm text-gray-900 truncate w-full">{person.vorname || 'Unbekannt'}</p>
-      </Link>
-      <p className="text-xs text-gray-500 truncate w-full mb-2">{person.wunschberuf || ''}</p>
-      {!isConnected && !isPending ? (
-        <Button 
-          size="sm" 
-          onClick={onConnect}
-          className="w-full h-7 text-xs rounded-lg bg-blue-500 hover:bg-blue-600 text-white"
-        >
-          <UserPlus className="h-3 w-3 mr-1" /> Vernetzen
-        </Button>
-      ) : (
-        <span className="text-xs text-gray-400">{isPending ? 'Angefragt' : 'Vernetzt ✓'}</span>
-      )}
-    </div>
-  );
-};
 
 export default function MarketplaceMobile() {
   const { user } = useAuth();
@@ -466,8 +531,8 @@ export default function MarketplaceMobile() {
         </div>
       </div>
 
-      {/* 2. Unternehmen (ohne die aus "Für dich") */}
-      {companiesSection.length > 0 && (
+      {/* 2. Unternehmen */}
+      {allCompanies.length > 0 && (
         <div className="mt-6">
           <SectionHeader 
             title="Unternehmen" 
@@ -476,8 +541,8 @@ export default function MarketplaceMobile() {
           />
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex gap-3 px-4 pb-2">
-              {companiesSection.slice(0, 8).map((company) => (
-                <CompanyCardSmall key={company.id} company={company} />
+              {allCompanies.slice(0, 8).map((company) => (
+                <CompanyCard key={company.id} company={company} />
               ))}
             </div>
           </div>
@@ -568,14 +633,15 @@ export default function MarketplaceMobile() {
           <div className="flex gap-3 px-4 pb-2">
             {peopleQuery.isLoading ? (
               [1,2,3,4].map(i => (
-                <div key={i} className="min-w-[140px] bg-white rounded-xl p-3 animate-pulse">
-                  <div className="h-12 w-12 rounded-full bg-gray-200 mx-auto mb-2" />
-                  <div className="h-4 w-20 bg-gray-200 rounded mx-auto" />
+                <div key={i} className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 animate-pulse">
+                  <div className="h-14 w-14 rounded-full bg-gray-200 mx-auto mb-2" />
+                  <div className="h-4 w-20 bg-gray-200 rounded mx-auto mb-2" />
+                  <div className="h-3 w-16 bg-gray-200 rounded mx-auto" />
                 </div>
               ))
             ) : allPeople.length > 0 ? (
               allPeople.slice(0, 10).map((person) => (
-                <PersonCardSmall 
+                <PersonCard 
                   key={person.id} 
                   person={person}
                   onConnect={() => onConnect(person.id)}
