@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CVPreviewCard } from '@/components/CVPreviewCard';
 import { WeitereDokumenteSection } from '@/components/linkedin/right-rail/WeitereDokumenteSection';
@@ -58,6 +58,19 @@ export function LinkedInProfileSidebar({
   const [newLanguage, setNewLanguage] = useState('');
   const [newLanguageLevel, setNewLanguageLevel] = useState('Gute Kenntnisse');
 
+  // Local display state that syncs with profile prop
+  const [displaySkills, setDisplaySkills] = useState<string[]>(profile?.faehigkeiten || []);
+  const [displayLanguages, setDisplayLanguages] = useState<any[]>(profile?.sprachen || []);
+
+  // Sync display state when profile prop changes
+  useEffect(() => {
+    setDisplaySkills(profile?.faehigkeiten || []);
+  }, [profile?.faehigkeiten]);
+
+  useEffect(() => {
+    setDisplayLanguages(profile?.sprachen || []);
+  }, [profile?.sprachen]);
+
   const handleDocumentUploaded = () => {
     setDocumentUpdateTrigger(prev => prev + 1);
   };
@@ -75,6 +88,8 @@ export function LinkedInProfileSidebar({
   const saveSkills = async () => {
     if (onProfileUpdate) {
       await onProfileUpdate({ faehigkeiten: tempSkills });
+      // Update local display immediately
+      setDisplaySkills(tempSkills);
     }
     setEditingSkills(false);
   };
@@ -97,6 +112,8 @@ export function LinkedInProfileSidebar({
   const saveLanguages = async () => {
     if (onProfileUpdate) {
       await onProfileUpdate({ sprachen: tempLanguages });
+      // Update local display immediately
+      setDisplayLanguages(tempLanguages);
     }
     setEditingLanguages(false);
     setNewLanguage('');
@@ -186,8 +203,8 @@ export function LinkedInProfileSidebar({
               </div>
             ) : (
               <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                {profile?.faehigkeiten && Array.isArray(profile.faehigkeiten) && profile.faehigkeiten.length > 0 ? (
-                  profile.faehigkeiten.map((skill: string, idx: number) => (
+                {displaySkills && displaySkills.length > 0 ? (
+                  displaySkills.map((skill: string, idx: number) => (
                     <Badge key={idx} variant="secondary" className="text-xs">
                       {typeof skill === 'string' ? skill : (skill as any)?.name || String(skill)}
                     </Badge>
@@ -284,8 +301,8 @@ export function LinkedInProfileSidebar({
               </div>
             ) : (
               <div className="space-y-1.5 sm:space-y-2">
-                {profile?.sprachen && Array.isArray(profile.sprachen) && profile.sprachen.length > 0 ? (
-                  profile.sprachen.map((lang: any, idx: number) => (
+                {displayLanguages && displayLanguages.length > 0 ? (
+                  displayLanguages.map((lang: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center text-sm">
                       <span className="font-medium">{lang.sprache || lang}</span>
                       {lang.niveau && (
