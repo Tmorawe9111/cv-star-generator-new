@@ -248,8 +248,21 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
   };
 
   const handleEdit = (index: number) => {
+    // Don't allow opening another while one is open
+    if (isAddingNew || editingIndex !== null) {
+      return;
+    }
     setFormData(safeEducation[index]);
     setEditingIndex(index);
+  };
+
+  const handleAddNew = () => {
+    // Don't allow if already editing
+    if (isAddingNew || editingIndex !== null) {
+      return;
+    }
+    setIsAddingNew(true);
+    resetForm();
   };
 
   const handleDelete = (index: number) => {
@@ -332,8 +345,8 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
               <Edit3 className="h-4 w-4" />
             </Button>
           )}
-          {isEditing && (
-            <Button variant="outline" size="sm" onClick={() => { setIsAddingNew(true); resetForm(); }}>
+          {isEditing && !isAddingNew && editingIndex === null && (
+            <Button variant="outline" size="sm" onClick={handleAddNew}>
               <Plus className="h-4 w-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Hinzufügen</span>
               <span className="sm:hidden">+</span>
@@ -355,7 +368,7 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
               <Button 
                 variant="outline" 
                 className="mt-4"
-                onClick={() => { setIsAddingNew(true); resetForm(); }}
+                onClick={handleAddNew}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Erste Ausbildung hinzufügen
@@ -387,7 +400,7 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
                           </span>
                         </div>
                       </div>
-                      {isEditing && editingIndex !== i && (
+                      {isEditing && editingIndex !== i && !isAddingNew && (
                         <div className="flex gap-2">
                           <Button 
                             variant="ghost" 

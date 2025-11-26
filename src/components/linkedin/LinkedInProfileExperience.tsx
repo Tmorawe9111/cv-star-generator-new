@@ -190,8 +190,21 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
   };
 
   const handleEdit = (index: number) => {
+    // Close any open form first
+    if (isAddingNew || editingIndex !== null) {
+      return; // Don't allow opening another while one is open
+    }
     setFormData(experiences[index]);
     setEditingIndex(index);
+  };
+
+  const handleAddNew = () => {
+    // Don't allow if already editing
+    if (isAddingNew || editingIndex !== null) {
+      return;
+    }
+    setIsAddingNew(true);
+    resetForm();
   };
 
   const handleDelete = (index: number) => {
@@ -283,8 +296,8 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
               <Edit3 className="h-4 w-4" />
             </Button>
           )}
-          {isEditing && (
-            <Button variant="outline" size="sm" onClick={() => { setIsAddingNew(true); resetForm(); }}>
+          {isEditing && !isAddingNew && editingIndex === null && (
+            <Button variant="outline" size="sm" onClick={handleAddNew}>
               <Plus className="h-4 w-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Hinzufügen</span>
               <span className="sm:hidden">+</span>
@@ -307,7 +320,7 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
                 variant="outline" 
                 className="mt-4"
                 size="sm"
-                onClick={() => { setIsAddingNew(true); resetForm(); }}
+                onClick={handleAddNew}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Erste Erfahrung hinzufügen</span>
@@ -341,7 +354,7 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
                         </div>
                       </div>
                       
-                      {isEditing && (
+                      {isEditing && editingIndex !== i && !isAddingNew && (
                         <div className="flex gap-1 ml-2">
                           <Button
                             variant="ghost"
