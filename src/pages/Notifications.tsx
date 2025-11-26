@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NotificationsListWithFilters } from '@/components/notifications/NotificationsListWithFilters';
 import { NotificationPreferencesDialog } from '@/components/notifications/NotificationPreferencesDialog';
+import { FollowRequestsBanner } from '@/components/notifications/FollowRequestsBanner';
 import { useAuth } from '@/hooks/useAuth';
 import { LeftPanel } from '@/components/dashboard/LeftPanel';
 import { RightPanel } from '@/components/dashboard/RightPanel';
@@ -58,6 +59,9 @@ export default function NotificationsPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Follow Requests Banner - Instagram Style */}
+              <FollowRequestsBanner />
 
               <div className="bg-card rounded-lg border p-3 sm:p-4 flex-1 flex flex-col min-h-0">
                 <NotificationsListWithFilters
