@@ -20,7 +20,8 @@ type Person = {
   nachname?: string | null; 
   avatar_url?: string | null;
   bio?: string | null;
-  wunschberuf?: string | null;
+  branche?: string | null;
+  stadt?: string | null;
 };
 
 type Company = { 
@@ -28,6 +29,7 @@ type Company = {
   name: string; 
   logo_url?: string | null;
   industry?: string | null;
+  city?: string | null;
 };
 
 type Post = {
@@ -87,40 +89,45 @@ const ForYouCard: React.FC<{
   const name = isPerson 
     ? `${person.vorname ?? ''} ${person.nachname ?? ''}`.trim() || 'Unbekannt'
     : company.name;
-  const subtitle = isPerson ? (person as any).bio?.slice(0, 30) : company.industry;
+  const branche = isPerson ? person.branche : company.industry;
+  const stadt = isPerson ? person.stadt : company.city;
   const imageUrl = isPerson ? person.avatar_url : company.logo_url;
   const linkTo = isPerson ? `/u/${person.id}` : `/companies/${company.id}`;
   
   // Verschiedene Zahlen basierend auf Index
   const mutualCount = [3, 7, 2, 5, 4, 8, 6, 9, 1, 11][index % 10];
-  const mutualNames = ['Max', 'Lisa', 'Tom', 'Anna', 'Jan', 'Sarah', 'Lukas', 'Emma', 'Felix', 'Marie'];
-  const mutualName = mutualNames[index % 10];
 
   return (
-    <div className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
+    <div className="min-w-[160px] w-[160px] h-[240px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
       <Link to={linkTo} className="flex flex-col items-center">
         {isPerson ? (
-          <Avatar className="h-14 w-14 mb-2">
+          <Avatar className="h-12 w-12 mb-1.5">
             <AvatarImage src={imageUrl ?? undefined} className="object-cover" />
-            <AvatarFallback className="text-lg font-semibold bg-gradient-to-br from-blue-50 to-purple-50">
+            <AvatarFallback className="text-base font-semibold bg-gradient-to-br from-blue-50 to-purple-50">
               {name.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
         ) : (
-          <div className="h-14 w-14 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-2">
+          <div className="h-12 w-12 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-1.5">
             {imageUrl ? (
               <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
             ) : (
-              <Building2 className="h-7 w-7 text-gray-400" />
+              <Building2 className="h-6 w-6 text-gray-400" />
             )}
           </div>
         )}
         <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{name}</p>
-        {subtitle && <p className="text-[10px] text-gray-500 truncate w-full text-center">{subtitle}</p>}
+        {/* Branche & Standort */}
+        <p className="text-[10px] text-gray-500 truncate w-full text-center">
+          {branche || 'Keine Branche'}
+        </p>
+        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5">
+          <MapPin className="h-2.5 w-2.5" /> {stadt || 'Unbekannt'}
+        </p>
       </Link>
       
-      {/* Gemeinsame Kontakte / Mitarbeiter - fixed position */}
-      <div className="flex items-center justify-center mt-1 mb-1">
+      {/* Gemeinsame Kontakte / Mitarbeiter */}
+      <div className="flex items-center justify-center mt-2">
         <OverlappingAvatars 
           avatars={DEMO_AVATARS} 
           count={mutualCount}
@@ -196,24 +203,29 @@ const PersonCard: React.FC<{
   
   // Verschiedene Zahlen basierend auf Index
   const mutualCounts = [4, 2, 6, 3, 8, 5, 1, 7, 9, 3];
-  const mutualNames = ['Lisa', 'Tom', 'Anna', 'Max', 'Sarah', 'Jan', 'Emma', 'Lukas', 'Marie', 'Felix'];
   const mutualCount = mutualCounts[index % 10];
-  const mutualName = mutualNames[index % 10];
 
   return (
-    <div className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
+    <div className="min-w-[160px] w-[160px] h-[240px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
       <Link to={`/u/${person.id}`} className="flex flex-col items-center">
-        <Avatar className="h-14 w-14 mb-2">
+        <Avatar className="h-12 w-12 mb-1.5">
           <AvatarImage src={person.avatar_url ?? undefined} className="object-cover" />
-          <AvatarFallback className="text-lg font-semibold bg-gradient-to-br from-blue-50 to-purple-50">
+          <AvatarFallback className="text-base font-semibold bg-gradient-to-br from-blue-50 to-purple-50">
             {name.slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{name}</p>
+        {/* Branche & Standort */}
+        <p className="text-[10px] text-gray-500 truncate w-full text-center">
+          {person.branche || 'Keine Branche'}
+        </p>
+        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5">
+          <MapPin className="h-2.5 w-2.5" /> {person.stadt || 'Unbekannt'}
+        </p>
       </Link>
       
-      {/* Gemeinsame Kontakte - fixed position */}
-      <div className="flex items-center justify-center mt-1 mb-1">
+      {/* Gemeinsame Kontakte */}
+      <div className="flex items-center justify-center mt-2">
         <OverlappingAvatars 
           avatars={DEMO_AVATARS} 
           count={mutualCount}
@@ -259,23 +271,27 @@ const CompanyCard: React.FC<{
   const employeeCount = employeeCounts[index % 10];
   
   return (
-    <div className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
+    <div className="min-w-[160px] w-[160px] h-[240px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
       <Link to={`/companies/${company.id}`} className="flex flex-col items-center">
-        <div className="h-14 w-14 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-2">
+        <div className="h-12 w-12 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-1.5">
           {company.logo_url ? (
             <img src={company.logo_url} alt={company.name} className="h-full w-full object-cover" />
           ) : (
-            <Building2 className="h-7 w-7 text-gray-400" />
+            <Building2 className="h-6 w-6 text-gray-400" />
           )}
         </div>
         <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{company.name}</p>
-        {company.industry && (
-          <p className="text-[10px] text-gray-500 truncate w-full text-center">{company.industry}</p>
-        )}
+        {/* Branche & Standort */}
+        <p className="text-[10px] text-gray-500 truncate w-full text-center">
+          {company.industry || 'Keine Branche'}
+        </p>
+        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5">
+          <MapPin className="h-2.5 w-2.5" /> {company.city || 'Unbekannt'}
+        </p>
       </Link>
       
-      {/* Mitarbeiter - fixed position */}
-      <div className="flex items-center justify-center mt-1 mb-1">
+      {/* Mitarbeiter */}
+      <div className="flex items-center justify-center mt-2">
         <OverlappingAvatars 
           avatars={DEMO_AVATARS} 
           count={employeeCount}
@@ -398,7 +414,7 @@ export default function MarketplaceMobile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, vorname, nachname, avatar_url, bio')
+        .select('id, vorname, nachname, avatar_url, bio, branche, stadt')
         .order('created_at', { ascending: false })
         .limit(20);
       
@@ -417,7 +433,7 @@ export default function MarketplaceMobile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
-        .select('id, name, logo_url, industry')
+        .select('id, name, logo_url, industry, city')
         .limit(15);
       if (error) return [];
       return (data || []) as Company[];
