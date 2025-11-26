@@ -27,7 +27,7 @@ interface CompanyHomeTabProps {
 
 export function CompanyHomeTab({ company, isOwner, onAddPerson }: CompanyHomeTabProps) {
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
       {/* About Preview Card */}
       <Card>
         <CardHeader>
@@ -103,7 +103,7 @@ export function CompanyHomeTab({ company, isOwner, onAddPerson }: CompanyHomeTab
       </Card>
       
       {/* Two Column Grid */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* Latest Jobs Card (Carousel) */}
         <CompanyJobsCarousel companyId={company.id} isOwner={isOwner} />
         

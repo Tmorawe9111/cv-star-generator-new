@@ -154,39 +154,42 @@ export default function PublicCompanyViewNew() {
       />
       
       {/* Tabs Navigation */}
-      <div className="border-b mt-8">
-        <div className="max-w-6xl mx-auto px-6">
+      <div className="border-b mt-4 sm:mt-8">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="h-auto p-0 bg-transparent border-b-0">
+            <TabsList className="h-auto p-0 bg-transparent border-b-0 w-full flex overflow-x-auto no-scrollbar">
               <TabsTrigger 
                 value="home"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs sm:text-sm px-2 sm:px-4 py-2 whitespace-nowrap"
               >
                 Home
               </TabsTrigger>
               <TabsTrigger 
                 value="about"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs sm:text-sm px-2 sm:px-4 py-2 whitespace-nowrap"
               >
-                Über {company.name}
+                <span className="hidden sm:inline">Über {company.name}</span>
+                <span className="sm:hidden">Über uns</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="jobs"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs sm:text-sm px-2 sm:px-4 py-2 whitespace-nowrap"
               >
                 Jobs
               </TabsTrigger>
               <TabsTrigger 
                 value="people"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs sm:text-sm px-2 sm:px-4 py-2 whitespace-nowrap"
               >
-                Mitarbeiter
+                <span className="hidden sm:inline">Mitarbeiter</span>
+                <span className="sm:hidden">Team</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="posts"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs sm:text-sm px-2 sm:px-4 py-2 whitespace-nowrap"
               >
-                Beiträge
+                <span className="hidden sm:inline">Beiträge</span>
+                <span className="sm:hidden">Posts</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
