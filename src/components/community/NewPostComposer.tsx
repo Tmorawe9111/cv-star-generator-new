@@ -314,7 +314,7 @@ export default function NewPostComposer() {
         <div className="flex-1 px-4 py-6">
           <Textarea
             ref={textareaRef}
-            placeholder="What do you want to talk about?"
+            placeholder="Was möchtest du teilen?"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             className="min-h-[200px] md:min-h-[300px] resize-none border-0 focus-visible:ring-0 text-base p-0"
@@ -382,7 +382,7 @@ export default function NewPostComposer() {
       <Sheet open={isOpen} onOpenChange={handleClose}>
         <SheetContent 
           side="bottom" 
-          className="h-[92vh] p-0 flex flex-col [&>button]:hidden"
+          className="h-[85vh] p-0 flex flex-col [&>button]:hidden mt-[15vh]"
         >
           {Content}
         </SheetContent>
