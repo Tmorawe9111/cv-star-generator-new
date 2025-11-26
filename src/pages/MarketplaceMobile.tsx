@@ -469,17 +469,28 @@ export default function MarketplaceMobile() {
   const peopleQuery = useQuery<Person[]>({
     queryKey: ['mp-people-mobile', sessionId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Try with all fields first, fallback to basic fields
+      let { data, error } = await supabase
         .from('profiles')
         .select('id, vorname, nachname, avatar_url, bio, branche, stadt')
         .limit(50);
+      
+      // If branche/stadt don't exist, try without them
+      if (error && error.code === '42703') {
+        const result = await supabase
+          .from('profiles')
+          .select('id, vorname, nachname, avatar_url, bio')
+          .limit(50);
+        data = result.data;
+        error = result.error;
+      }
       
       if (error) {
         console.error('Error fetching profiles:', error);
         return [];
       }
       
-      const filtered = (data || []).filter(p => p.vorname || p.nachname);
+      const filtered = (data || []).filter((p: any) => p.vorname || p.nachname);
       return shuffleArray(filtered).slice(0, 20) as Person[];
     },
   });
