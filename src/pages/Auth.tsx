@@ -366,17 +366,12 @@ const Auth = () => {
         {/* Auth Forms */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-center">Anmeldung & Registrierung</CardTitle>
+            <CardTitle className="text-center">Anmelden</CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Anmelden</TabsTrigger>
-                <TabsTrigger value="signup">Registrieren</TabsTrigger>
-              </TabsList>
-
               {/* Login Tab */}
-              <TabsContent value="login" className="space-y-4">
+              <TabsContent value="login" className="space-y-4 mt-0">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="login-email">E-Mail-Adresse</Label>
