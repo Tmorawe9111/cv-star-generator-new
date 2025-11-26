@@ -41,16 +41,26 @@ const Profile = () => {
 
   // All hooks must be called before any conditional returns
   const handleProfileUpdateImmediate = useCallback(async (updates: any) => {
-    if (!profile?.id) return;
+    console.log('🔶 handleProfileUpdateImmediate called');
+    console.log('🔶 updates:', updates);
+    console.log('🔶 profile.id:', profile?.id);
+    
+    if (!profile?.id) {
+      console.error('🔶 No profile ID, returning early');
+      return;
+    }
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('profiles')
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', profile.id);
+        .eq('id', profile.id)
+        .select();
+      
+      console.log('🔶 Supabase response - error:', error, 'data:', data);
       
       if (error) throw error;
 
@@ -65,7 +75,7 @@ const Profile = () => {
         description: "Ihre Änderungen wurden gespeichert.",
       });
     } catch (error) {
-      console.error('Update error:', error);
+      console.error('🔶 Update error:', error);
       toast({
         title: "Fehler beim Speichern",
         description: "Ihre Änderungen konnten nicht gespeichert werden.",
