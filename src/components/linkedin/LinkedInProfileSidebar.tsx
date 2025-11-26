@@ -73,12 +73,16 @@ export function LinkedInProfileSidebar({
   };
 
   const saveSkills = async () => {
+    console.log('💾 Saving skills:', tempSkills);
     if (onProfileUpdate) {
       try {
         await onProfileUpdate({ faehigkeiten: tempSkills });
+        console.log('✅ Skills saved successfully');
       } catch (error) {
-        console.error('Error saving skills:', error);
+        console.error('❌ Error saving skills:', error);
       }
+    } else {
+      console.error('❌ onProfileUpdate is not defined');
     }
     setEditingSkills(false);
   };
@@ -99,12 +103,16 @@ export function LinkedInProfileSidebar({
   };
 
   const saveLanguages = async () => {
+    console.log('💾 Saving languages:', tempLanguages);
     if (onProfileUpdate) {
       try {
         await onProfileUpdate({ sprachen: tempLanguages });
+        console.log('✅ Languages saved successfully');
       } catch (error) {
-        console.error('Error saving languages:', error);
+        console.error('❌ Error saving languages:', error);
       }
+    } else {
+      console.error('❌ onProfileUpdate is not defined');
     }
     setEditingLanguages(false);
     setNewLanguage('');

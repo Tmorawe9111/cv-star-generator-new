@@ -41,16 +41,24 @@ const Profile = () => {
 
   // All hooks must be called before any conditional returns
   const handleProfileUpdateImmediate = useCallback(async (updates: any) => {
-    if (!profile?.id) return;
+    console.log('📝 handleProfileUpdateImmediate called with:', updates);
+    console.log('📝 Profile ID:', profile?.id);
+    if (!profile?.id) {
+      console.error('❌ No profile ID');
+      return;
+    }
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('profiles')
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', profile.id);
+        .eq('id', profile.id)
+        .select();
+      
+      console.log('📝 Supabase response:', { error, data });
       if (error) throw error;
 
       // Update local profile state immediately with new object reference
