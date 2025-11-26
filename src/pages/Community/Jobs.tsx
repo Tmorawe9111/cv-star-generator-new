@@ -399,7 +399,7 @@ export default function CommunityJobs() {
 
         {/* Filters Modal */}
         <Sheet open={isFiltersModalOpen} onOpenChange={setIsFiltersModalOpen}>
-          <SheetContent side="bottom" className="h-[75vh] overflow-y-auto">
+          <SheetContent side="bottom" className="max-h-[75vh] overflow-hidden">
             <SheetHeader>
               <SheetTitle>Alle Filter</SheetTitle>
             </SheetHeader>
