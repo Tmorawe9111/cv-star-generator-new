@@ -21,9 +21,10 @@ export function NotificationsListWithFilters({ recipientType, recipientId, onAct
   const [filter, setFilter] = useState<keyof typeof FILTER_GROUPS>('all');
 
   return (
-    <div className="w-full">
-      <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-full">
-        <TabsList className="w-full flex flex-nowrap overflow-x-auto sm:grid sm:grid-cols-5 mb-3 sm:mb-4 gap-1 sm:gap-0">
+    <div className="w-full h-full flex flex-col">
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-full h-full flex flex-col">
+        {/* Fixed Tabs */}
+        <TabsList className="w-full flex flex-nowrap overflow-x-auto sm:grid sm:grid-cols-5 mb-3 sm:mb-4 gap-1 sm:gap-0 shrink-0 sticky top-0 bg-card z-10">
           <TabsTrigger value="all" className="px-3 py-1.5 text-xs sm:text-sm whitespace-nowrap flex-shrink-0">Alle</TabsTrigger>
           <TabsTrigger value="unread" className="px-3 py-1.5 text-xs sm:text-sm whitespace-nowrap flex-shrink-0">Ungelesen</TabsTrigger>
           <TabsTrigger value="jobs" className="px-3 py-1.5 text-xs sm:text-sm whitespace-nowrap flex-shrink-0">Jobs</TabsTrigger>
@@ -31,7 +32,8 @@ export function NotificationsListWithFilters({ recipientType, recipientId, onAct
           <TabsTrigger value="social" className="px-3 py-1.5 text-xs sm:text-sm whitespace-nowrap flex-shrink-0">Social</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={filter} className="mt-0">
+        {/* Scrollable Content */}
+        <TabsContent value={filter} className="mt-0 flex-1 overflow-y-auto min-h-0">
           <NotificationsList
             recipientType={recipientType}
             recipientId={recipientId}

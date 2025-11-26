@@ -32,10 +32,10 @@ export default function NotificationsPage() {
           </aside>
 
           {/* Center column (flex grows) */}
-          <section className="flex-1 min-w-0">
-            <div className="w-full max-w-[560px] mx-auto md:max-w-none">
-              {/* Header with "Mark all as read" button */}
-              <div className="mb-6 flex items-center justify-between">
+          <section className="flex-1 min-w-0 flex flex-col h-[calc(100vh-4rem)]">
+            <div className="w-full max-w-[560px] mx-auto md:max-w-none flex flex-col h-full">
+              {/* Header with "Mark all as read" button - Fixed */}
+              <div className="mb-4 flex items-center justify-between shrink-0 bg-background py-2">
                 <h1 className="text-2xl font-semibold">Benachrichtigungen</h1>
                 <div className="flex items-center gap-2">
                   <Button
@@ -58,7 +58,7 @@ export default function NotificationsPage() {
                 </div>
               </div>
 
-              <div className="bg-card rounded-lg border p-3 sm:p-4">
+              <div className="bg-card rounded-lg border p-3 sm:p-4 flex-1 flex flex-col min-h-0">
                 <NotificationsListWithFilters
                   recipientType={isCompany ? 'company' : 'profile'}
                   recipientId={isCompany ? companyId : profile?.id ?? null}
