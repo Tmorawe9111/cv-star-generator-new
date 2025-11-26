@@ -123,7 +123,9 @@ export function CompanyLocationsCard({ companyId, isOwner }: CompanyLocationsCar
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm text-gray-900 truncate">{location.name}</span>
+                    <span className="font-medium text-sm text-gray-900 truncate">
+                      {location.street ? `${location.street}${location.house_number ? ` ${location.house_number}` : ''}` : location.name}
+                    </span>
                     {location.is_primary && (
                       <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full">
                         <Star className="h-2.5 w-2.5" />
@@ -132,7 +134,7 @@ export function CompanyLocationsCard({ companyId, isOwner }: CompanyLocationsCar
                     )}
                   </div>
                   <p className="text-xs text-gray-500 truncate mt-0.5">
-                    {location.city}{location.postal_code ? `, ${location.postal_code}` : ''}
+                    {[location.postal_code, location.city, location.country].filter(Boolean).join(', ')}
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />

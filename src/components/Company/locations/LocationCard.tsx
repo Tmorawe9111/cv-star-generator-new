@@ -35,7 +35,7 @@ export function LocationCard({
       parts.push(`${location.postal_code || ''} ${location.city || ''}`.trim());
     }
     
-    if (location.country && location.country !== 'Deutschland') {
+    if (location.country) {
       parts.push(location.country);
     }
     
