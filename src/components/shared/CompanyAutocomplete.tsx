@@ -47,7 +47,7 @@ export function CompanyAutocomplete({
       try {
         const { data, error } = await supabase.rpc('search_companies_for_linking', {
           p_search_term: value,
-          p_city: location || null
+          p_city: null  // Suche unabhängig vom Ort
         });
 
         if (error) {
