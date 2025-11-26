@@ -58,23 +58,28 @@ export function LinkedInProfileSidebar({
   const [newLanguage, setNewLanguage] = useState('');
   const [newLanguageLevel, setNewLanguageLevel] = useState('Gute Kenntnisse');
 
+  // Track if we just saved to prevent useEffect from overwriting
+  const [justSavedSkills, setJustSavedSkills] = useState(false);
+  const [justSavedLanguages, setJustSavedLanguages] = useState(false);
+
   // Local display state that syncs with profile prop
   const [displaySkills, setDisplaySkills] = useState<string[]>(profile?.faehigkeiten || []);
   const [displayLanguages, setDisplayLanguages] = useState<any[]>(profile?.sprachen || []);
 
-  // Sync display state when profile prop changes
+  // Sync display state when profile prop changes (but not if we just saved)
   useEffect(() => {
-    console.log('🟡 Profile faehigkeiten changed:', profile?.faehigkeiten);
-    setDisplaySkills(profile?.faehigkeiten || []);
+    if (!justSavedSkills) {
+      setDisplaySkills(profile?.faehigkeiten || []);
+    }
+    setJustSavedSkills(false);
   }, [profile?.faehigkeiten]);
 
   useEffect(() => {
-    console.log('🟡 Profile sprachen changed:', profile?.sprachen);
-    setDisplayLanguages(profile?.sprachen || []);
+    if (!justSavedLanguages) {
+      setDisplayLanguages(profile?.sprachen || []);
+    }
+    setJustSavedLanguages(false);
   }, [profile?.sprachen]);
-  
-  // Debug render
-  console.log('🔴 Render - displaySkills:', displaySkills, 'displayLanguages:', displayLanguages);
 
   const handleDocumentUploaded = () => {
     setDocumentUpdateTrigger(prev => prev + 1);
@@ -91,14 +96,10 @@ export function LinkedInProfileSidebar({
   };
 
   const saveSkills = async () => {
-    console.log('🟢 saveSkills called');
-    console.log('🟢 tempSkills:', tempSkills);
-    console.log('🟢 onProfileUpdate exists:', !!onProfileUpdate);
     if (onProfileUpdate) {
-      await onProfileUpdate({ faehigkeiten: tempSkills });
-      console.log('🟢 After onProfileUpdate, setting displaySkills to:', tempSkills);
-      // Update local display immediately
+      setJustSavedSkills(true);
       setDisplaySkills([...tempSkills]);
+      await onProfileUpdate({ faehigkeiten: tempSkills });
     }
     setEditingSkills(false);
   };
@@ -119,14 +120,10 @@ export function LinkedInProfileSidebar({
   };
 
   const saveLanguages = async () => {
-    console.log('🔵 saveLanguages called');
-    console.log('🔵 tempLanguages:', tempLanguages);
-    console.log('🔵 onProfileUpdate exists:', !!onProfileUpdate);
     if (onProfileUpdate) {
-      await onProfileUpdate({ sprachen: tempLanguages });
-      console.log('🔵 After onProfileUpdate, setting displayLanguages to:', tempLanguages);
-      // Update local display immediately
+      setJustSavedLanguages(true);
       setDisplayLanguages([...tempLanguages]);
+      await onProfileUpdate({ sprachen: tempLanguages });
     }
     setEditingLanguages(false);
     setNewLanguage('');
