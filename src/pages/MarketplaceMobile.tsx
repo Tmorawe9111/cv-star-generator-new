@@ -387,51 +387,61 @@ const CompanyCard: React.FC<{
 const PostCardSlider: React.FC<{ 
   post: Post; 
   author?: { name: string; avatar_url: string | null };
-  onLike?: (postId: string) => void;
+  onLike?: (postId: string, liked: boolean) => void;
+  onComment?: (post: Post) => void;
   isLiked?: boolean;
-}> = ({ post, author, onLike, isLiked = false }) => {
+}> = ({ post, author, onLike, onComment, isLiked = false }) => {
   const [liked, setLiked] = React.useState(isLiked);
   const [likesCount, setLikesCount] = React.useState(post.likes_count || 0);
 
   const handleLike = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    setLiked(!liked);
-    setLikesCount(prev => liked ? prev - 1 : prev + 1);
-    onLike?.(post.id);
+    const newLiked = !liked;
+    setLiked(newLiked);
+    setLikesCount(prev => newLiked ? prev + 1 : prev - 1);
+    onLike?.(post.id, newLiked);
+  };
+
+  const handleComment = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onComment?.(post);
   };
 
   return (
-    <Link to={`/community`} className="block">
-      <div className="min-w-[280px] max-w-[280px] h-[200px] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col">
-        <div className="flex items-center gap-2 mb-2">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={author?.avatar_url ?? undefined} />
-            <AvatarFallback className="text-xs">{(author?.name || 'U').slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-xs text-gray-900 truncate">{author?.name || 'Unbekannt'}</p>
-            <p className="text-[10px] text-gray-500">
-              {new Date(post.created_at).toLocaleDateString('de-DE')}
-            </p>
-          </div>
-        </div>
-        <p className="text-sm text-gray-700 line-clamp-4 flex-1 leading-relaxed">{post.content}</p>
-        <div className="flex items-center gap-4 mt-2 pt-2 border-t border-gray-50 text-xs">
-          <button 
-            onClick={handleLike}
-            className={cn(
-              "flex items-center gap-1 transition-colors active:scale-95",
-              liked ? "text-red-500" : "text-gray-500"
-            )}
-          >
-            <Heart className={cn("h-3.5 w-3.5", liked && "fill-current")} /> {likesCount}
-          </button>
-          <span className="flex items-center gap-1 text-gray-500">
-            <MessageCircle className="h-3.5 w-3.5" /> {post.comments_count || 0}
-          </span>
+    <div className="min-w-[280px] max-w-[280px] h-[200px] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col">
+      <div className="flex items-center gap-2 mb-2">
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={author?.avatar_url ?? undefined} />
+          <AvatarFallback className="text-xs">{(author?.name || 'U').slice(0, 2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-xs text-gray-900 truncate">{author?.name || 'Unbekannt'}</p>
+          <p className="text-[10px] text-gray-500">
+            {new Date(post.created_at).toLocaleDateString('de-DE')}
+          </p>
         </div>
       </div>
-    </Link>
+      <p className="text-sm text-gray-700 line-clamp-4 flex-1 leading-relaxed">{post.content}</p>
+      <div className="flex items-center gap-4 mt-2 pt-2 border-t border-gray-50 text-xs">
+        <button 
+          onClick={handleLike}
+          className={cn(
+            "flex items-center gap-1 transition-all active:scale-90",
+            liked ? "text-red-500" : "text-gray-500 hover:text-red-400"
+          )}
+        >
+          <Heart className={cn("h-4 w-4 transition-transform", liked && "fill-current scale-110")} /> {likesCount}
+        </button>
+        <button 
+          onClick={handleComment}
+          className="flex items-center gap-1 text-gray-500 hover:text-blue-500 transition-colors active:scale-90"
+        >
+          <MessageCircle className="h-4 w-4" /> {post.comments_count || 0}
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -533,6 +543,8 @@ export default function MarketplaceMobile() {
   const [postIndex, setPostIndex] = React.useState(0);
   const [applyJob, setApplyJob] = React.useState<Job | null>(null);
   const [applySuccess, setApplySuccess] = React.useState(false);
+  const [commentPost, setCommentPost] = React.useState<Post | null>(null);
+  const [commentText, setCommentText] = React.useState('');
   
   // Session ID for randomization - changes on page reload
   const [sessionId] = React.useState(() => Math.random().toString(36).slice(2));
@@ -710,6 +722,40 @@ export default function MarketplaceMobile() {
     }
   };
 
+  // Like a post
+  const handleLikePost = async (postId: string, liked: boolean) => {
+    if (!user) {
+      toast({ title: 'Bitte anmelden', variant: 'destructive' });
+      return;
+    }
+    try {
+      if (liked) {
+        await supabase.from('post_likes').insert({ post_id: postId, user_id: user.id });
+      } else {
+        await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', user.id);
+      }
+    } catch (e) {
+      console.error('Like error:', e);
+    }
+  };
+
+  // Submit comment
+  const handleSubmitComment = async () => {
+    if (!user || !commentPost || !commentText.trim()) return;
+    try {
+      await supabase.from('post_comments').insert({
+        post_id: commentPost.id,
+        user_id: user.id,
+        content: commentText.trim(),
+      });
+      toast({ title: '💬 Kommentar gepostet!' });
+      setCommentText('');
+      setCommentPost(null);
+    } catch (e) {
+      toast({ title: 'Fehler', variant: 'destructive' });
+    }
+  };
+
   const allPeople = (peopleQuery.data || []).filter(p => p.id !== user?.id);
   const allCompanies = companiesQuery.data || [];
   const posts = postsQuery.data || [];
@@ -817,7 +863,12 @@ export default function MarketplaceMobile() {
               <div className="flex gap-3" style={{ width: `${posts.slice(0, 5).length * 296}px` }}>
                 {posts.slice(0, 5).map((post, idx) => (
                   <div key={post.id} className="snap-center shrink-0">
-                    <PostCardSlider post={post} author={authors[post.user_id]} />
+                    <PostCardSlider 
+                      post={post} 
+                      author={authors[post.user_id]} 
+                      onLike={handleLikePost}
+                      onComment={(p) => setCommentPost(p)}
+                    />
                   </div>
                 ))}
               </div>
@@ -1070,6 +1121,62 @@ export default function MarketplaceMobile() {
               Viel Erfolg! 🍀
             </p>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Comment Dialog */}
+      <Dialog open={!!commentPost} onOpenChange={(open) => !open && setCommentPost(null)}>
+        <DialogContent className="max-w-[360px] rounded-3xl p-0 flex flex-col">
+          <div className="p-5 border-b border-gray-100">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold">Kommentieren</DialogTitle>
+            </DialogHeader>
+          </div>
+          
+          {commentPost && (
+            <div className="p-5 space-y-4">
+              {/* Original Post Preview */}
+              <div className="bg-gray-50 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={authors[commentPost.user_id]?.avatar_url ?? undefined} />
+                    <AvatarFallback className="text-[10px]">U</AvatarFallback>
+                  </Avatar>
+                  <p className="text-xs font-medium text-gray-700">{authors[commentPost.user_id]?.name || 'Unbekannt'}</p>
+                </div>
+                <p className="text-sm text-gray-600 line-clamp-2">{commentPost.content}</p>
+              </div>
+
+              {/* Comment Input */}
+              <div>
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Schreibe einen Kommentar..."
+                  className="w-full h-24 p-3 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  autoFocus
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <Button 
+                  variant="ghost"
+                  onClick={() => setCommentPost(null)}
+                  className="flex-1 h-11 rounded-full"
+                >
+                  Abbrechen
+                </Button>
+                <Button 
+                  onClick={handleSubmitComment}
+                  disabled={!commentText.trim()}
+                  className="flex-1 h-11 rounded-full bg-black hover:bg-gray-800 text-white font-semibold disabled:opacity-50"
+                >
+                  Posten
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
