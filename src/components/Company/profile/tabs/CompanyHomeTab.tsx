@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Mail, Phone, User, MapPin } from "lucide-react";
+import { Mail, Phone, User } from "lucide-react";
 import { CompanyJobsCarousel } from "../CompanyJobsCarousel";
 import { CompanyPeopleCarousel } from "../CompanyPeopleCarousel";
 import { CompanyLatestPosts } from "../CompanyLatestPosts";
@@ -41,25 +41,6 @@ export function CompanyHomeTab({ company, isOwner, onAddPerson }: CompanyHomeTab
           <Button variant="link" className="p-0 h-auto text-xs sm:text-sm" asChild>
             <Link to={`?tab=about`}>Mehr anzeigen →</Link>
           </Button>
-          
-          {/* Location */}
-          {(company.street || company.city) && (
-            <div className="pt-3 sm:pt-4 border-t border-gray-200">
-              <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-2 sm:mb-3">Standort</h3>
-              <div className="flex items-start gap-2 text-xs sm:text-sm">
-                <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                <div>
-                  {company.street && (
-                    <div>{company.street}{company.house_number ? ` ${company.house_number}` : ''}</div>
-                  )}
-                  {(company.postal_code || company.city) && (
-                    <div>{company.postal_code} {company.city}</div>
-                  )}
-                  {company.country && <div>{company.country}</div>}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Contact Person */}
           {(company.contact_person || company.contact_email) && (
