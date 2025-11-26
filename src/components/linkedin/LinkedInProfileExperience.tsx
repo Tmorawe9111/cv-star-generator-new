@@ -17,6 +17,7 @@ interface Experience {
   zeitraum_bis: string;
   beschreibung?: string;
   linked_company_id?: string | null;
+  linked_company_logo?: string | null;
 }
 
 type ExperienceFormProps = {
@@ -60,12 +61,14 @@ const ExperienceForm: React.FC<ExperienceFormProps> = React.memo(({ formData, se
                 setFormData({ 
                   ...formData, 
                   unternehmen: company.name,
-                  linked_company_id: company.id
+                  linked_company_id: company.id,
+                  linked_company_logo: company.logo_url || null
                 });
               } else {
                 setFormData({ 
                   ...formData, 
-                  linked_company_id: null
+                  linked_company_id: null,
+                  linked_company_logo: null
                 });
               }
             }}
@@ -333,15 +336,37 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
             {sortedExperiences.map(({ item: exp, i }, idx) => (
               <div key={i} className="relative group">
                 <div className="flex items-start gap-3 md:gap-4">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-accent/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Building className="h-5 w-5 md:h-6 md:w-6 text-accent-foreground" />
-                  </div>
+                  {exp.linked_company_logo ? (
+                    <a 
+                      href={`/unternehmen/${exp.linked_company_id}`}
+                      className="w-10 h-10 md:w-12 md:h-12 rounded-lg flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity"
+                    >
+                      <img 
+                        src={exp.linked_company_logo} 
+                        alt={exp.unternehmen}
+                        className="w-full h-full object-cover"
+                      />
+                    </a>
+                  ) : (
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-accent/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Building className="h-5 w-5 md:h-6 md:w-6 text-accent-foreground" />
+                    </div>
+                  )}
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-base md:text-lg truncate">{exp.titel}</h3>
-                        <p className="text-primary font-medium text-sm md:text-base truncate">{exp.unternehmen}</p>
+                        {exp.linked_company_id ? (
+                          <a 
+                            href={`/unternehmen/${exp.linked_company_id}`}
+                            className="text-primary font-medium text-sm md:text-base truncate hover:underline block"
+                          >
+                            {exp.unternehmen}
+                          </a>
+                        ) : (
+                          <p className="text-primary font-medium text-sm md:text-base truncate">{exp.unternehmen}</p>
+                        )}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs md:text-sm text-muted-foreground mt-1">
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
