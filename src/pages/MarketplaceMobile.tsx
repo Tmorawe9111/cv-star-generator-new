@@ -71,14 +71,15 @@ const SectionHeader: React.FC<{
   </div>
 );
 
-// Kleine Card für "Für dich" (Person oder Unternehmen)
+// Card für "Für dich" (Person oder Unternehmen) - gleiche Größe wie andere Cards
 const ForYouCard: React.FC<{ 
   item: Person | Company; 
   type: 'person' | 'company';
   onAction: () => void;
   actionLabel: string;
   actionDone?: boolean;
-}> = ({ item, type, onAction, actionLabel, actionDone }) => {
+  index: number;
+}> = ({ item, type, onAction, actionLabel, actionDone, index }) => {
   const isPerson = type === 'person';
   const person = item as Person;
   const company = item as Company;
@@ -86,37 +87,66 @@ const ForYouCard: React.FC<{
   const name = isPerson 
     ? `${person.vorname ?? ''} ${person.nachname ?? ''}`.trim() || 'Unbekannt'
     : company.name;
-  const subtitle = isPerson ? person.wunschberuf : company.industry;
+  const subtitle = isPerson ? (person as any).bio?.slice(0, 30) : company.industry;
   const imageUrl = isPerson ? person.avatar_url : company.logo_url;
   const linkTo = isPerson ? `/u/${person.id}` : `/companies/${company.id}`;
+  
+  // Verschiedene Zahlen basierend auf Index
+  const mutualCount = [3, 7, 2, 5, 4, 8, 6, 9, 1, 11][index % 10];
+  const mutualNames = ['Max', 'Lisa', 'Tom', 'Anna', 'Jan', 'Sarah', 'Lukas', 'Emma', 'Felix', 'Marie'];
+  const mutualName = mutualNames[index % 10];
 
   return (
-    <div className="min-w-[140px] max-w-[140px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center text-center">
-      <Link to={linkTo}>
-        <Avatar className="h-14 w-14 mb-2">
-          <AvatarImage src={imageUrl ?? undefined} className="object-cover" />
-          <AvatarFallback className="text-base font-semibold bg-gradient-to-br from-gray-100 to-gray-200">
-            {isPerson ? <Users className="h-6 w-6 text-gray-400" /> : <Building2 className="h-6 w-6 text-gray-400" />}
-          </AvatarFallback>
-        </Avatar>
-      </Link>
-      <Link to={linkTo} className="w-full">
-        <p className="font-semibold text-sm text-gray-900 truncate">{name}</p>
-      </Link>
-      {subtitle && <p className="text-xs text-gray-500 truncate w-full">{subtitle}</p>}
-      <Button 
-        size="sm" 
-        onClick={onAction}
-        disabled={actionDone}
-        className={cn(
-          "mt-2 w-full h-8 text-xs rounded-xl font-medium",
-          actionDone 
-            ? "bg-gray-100 text-gray-500" 
-            : "bg-blue-500 hover:bg-blue-600 text-white"
+    <div className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
+      <Link to={linkTo} className="flex flex-col items-center">
+        {isPerson ? (
+          <Avatar className="h-14 w-14 mb-2">
+            <AvatarImage src={imageUrl ?? undefined} className="object-cover" />
+            <AvatarFallback className="text-lg font-semibold bg-gradient-to-br from-blue-50 to-purple-50">
+              {name.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        ) : (
+          <div className="h-14 w-14 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-2">
+            {imageUrl ? (
+              <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
+            ) : (
+              <Building2 className="h-7 w-7 text-gray-400" />
+            )}
+          </div>
         )}
-      >
-        {actionDone ? '✓' : actionLabel}
-      </Button>
+        <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{name}</p>
+        {subtitle && <p className="text-[10px] text-gray-500 truncate w-full text-center">{subtitle}</p>}
+      </Link>
+      
+      {/* Gemeinsame Kontakte / Mitarbeiter */}
+      <div className="flex-1 flex items-center justify-center mt-1">
+        <OverlappingAvatars 
+          avatars={DEMO_AVATARS} 
+          count={mutualCount}
+          label={isPerson 
+            ? (mutualCount > 1 ? `${mutualName} +${mutualCount - 1}` : mutualName)
+            : `${mutualCount} Mitarbeiter`
+          }
+        />
+      </div>
+
+      {/* Button - immer unten */}
+      <div className="mt-auto pt-2">
+        <Button 
+          size="sm" 
+          onClick={onAction}
+          disabled={actionDone}
+          className={cn(
+            "w-full h-8 text-xs rounded-xl font-medium",
+            actionDone 
+              ? "bg-gray-100 text-gray-500" 
+              : "bg-blue-500 hover:bg-blue-600 text-white"
+          )}
+        >
+          {actionDone ? '✓' : actionLabel}
+        </Button>
+      </div>
     </div>
   );
 };
@@ -154,13 +184,17 @@ const PersonCard: React.FC<{
   person: Person; 
   onConnect: () => void; 
   status: ConnectionState;
-  mutualCount?: number;
-  mutualAvatars?: (string | null)[];
-  mutualName?: string;
-}> = ({ person, onConnect, status, mutualCount = 3, mutualAvatars = DEMO_AVATARS, mutualName = 'Max' }) => {
+  index?: number;
+}> = ({ person, onConnect, status, index = 0 }) => {
   const name = `${person.vorname ?? ''} ${person.nachname ?? ''}`.trim() || 'Unbekannt';
   const isConnected = status === 'accepted';
   const isPending = status === 'pending';
+  
+  // Verschiedene Zahlen basierend auf Index
+  const mutualCounts = [4, 2, 6, 3, 8, 5, 1, 7, 9, 3];
+  const mutualNames = ['Lisa', 'Tom', 'Anna', 'Max', 'Sarah', 'Jan', 'Emma', 'Lukas', 'Marie', 'Felix'];
+  const mutualCount = mutualCounts[index % 10];
+  const mutualName = mutualNames[index % 10];
 
   return (
     <div className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
@@ -177,7 +211,7 @@ const PersonCard: React.FC<{
       {/* Gemeinsame Kontakte */}
       <div className="flex-1 flex items-center justify-center mt-1">
         <OverlappingAvatars 
-          avatars={mutualAvatars} 
+          avatars={DEMO_AVATARS} 
           count={mutualCount}
           label={mutualCount > 1 ? `${mutualName} +${mutualCount - 1}` : mutualName}
         />
@@ -211,10 +245,13 @@ const PersonCard: React.FC<{
 // Neue Company Card mit Mitarbeitern
 const CompanyCard: React.FC<{ 
   company: Company;
-  employeeCount?: number;
-  employeeAvatars?: (string | null)[];
-}> = ({ company, employeeCount = 12, employeeAvatars = DEMO_AVATARS }) => {
+  index?: number;
+}> = ({ company, index = 0 }) => {
   const { isFollowing, toggleFollow, loading } = useFollowCompany(company.id);
+  
+  // Verschiedene Mitarbeiterzahlen basierend auf Index
+  const employeeCounts = [24, 8, 156, 42, 15, 67, 5, 89, 31, 12];
+  const employeeCount = employeeCounts[index % 10];
   
   return (
     <div className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
@@ -235,7 +272,7 @@ const CompanyCard: React.FC<{
       {/* Mitarbeiter */}
       <div className="flex-1 flex items-center justify-center mt-1">
         <OverlappingAvatars 
-          avatars={employeeAvatars} 
+          avatars={DEMO_AVATARS} 
           count={employeeCount}
           label={`${employeeCount} Mitarbeiter`}
         />
@@ -515,11 +552,12 @@ export default function MarketplaceMobile() {
         />
         <div className="overflow-x-auto no-scrollbar">
           <div className="flex gap-3 px-4 pb-2">
-            {forYouItems.length > 0 ? forYouItems.map(({ item, type }) => (
+            {forYouItems.length > 0 ? forYouItems.map(({ item, type }, index) => (
               <ForYouCard 
                 key={item.id}
                 item={item}
                 type={type}
+                index={index}
                 onAction={() => type === 'person' ? onConnect(item.id) : {}}
                 actionLabel={type === 'person' ? 'Vernetzen' : 'Folgen'}
                 actionDone={type === 'person' && statusMap[item.id] === 'accepted'}
@@ -541,8 +579,8 @@ export default function MarketplaceMobile() {
           />
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex gap-3 px-4 pb-2">
-              {allCompanies.slice(0, 8).map((company) => (
-                <CompanyCard key={company.id} company={company} />
+              {allCompanies.slice(0, 8).map((company, idx) => (
+                <CompanyCard key={company.id} company={company} index={idx} />
               ))}
             </div>
           </div>
@@ -640,10 +678,11 @@ export default function MarketplaceMobile() {
                 </div>
               ))
             ) : allPeople.length > 0 ? (
-              allPeople.slice(0, 10).map((person) => (
+              allPeople.slice(0, 10).map((person, idx) => (
                 <PersonCard 
                   key={person.id} 
                   person={person}
+                  index={idx}
                   onConnect={() => onConnect(person.id)}
                   status={statusMap[person.id] ?? 'none'}
                 />
