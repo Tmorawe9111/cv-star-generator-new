@@ -708,6 +708,21 @@ export default function MarketplaceMobile() {
     })();
   }, [user, peopleQuery.data, getStatuses]);
 
+  // Load followed companies
+  React.useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', user.id)
+        .eq('status', 'accepted');
+      if (data) {
+        setFollowedCompanyIds(new Set(data.map(f => f.following_id)));
+      }
+    })();
+  }, [user]);
+
   const onConnect = async (targetId: string) => {
     if (!user) {
       window.location.href = '/anmelden';
@@ -756,8 +771,21 @@ export default function MarketplaceMobile() {
     }
   };
 
-  const allPeople = (peopleQuery.data || []).filter(p => p.id !== user?.id);
-  const allCompanies = companiesQuery.data || [];
+  // Filter out already connected/pending people
+  const connectedOrPendingIds = new Set(
+    Object.entries(statusMap)
+      .filter(([_, status]) => status === 'accepted' || status === 'pending')
+      .map(([id]) => id)
+  );
+  
+  const allPeople = (peopleQuery.data || []).filter(p => 
+    p.id !== user?.id && !connectedOrPendingIds.has(p.id)
+  );
+  
+  // Filter out followed companies
+  const [followedCompanyIds, setFollowedCompanyIds] = React.useState<Set<string>>(new Set());
+  
+  const allCompanies = (companiesQuery.data || []).filter(c => !followedCompanyIds.has(c.id));
   const posts = postsQuery.data || [];
   const jobs = jobsQuery.data || [];
 
