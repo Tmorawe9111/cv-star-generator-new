@@ -23,8 +23,8 @@ interface Employee {
   vorname: string;
   nachname: string;
   avatar_url: string | null;
-  position: string;
-  location: string | null;
+  job_position: string;
+  job_location: string | null;
   start_date: string;
   end_date: string | null;
   is_current: boolean;
@@ -124,13 +124,13 @@ export function CompanyPeopleTab({ companyId, isOwner }: CompanyPeopleTabProps) 
             <p className="font-semibold text-gray-900 truncate">
               {employee.vorname} {employee.nachname}
             </p>
-            <p className="text-sm text-primary font-medium truncate">{employee.position}</p>
+            <p className="text-sm text-primary font-medium truncate">{employee.job_position}</p>
             
             <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-gray-500">
-              {employee.location && (
+              {employee.job_location && (
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3 w-3" />
-                  {employee.location}
+                  {employee.job_location}
                 </span>
               )}
               <span className="flex items-center gap-1">
