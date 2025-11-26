@@ -311,6 +311,7 @@ export function LinkedInProfileSidebar({
               </div>
             ) : (
               <div className="space-y-1.5 sm:space-y-2">
+                {(() => { console.log('🟣 Rendering languages view, displayLanguages:', displayLanguages, 'length:', displayLanguages?.length); return null; })()}
                 {displayLanguages && displayLanguages.length > 0 ? (
                   displayLanguages.map((lang: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center text-sm">
