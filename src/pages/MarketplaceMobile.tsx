@@ -262,7 +262,7 @@ export default function MarketplaceMobile() {
   const postsScrollRef = useRef<HTMLDivElement>(null);
   const [postIndex, setPostIndex] = React.useState(0);
 
-  // Fetch People
+  // Fetch People (Users)
   const peopleQuery = useQuery<Person[]>({
     queryKey: ['mp-people-mobile'],
     queryFn: async () => {
@@ -271,7 +271,11 @@ export default function MarketplaceMobile() {
         .select('id, vorname, nachname, avatar_url, bio, wunschberuf')
         .order('created_at', { ascending: false })
         .limit(20);
-      if (error) return [];
+      if (error) {
+        console.error('Error fetching profiles:', error);
+        return [];
+      }
+      console.log('Profiles loaded:', data?.length);
       return (data || []) as Person[];
     },
   });
@@ -518,10 +522,10 @@ export default function MarketplaceMobile() {
           <p className="text-sm text-gray-400 px-4">Keine Beiträge</p>
         )}
         {posts.length > 0 && (
-          <div className="px-4 mt-3">
+          <div className="px-4 mt-3 flex justify-end">
             <Link to="/community">
-              <Button variant="outline" className="w-full rounded-xl h-10 text-sm font-medium">
-                Mehr Beiträge anzeigen
+              <Button variant="ghost" size="sm" className="text-blue-500 text-sm font-medium">
+                Mehr Beiträge <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </Link>
           </div>
@@ -552,7 +556,7 @@ export default function MarketplaceMobile() {
         </div>
       </div>
 
-      {/* 5. Personen */}
+      {/* 5. Personen (User) */}
       <div className="mt-6">
         <SectionHeader 
           title="Personen" 
@@ -561,7 +565,14 @@ export default function MarketplaceMobile() {
         />
         <div className="overflow-x-auto no-scrollbar">
           <div className="flex gap-3 px-4 pb-2">
-            {allPeople.length > 0 ? (
+            {peopleQuery.isLoading ? (
+              [1,2,3,4].map(i => (
+                <div key={i} className="min-w-[140px] bg-white rounded-xl p-3 animate-pulse">
+                  <div className="h-12 w-12 rounded-full bg-gray-200 mx-auto mb-2" />
+                  <div className="h-4 w-20 bg-gray-200 rounded mx-auto" />
+                </div>
+              ))
+            ) : allPeople.length > 0 ? (
               allPeople.slice(0, 10).map((person) => (
                 <PersonCardSmall 
                   key={person.id} 
@@ -571,7 +582,7 @@ export default function MarketplaceMobile() {
                 />
               ))
             ) : (
-              <p className="text-sm text-gray-400">Keine Personen gefunden</p>
+              <p className="text-sm text-gray-400">Noch keine Nutzer registriert</p>
             )}
           </div>
         </div>
@@ -580,10 +591,10 @@ export default function MarketplaceMobile() {
       {/* 6. Gruppen - Coming Soon */}
       <div className="mt-6 px-4">
         <SectionHeader title="Gruppen" icon={<Users className="h-5 w-5 text-purple-500" />} />
-        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-5 text-center">
-          <Users className="h-10 w-10 mx-auto mb-2 text-purple-400" />
-          <h3 className="font-semibold text-gray-900 text-sm mb-1">Gruppen kommen bald!</h3>
-          <p className="text-xs text-gray-600">
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-4 sm:p-5 text-center">
+          <Users className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-2 text-purple-400" />
+          <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-1">Gruppen kommen bald!</h3>
+          <p className="text-xs sm:text-sm text-gray-600">
             Tausche dich mit Gleichgesinnten aus.
           </p>
         </div>
