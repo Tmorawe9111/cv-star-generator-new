@@ -126,7 +126,13 @@ const queryClient = new QueryClient({
 });
 const FEATURE_BILLING_V2 = import.meta.env.NEXT_PUBLIC_FEATURE_BILLING_V2 === "1";
 
-// Protected route for company pages
+// Helper to check if user is a company
+function useIsCompanyUser() {
+  const { user } = useAuth();
+  return user?.user_metadata?.is_company === true || user?.user_metadata?.is_company === "true";
+}
+
+// Protected route for company pages - blocks regular users
 function CompanyProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading: authLoading } = useAuth();
   const [userType, setUserType] = useState<string | null>(null);
@@ -134,38 +140,21 @@ function CompanyProtectedRoute({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function checkCompanyAccess() {
-      // Wait for auth to finish loading
-      if (authLoading) {
-        console.log('Auth still loading, waiting...');
-        return;
-      }
+      if (authLoading) return;
 
       if (!user) {
-        console.log('No user found after auth loaded');
         setUserType('not_company');
         setIsLoading(false);
         return;
       }
 
-      try {
-        console.log('🔍 Checking company user for:', user.id, 'Email:', user.email);
+      const hasIsCompanyMeta =
+        user.user_metadata?.is_company === true ||
+        user.user_metadata?.is_company === "true";
 
-        // SIMPLIFIED: Check user metadata only (previous working behaviour)
-        const hasIsCompanyMeta =
-          user.user_metadata?.is_company === true ||
-          user.user_metadata?.is_company === "true";
-
-        console.log("📊 User metadata is_company:", hasIsCompanyMeta);
-
-        if (hasIsCompanyMeta) {
-          console.log("✅ User has is_company metadata - granting company access");
-          setUserType("company");
-        } else {
-          console.log("❌ User is NOT company user (no metadata)");
-          setUserType("not_company");
-        }
-      } catch (error) {
-        console.error("❌ Error checking company access:", error);
+      if (hasIsCompanyMeta) {
+        setUserType("company");
+      } else {
         setUserType("not_company");
       }
       setIsLoading(false);
@@ -175,7 +164,6 @@ function CompanyProtectedRoute({ children }: { children: React.ReactNode }) {
   }, [user, authLoading]);
 
   if (isLoading || authLoading) {
-    console.log('CompanyProtectedRoute: Loading... (authLoading:', authLoading, ', isLoading:', isLoading, ')');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -183,19 +171,60 @@ function CompanyProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  console.log('CompanyProtectedRoute: User type:', userType, 'User:', !!user);
-
   if (!user) {
-    console.log('No user - redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
 
+  // ⛔️ HARTE SPERRE: Normale User werden zum Feed umgeleitet
   if (userType !== 'company') {
-    console.log('Not a company user - redirecting to signup');
-    return <Navigate to="/signup/company" replace />;
+    console.log('🚫 User tried to access company area - redirecting to /feed');
+    return <Navigate to="/feed" replace />;
   }
 
-  console.log('Access granted to company routes');
+  return <>{children}</>;
+}
+
+// Protected route for user pages - blocks company users
+function UserProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading: authLoading } = useAuth();
+  const [isCompany, setIsCompany] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      setIsCompany(false);
+      setIsLoading(false);
+      return;
+    }
+
+    const hasIsCompanyMeta =
+      user.user_metadata?.is_company === true ||
+      user.user_metadata?.is_company === "true";
+
+    setIsCompany(hasIsCompanyMeta);
+    setIsLoading(false);
+  }, [user, authLoading]);
+
+  if (isLoading || authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // ⛔️ HARTE SPERRE: Companies werden zum Dashboard umgeleitet
+  if (isCompany) {
+    console.log('🚫 Company tried to access user area - redirecting to /unternehmen/startseite');
+    return <Navigate to="/unternehmen/startseite" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -489,8 +518,9 @@ const App = () => {
               <Route path="/@:username" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><UserProfilePage /></Suspense>} />
               <Route path="/profil/:username" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><UserProfilePage /></Suspense>} />
               
-              {/* Authenticated routes - German + English fallbacks */}
-              <Route element={<AuthenticatedLayout />}>
+              {/* Authenticated USER routes - German + English fallbacks */}
+              {/* ⛔️ Companies are blocked from these routes via UserProtectedRoute */}
+              <Route element={<UserProtectedRoute><AuthenticatedLayout /></UserProtectedRoute>}>
                 {/* Profile - German primary */}
                 <Route path="/profil" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Profile /></Suspense>} />
                 <Route path="/profile" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Profile /></Suspense>} />
