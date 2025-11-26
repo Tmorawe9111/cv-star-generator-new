@@ -217,6 +217,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const portalPrefixes = [
     '/dashboard',
     '/startseite',
+    '/mein-bereich',
     '/marketplace',
     '/community',
     '/notifications',
@@ -232,6 +233,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     '/@',
     '/jobs',
     '/stellenangebote',
+    '/stelle/',
+    '/firma/',
     '/foryou',
     '/feed',
     '/meine-karriere',
