@@ -284,10 +284,10 @@ BEGIN
     ON CONFLICT (user_id, interest_type, interest_value) DO NOTHING;
   END IF;
   
-  -- Add region from profile
-  IF v_profile.stadt IS NOT NULL THEN
+  -- Add region from profile (ort column)
+  IF v_profile.ort IS NOT NULL THEN
     INSERT INTO public.user_interests (user_id, interest_type, interest_value, score, interaction_count)
-    VALUES (p_user_id, 'region', v_profile.stadt, 0.7, 1)
+    VALUES (p_user_id, 'region', v_profile.ort, 0.7, 1)
     ON CONFLICT (user_id, interest_type, interest_value) DO NOTHING;
   END IF;
   
@@ -324,7 +324,7 @@ $$;
 
 DROP TRIGGER IF EXISTS on_profile_update_interests ON public.profiles;
 CREATE TRIGGER on_profile_update_interests
-  AFTER INSERT OR UPDATE OF branche, stadt, wunschberuf, berufserfahrung
+  AFTER INSERT OR UPDATE OF branche, ort, wunschberuf, berufserfahrung
   ON public.profiles
   FOR EACH ROW
   EXECUTE FUNCTION public.trigger_initialize_interests();
