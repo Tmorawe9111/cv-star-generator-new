@@ -7,6 +7,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Welcome popup progress bar animation */
+@keyframes shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
 /* BeVisiblle Landing Page Animations */
 @keyframes marquee {
   0% {
