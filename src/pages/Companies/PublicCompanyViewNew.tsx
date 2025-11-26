@@ -11,6 +11,7 @@ import { CompanyAboutTab } from "@/components/Company/profile/tabs/CompanyAboutT
 import { CompanyJobsTab } from "@/components/Company/profile/tabs/CompanyJobsTab";
 import { CompanyPeopleTab } from "@/components/Company/profile/tabs/CompanyPeopleTab";
 import { CompanyPostsTab } from "@/components/Company/profile/tabs/CompanyPostsTab";
+import { CompanyLocationsTab } from "@/components/Company/profile/tabs/CompanyLocationsTab";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -191,6 +192,12 @@ export default function PublicCompanyViewNew() {
                 <span className="hidden sm:inline">Beiträge</span>
                 <span className="sm:hidden">Posts</span>
               </TabsTrigger>
+              <TabsTrigger 
+                value="locations"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs sm:text-sm px-2 sm:px-4 py-2 whitespace-nowrap"
+              >
+                Standorte
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -216,6 +223,10 @@ export default function PublicCompanyViewNew() {
         
         <TabsContent value="posts" className="mt-0">
           <CompanyPostsTab companyId={company.id} isOwner={!!isOwner} />
+        </TabsContent>
+        
+        <TabsContent value="locations" className="mt-0">
+          <CompanyLocationsTab companyId={company.id} isOwner={!!isOwner} />
         </TabsContent>
       </Tabs>
     </div>

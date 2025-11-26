@@ -5,6 +5,7 @@ import { Mail, Phone, User, MapPin } from "lucide-react";
 import { CompanyJobsCarousel } from "../CompanyJobsCarousel";
 import { CompanyPeopleCarousel } from "../CompanyPeopleCarousel";
 import { CompanyLatestPosts } from "../CompanyLatestPosts";
+import { CompanyLocationsCard } from "../CompanyLocationsCard";
 
 interface CompanyHomeTabProps {
   company: {
@@ -102,6 +103,9 @@ export function CompanyHomeTab({ company, isOwner, onAddPerson }: CompanyHomeTab
         </CardContent>
       </Card>
       
+      {/* Locations Card */}
+      <CompanyLocationsCard companyId={company.id} isOwner={isOwner} />
+
       {/* Two Column Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* Latest Jobs Card (Carousel) */}
