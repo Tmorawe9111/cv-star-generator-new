@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Building2, MapPin, Users, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface CompanyMatch {
   id: string;
@@ -18,7 +18,7 @@ interface CompanyMatch {
 interface CompanyAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
-  onCompanySelect: (company: CompanyMatch | null) => void;
+  onCompanySelect?: (company: CompanyMatch | null) => void;
   location?: string;
   placeholder?: string;
   className?: string;
@@ -34,60 +34,49 @@ export function CompanyAutocomplete({
 }: CompanyAutocompleteProps) {
   const [matches, setMatches] = useState<CompanyMatch[]>([]);
   const [showDialog, setShowDialog] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<CompanyMatch | null>(null);
 
-  // Debounced search
-  const searchCompanies = useCallback(async (searchTerm: string, city?: string) => {
-    if (searchTerm.length < 2) {
-      setMatches([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const { data, error } = await supabase.rpc('search_companies_for_linking', {
-        p_search_term: searchTerm,
-        p_city: city || null,
-        p_limit: 5
-      });
-
-      if (error) throw error;
-      setMatches(data || []);
-
-      // Show dialog only if we have matches
-      if (data && data.length > 0) {
-        setShowDialog(true);
-      }
-    } catch (error) {
-      console.error('Error searching companies:', error);
-      setMatches([]);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
-
-  // Search when value changes (debounced)
+  // Search companies when value changes (debounced)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (value.length >= 2 && !selectedCompany) {
-        searchCompanies(value, location);
+    const timer = setTimeout(async () => {
+      if (value.length < 2 || selectedCompany) {
+        setMatches([]);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.rpc('search_companies_for_linking', {
+          p_search_term: value,
+          p_city: location || null
+        });
+
+        if (error) {
+          console.log('search_companies_for_linking not available:', error.message);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setMatches(data);
+          setShowDialog(true);
+        }
+      } catch (error) {
+        console.error('Error searching companies:', error);
       }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [value, location, searchCompanies, selectedCompany]);
+  }, [value, location, selectedCompany]);
 
   const handleSelect = (company: CompanyMatch) => {
     setSelectedCompany(company);
     onChange(company.name);
-    onCompanySelect(company);
+    onCompanySelect?.(company);
     setShowDialog(false);
   };
 
   const handleDecline = () => {
     setSelectedCompany(null);
-    onCompanySelect(null);
+    onCompanySelect?.(null);
     setShowDialog(false);
   };
 
@@ -95,10 +84,9 @@ export function CompanyAutocomplete({
     const newValue = e.target.value;
     onChange(newValue);
     
-    // Clear selection if user changes the text
     if (selectedCompany && newValue !== selectedCompany.name) {
       setSelectedCompany(null);
-      onCompanySelect(null);
+      onCompanySelect?.(null);
     }
   };
 
@@ -121,7 +109,7 @@ export function CompanyAutocomplete({
         )}
       </div>
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog - only shows when matches found */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -130,7 +118,7 @@ export function CompanyAutocomplete({
               Meinst du dieses Unternehmen?
             </DialogTitle>
             <DialogDescription>
-              Wir haben ein registriertes Unternehmen gefunden, das zu deiner Eingabe passt.
+              Wir haben ein registriertes Unternehmen gefunden.
             </DialogDescription>
           </DialogHeader>
 
@@ -162,12 +150,11 @@ export function CompanyAutocomplete({
                     </span>
                   </div>
                 </div>
-                <Check className="h-5 w-5 text-primary opacity-0 group-hover:opacity-100" />
               </button>
             ))}
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end">
             <Button variant="outline" onClick={handleDecline}>
               <X className="h-4 w-4 mr-2" />
               Nein, anderes Unternehmen

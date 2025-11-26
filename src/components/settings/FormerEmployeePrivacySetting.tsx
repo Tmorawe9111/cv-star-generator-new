@@ -13,7 +13,6 @@ export function FormerEmployeePrivacySetting() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Load current setting
   useEffect(() => {
     async function loadSetting() {
       if (!user?.id) return;
@@ -53,8 +52,8 @@ export function FormerEmployeePrivacySetting() {
       toast({
         title: checked ? 'Sichtbarkeit aktiviert' : 'Sichtbarkeit deaktiviert',
         description: checked 
-          ? 'Du wirst jetzt bei ehemaligen Arbeitgebern und Schulen angezeigt.'
-          : 'Du wirst nicht mehr bei ehemaligen Arbeitgebern und Schulen angezeigt.',
+          ? 'Du wirst bei ehemaligen Arbeitgebern und Schulen angezeigt.'
+          : 'Du wirst nicht mehr bei ehemaligen Arbeitgebern angezeigt.',
       });
     } catch (error) {
       console.error('Error updating privacy setting:', error);
@@ -99,7 +98,7 @@ export function FormerEmployeePrivacySetting() {
               Als Ehemaliger sichtbar
             </Label>
             <p className="text-sm text-muted-foreground">
-              Bei Unternehmen und Schulen als ehemaliger Mitarbeiter/Schüler gelistet werden
+              Bei ehemaligen Arbeitgebern und Schulen gelistet werden
             </p>
           </div>
           <Switch
@@ -114,12 +113,11 @@ export function FormerEmployeePrivacySetting() {
           <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-blue-800 space-y-2">
             <p>
-              <strong>Wenn aktiviert:</strong> Andere Nutzer können dich kontaktieren 
-              und nach deinen Erfahrungen bei ehemaligen Arbeitgebern oder Schulen fragen.
+              <strong>Wenn aktiviert:</strong> Andere können dich kontaktieren 
+              und nach deinen Erfahrungen bei ehemaligen Arbeitgebern fragen.
             </p>
             <p>
-              <strong>Aktuelle Positionen</strong> werden immer angezeigt – diese 
-              Einstellung betrifft nur vergangene Stationen.
+              <strong>Aktuelle Positionen</strong> werden immer angezeigt.
             </p>
           </div>
         </div>
@@ -138,4 +136,3 @@ export function FormerEmployeePrivacySetting() {
     </Card>
   );
 }
-

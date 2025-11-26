@@ -1,18 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Building, Plus, Edit3, Trash2, MapPin, Calendar, Users, Check } from 'lucide-react';
+import { Building, Plus, Edit3, Trash2, MapPin, Calendar, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { capitalizeFirst, capitalizeWords, capitalizeSentences } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-// Dialog removed for inline editing
 import { Switch } from '@/components/ui/switch';
 import { CompanyAutocomplete } from '@/components/shared/CompanyAutocomplete';
-import { ColleaguesDialog } from '@/components/shared/ColleaguesDialog';
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Experience {
   titel: string;
@@ -22,7 +17,6 @@ interface Experience {
   zeitraum_bis: string;
   beschreibung?: string;
   linked_company_id?: string | null;
-  linked_company_logo?: string | null;
 }
 
 type ExperienceFormProps = {
@@ -66,14 +60,12 @@ const ExperienceForm: React.FC<ExperienceFormProps> = React.memo(({ formData, se
                 setFormData({ 
                   ...formData, 
                   unternehmen: company.name,
-                  linked_company_id: company.id,
-                  linked_company_logo: company.logo_url
+                  linked_company_id: company.id
                 });
               } else {
                 setFormData({ 
                   ...formData, 
-                  linked_company_id: null,
-                  linked_company_logo: null
+                  linked_company_id: null
                 });
               }
             }}
