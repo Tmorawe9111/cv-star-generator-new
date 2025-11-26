@@ -107,32 +107,37 @@ export function WelcomePopup({ type = 'user', companyId }: WelcomePopupProps) {
 
   return (
     <div 
-      className="fixed top-4 left-4 right-4 z-50 animate-in slide-in-from-top-4 fade-in duration-300 md:left-auto md:right-6 md:max-w-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
       onClick={() => setShowWelcome(false)}
     >
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 backdrop-blur-xl">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">
-              {getGreeting()}, {firstName}! 👋
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">Schön, dass du da bist</p>
-          </div>
-          <button 
-            onClick={(e) => { e.stopPropagation(); setShowWelcome(false); }}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X className="h-4 w-4 text-gray-400" />
-          </button>
+      <div 
+        className="relative bg-white rounded-3xl shadow-2xl border border-gray-100 p-6 md:p-8 w-full max-w-sm md:max-w-md animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button 
+          onClick={(e) => { e.stopPropagation(); setShowWelcome(false); }}
+          className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
+        >
+          <X className="h-5 w-5 text-gray-400" />
+        </button>
+
+        {/* Greeting - centered and larger */}
+        <div className="text-center mb-6">
+          <div className="text-4xl md:text-5xl mb-3">👋</div>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">
+            {getGreeting()}, {firstName}!
+          </h2>
+          <p className="text-sm md:text-base text-gray-500">Schön, dass du da bist</p>
         </div>
         
         {(welcomeStats.jobs > 0 || welcomeStats.contacts > 0 || welcomeStats.notifications > 0) && (
-          <div className="space-y-2 pt-2 border-t border-gray-100">
-            <p className="text-xs text-gray-500 font-medium">Seit deiner letzten Anmeldung:</p>
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-3 pt-4 border-t border-gray-100">
+            <p className="text-sm text-gray-500 font-medium text-center">Seit deiner letzten Anmeldung:</p>
+            <div className="flex flex-wrap justify-center gap-2 md:gap-3">
               {welcomeStats.jobs > 0 && (
-                <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1.5 rounded-full text-xs font-medium">
-                  <BriefcaseBusiness className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-2 rounded-full text-sm font-medium">
+                  <BriefcaseBusiness className="h-4 w-4" />
                   {type === 'company' 
                     ? `${welcomeStats.jobs} Bewerbung${welcomeStats.jobs > 1 ? 'en' : ''}`
                     : `${welcomeStats.jobs} Jobanfrage${welcomeStats.jobs > 1 ? 'n' : ''}`
@@ -140,8 +145,8 @@ export function WelcomePopup({ type = 'user', companyId }: WelcomePopupProps) {
                 </div>
               )}
               {welcomeStats.contacts > 0 && (
-                <div className="flex items-center gap-1.5 bg-green-50 text-green-700 px-2.5 py-1.5 rounded-full text-xs font-medium">
-                  <UserCheck className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-2 rounded-full text-sm font-medium">
+                  <UserCheck className="h-4 w-4" />
                   {type === 'company'
                     ? `${welcomeStats.contacts} Follow-Anfrage${welcomeStats.contacts > 1 ? 'n' : ''}`
                     : `${welcomeStats.contacts} Kontaktanfrage${welcomeStats.contacts > 1 ? 'n' : ''}`
@@ -149,8 +154,8 @@ export function WelcomePopup({ type = 'user', companyId }: WelcomePopupProps) {
                 </div>
               )}
               {welcomeStats.notifications > 0 && (
-                <div className="flex items-center gap-1.5 bg-purple-50 text-purple-700 px-2.5 py-1.5 rounded-full text-xs font-medium">
-                  <Bell className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-2 rounded-full text-sm font-medium">
+                  <Bell className="h-4 w-4" />
                   {welcomeStats.notifications} Benachrichtigung{welcomeStats.notifications > 1 ? 'en' : ''}
                 </div>
               )}
@@ -159,7 +164,7 @@ export function WelcomePopup({ type = 'user', companyId }: WelcomePopupProps) {
         )}
         
         {/* Progress bar for auto-dismiss */}
-        <div className="mt-3 h-1 bg-gray-100 rounded-full overflow-hidden">
+        <div className="mt-6 h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div 
             className="h-full bg-blue-500 rounded-full"
             style={{ 
