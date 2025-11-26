@@ -461,32 +461,32 @@ export default function MarketplaceMobile() {
   const [companyMap, setCompanyMap] = React.useState<Record<string, { name: string; logo_url: string | null }>>({});
   const postsScrollRef = useRef<HTMLDivElement>(null);
   const [postIndex, setPostIndex] = React.useState(0);
+  
+  // Session ID for randomization - changes on page reload
+  const [sessionId] = React.useState(() => Math.random().toString(36).slice(2));
 
-  // Fetch People (Users) - randomized on each load
+  // Fetch People (Users) - randomized per session
   const peopleQuery = useQuery<Person[]>({
-    queryKey: ['mp-people-mobile', Date.now()], // Force refetch on mount
+    queryKey: ['mp-people-mobile', sessionId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, vorname, nachname, avatar_url, bio, branche, stadt')
-        .limit(50); // Fetch more, then shuffle
+        .limit(50);
       
       if (error) {
         console.error('Error fetching profiles:', error);
         return [];
       }
       
-      // Shuffle array randomly
       const filtered = (data || []).filter(p => p.vorname || p.nachname);
       return shuffleArray(filtered).slice(0, 20) as Person[];
     },
-    staleTime: 0, // Always refetch
-    gcTime: 0,
   });
 
-  // Fetch Companies - randomized on each load
+  // Fetch Companies - randomized per session
   const companiesQuery = useQuery<Company[]>({
-    queryKey: ['mp-companies-mobile', Date.now()],
+    queryKey: ['mp-companies-mobile', sessionId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
@@ -495,15 +495,11 @@ export default function MarketplaceMobile() {
       if (error) return [];
       return shuffleArray(data || []).slice(0, 15) as Company[];
     },
-    staleTime: 0,
-    gcTime: 0,
   });
 
-  // Fetch Posts with likes and comments count - randomized
+  // Fetch Posts with likes and comments count
   const postsQuery = useQuery<Post[]>({
-    queryKey: ['mp-posts-mobile', Date.now()],
-    staleTime: 0,
-    gcTime: 0,
+    queryKey: ['mp-posts-mobile', sessionId],
     queryFn: async () => {
       const { data: postsData, error } = await supabase
         .from('posts')
@@ -545,11 +541,9 @@ export default function MarketplaceMobile() {
     },
   });
 
-  // Fetch Jobs - randomized
+  // Fetch Jobs - randomized per session
   const jobsQuery = useQuery<Job[]>({
-    queryKey: ['mp-jobs-mobile', Date.now()],
-    staleTime: 0,
-    gcTime: 0,
+    queryKey: ['mp-jobs-mobile', sessionId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('job_posts')
