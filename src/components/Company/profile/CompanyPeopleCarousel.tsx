@@ -16,10 +16,10 @@ export function CompanyPeopleCarousel({ companyId, isOwner, onAddPerson }: Compa
   const { data: people, isLoading } = useCompanyPeople(companyId);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
+    <Card className="p-2 sm:p-3 md:p-4">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2 sm:p-3 md:p-4 pb-2 sm:pb-3 md:pb-4">
+        <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
+          <Users className="h-4 w-4 sm:h-5 sm:w-5" />
           Mitarbeiter
         </CardTitle>
         {isOwner && onAddPerson && (
@@ -28,13 +28,13 @@ export function CompanyPeopleCarousel({ companyId, isOwner, onAddPerson }: Compa
           </Button>
         )}
       </CardHeader>
-      <CardContent>
-        {isLoading && <div className="text-sm text-muted-foreground">Lade Team...</div>}
+      <CardContent className="p-2 sm:p-3 md:p-4 pt-0 sm:pt-0 md:pt-0">
+        {isLoading && <div className="text-xs sm:text-sm text-muted-foreground">Lade Team...</div>}
         
         {!isLoading && !people?.length && (
-          <div className="text-center py-8">
-            <Users className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">Noch keine Mitarbeiter</p>
+          <div className="text-center py-4 sm:py-6 md:py-8">
+            <Users className="h-6 w-6 sm:h-8 sm:w-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-xs sm:text-sm text-muted-foreground">Noch keine Mitarbeiter</p>
           </div>
         )}
         
@@ -45,15 +45,15 @@ export function CompanyPeopleCarousel({ companyId, isOwner, onAddPerson }: Compa
                 {people.slice(0, 5).map((person) => (
                   <CarouselItem key={person.user_id}>
                     <Link to={`/u/${person.user_id}`}>
-                      <div className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12">
+                      <div className="border rounded-lg p-2 sm:p-3 md:p-4 hover:bg-muted/50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
                             <AvatarImage src={person.avatar_url || undefined} />
                             <AvatarFallback>{person.full_name[0]}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-semibold">{person.full_name}</div>
-                            <div className="text-sm text-muted-foreground">Mitarbeiter</div>
+                            <div className="font-semibold text-sm sm:text-base">{person.full_name}</div>
+                            <div className="text-xs sm:text-sm text-muted-foreground">Mitarbeiter</div>
                           </div>
                         </div>
                       </div>
