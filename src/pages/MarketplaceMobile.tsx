@@ -119,15 +119,13 @@ const ForYouCard: React.FC<{
         {subtitle && <p className="text-[10px] text-gray-500 truncate w-full text-center">{subtitle}</p>}
       </Link>
       
-      {/* Gemeinsame Kontakte / Mitarbeiter */}
-      <div className="flex-1 flex items-center justify-center mt-1">
+      {/* Gemeinsame Kontakte / Mitarbeiter - fixed position */}
+      <div className="flex items-center justify-center mt-1 mb-1">
         <OverlappingAvatars 
           avatars={DEMO_AVATARS} 
           count={mutualCount}
-          label={isPerson 
-            ? (mutualCount > 1 ? `${mutualName} +${mutualCount - 1}` : mutualName)
-            : `${mutualCount} Mitarbeiter`
-          }
+          label={`${mutualCount} Mitarbeiter`}
+          type={isPerson ? 'mutual' : 'employees'}
         />
       </div>
 
@@ -158,23 +156,29 @@ const DEMO_AVATARS = [
   'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
 ];
 
-// Overlapping Avatars Component
+// Overlapping Avatars Component - fixed height for alignment
 const OverlappingAvatars: React.FC<{ 
   avatars: (string | null)[]; 
   count: number;
   label: string;
-}> = ({ avatars, count, label }) => (
-  <div className="flex items-center gap-1.5">
-    <div className="flex -space-x-2">
+  type?: 'mutual' | 'employees';
+}> = ({ avatars, count, label, type = 'mutual' }) => (
+  <div className="flex flex-col items-center gap-1 h-[40px] justify-center">
+    <div className="flex -space-x-1.5">
       {avatars.slice(0, 3).map((url, i) => (
-        <Avatar key={i} className="h-5 w-5 border-2 border-white">
+        <Avatar key={i} className="h-5 w-5 border-[1.5px] border-white">
           <AvatarImage src={url || DEMO_AVATARS[i]} className="object-cover" />
           <AvatarFallback className="text-[8px] bg-gray-200">U</AvatarFallback>
         </Avatar>
       ))}
     </div>
     {count > 0 && (
-      <span className="text-[10px] text-gray-500 leading-none">{label}</span>
+      <span className="text-[9px] text-gray-500 leading-none text-center">
+        {type === 'mutual' 
+          ? (count > 1 ? `${count} gemeinsame` : '1 gemeinsamer')
+          : label
+        }
+      </span>
     )}
   </div>
 );
@@ -208,12 +212,13 @@ const PersonCard: React.FC<{
         <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{name}</p>
       </Link>
       
-      {/* Gemeinsame Kontakte */}
-      <div className="flex-1 flex items-center justify-center mt-1">
+      {/* Gemeinsame Kontakte - fixed position */}
+      <div className="flex items-center justify-center mt-1 mb-1">
         <OverlappingAvatars 
           avatars={DEMO_AVATARS} 
           count={mutualCount}
-          label={mutualCount > 1 ? `${mutualName} +${mutualCount - 1}` : mutualName}
+          label=""
+          type="mutual"
         />
       </div>
 
@@ -269,12 +274,13 @@ const CompanyCard: React.FC<{
         )}
       </Link>
       
-      {/* Mitarbeiter */}
-      <div className="flex-1 flex items-center justify-center mt-1">
+      {/* Mitarbeiter - fixed position */}
+      <div className="flex items-center justify-center mt-1 mb-1">
         <OverlappingAvatars 
           avatars={DEMO_AVATARS} 
           count={employeeCount}
           label={`${employeeCount} Mitarbeiter`}
+          type="employees"
         />
       </div>
 
@@ -298,35 +304,57 @@ const CompanyCard: React.FC<{
   );
 };
 
-// Post Card für Slider
+// Post Card für Slider mit Like-Funktion
 const PostCardSlider: React.FC<{ 
   post: Post; 
-  author?: { name: string; avatar_url: string | null } 
-}> = ({ post, author }) => (
-  <div className="min-w-[280px] max-w-[280px] h-[200px] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col">
-    <div className="flex items-center gap-2 mb-2">
-      <Avatar className="h-8 w-8">
-        <AvatarImage src={author?.avatar_url ?? undefined} />
-        <AvatarFallback className="text-xs">{(author?.name || 'U').slice(0, 2).toUpperCase()}</AvatarFallback>
-      </Avatar>
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-xs text-gray-900 truncate">{author?.name || 'Unbekannt'}</p>
-        <p className="text-[10px] text-gray-500">
-          {new Date(post.created_at).toLocaleDateString('de-DE')}
-        </p>
+  author?: { name: string; avatar_url: string | null };
+  onLike?: (postId: string) => void;
+  isLiked?: boolean;
+}> = ({ post, author, onLike, isLiked = false }) => {
+  const [liked, setLiked] = React.useState(isLiked);
+  const [likesCount, setLikesCount] = React.useState(post.likes_count || 0);
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLiked(!liked);
+    setLikesCount(prev => liked ? prev - 1 : prev + 1);
+    onLike?.(post.id);
+  };
+
+  return (
+    <Link to={`/community`} className="block">
+      <div className="min-w-[280px] max-w-[280px] h-[200px] bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col">
+        <div className="flex items-center gap-2 mb-2">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={author?.avatar_url ?? undefined} />
+            <AvatarFallback className="text-xs">{(author?.name || 'U').slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-xs text-gray-900 truncate">{author?.name || 'Unbekannt'}</p>
+            <p className="text-[10px] text-gray-500">
+              {new Date(post.created_at).toLocaleDateString('de-DE')}
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-700 line-clamp-4 flex-1 leading-relaxed">{post.content}</p>
+        <div className="flex items-center gap-4 mt-2 pt-2 border-t border-gray-50 text-xs">
+          <button 
+            onClick={handleLike}
+            className={cn(
+              "flex items-center gap-1 transition-colors active:scale-95",
+              liked ? "text-red-500" : "text-gray-500"
+            )}
+          >
+            <Heart className={cn("h-3.5 w-3.5", liked && "fill-current")} /> {likesCount}
+          </button>
+          <span className="flex items-center gap-1 text-gray-500">
+            <MessageCircle className="h-3.5 w-3.5" /> {post.comments_count || 0}
+          </span>
+        </div>
       </div>
-    </div>
-    <p className="text-sm text-gray-700 line-clamp-4 flex-1 leading-relaxed">{post.content}</p>
-    <div className="flex items-center gap-4 mt-2 pt-2 border-t border-gray-50 text-xs text-gray-500">
-      <span className="flex items-center gap-1">
-        <Heart className="h-3.5 w-3.5" /> {post.likes_count || 0}
-      </span>
-      <span className="flex items-center gap-1">
-        <MessageCircle className="h-3.5 w-3.5" /> {post.comments_count || 0}
-      </span>
-    </div>
-  </div>
-);
+    </Link>
+  );
+};
 
 // Job Card
 const JobCard: React.FC<{ job: Job; companyName?: string; companyLogo?: string | null }> = ({ 
@@ -396,17 +424,47 @@ export default function MarketplaceMobile() {
     },
   });
 
-  // Fetch Posts
+  // Fetch Posts with likes and comments count
   const postsQuery = useQuery<Post[]>({
     queryKey: ['mp-posts-mobile'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: postsData, error } = await supabase
         .from('posts')
         .select('id, content, image_url, user_id, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
-      if (error) return [];
-      return (data || []) as Post[];
+      
+      if (error || !postsData) return [];
+
+      const postIds = postsData.map(p => p.id);
+      
+      // Get likes count
+      const { data: likesData } = await supabase
+        .from('post_likes')
+        .select('post_id')
+        .in('post_id', postIds);
+      
+      // Get comments count
+      const { data: commentsData } = await supabase
+        .from('post_comments')
+        .select('post_id')
+        .in('post_id', postIds);
+
+      const likesMap: Record<string, number> = {};
+      const commentsMap: Record<string, number> = {};
+      
+      (likesData || []).forEach((l: any) => {
+        likesMap[l.post_id] = (likesMap[l.post_id] || 0) + 1;
+      });
+      (commentsData || []).forEach((c: any) => {
+        commentsMap[c.post_id] = (commentsMap[c.post_id] || 0) + 1;
+      });
+
+      return postsData.map(p => ({
+        ...p,
+        likes_count: likesMap[p.id] || 0,
+        comments_count: commentsMap[p.id] || 0,
+      })) as Post[];
     },
   });
 
