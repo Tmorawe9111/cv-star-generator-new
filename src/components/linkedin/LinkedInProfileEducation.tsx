@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { GraduationCap, Plus, Edit3, Trash2, MapPin, Calendar } from 'lucide-react';
+import { GraduationCap, Plus, Edit3, Trash2, MapPin, Calendar, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { capitalizeFirst, capitalizeWords, capitalizeSentences } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-// Dialog removed for inline editing
+import { SchoolAutocomplete } from '@/components/shared/SchoolAutocomplete';
 
 interface Education {
   schulform: string;
@@ -18,6 +18,8 @@ interface Education {
   zeitraum_von: string;
   zeitraum_bis: string;
   beschreibung?: string;
+  linked_school_id?: string | null;
+  abschlussjahr?: string;
 }
 
 type EducationFormProps = {
@@ -54,25 +56,57 @@ const EducationForm: React.FC<EducationFormProps> = React.memo(({ formData, setF
           </Select>
         </div>
         <div>
-          <Label htmlFor="name">Institution</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="z.B. Max-Mustermann-Gymnasium"
-            className="text-sm w-full"
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="sm:col-span-2">
           <Label htmlFor="ort">Ort</Label>
           <Input
             id="ort"
             value={formData.ort}
             onChange={(e) => setFormData({ ...formData, ort: e.target.value })}
             placeholder="z.B. München"
+            className="text-sm w-full"
+          />
+          <p className="text-xs text-muted-foreground mt-1">Zuerst Ort eingeben für bessere Vorschläge</p>
+        </div>
+        <div>
+          <Label htmlFor="name">Institution</Label>
+          <SchoolAutocomplete
+            value={formData.name}
+            onChange={(value) => setFormData({ ...formData, name: value })}
+            onSchoolSelect={(school) => {
+              if (school) {
+                setFormData({ 
+                  ...formData, 
+                  name: school.name,
+                  linked_school_id: school.id,
+                  ort: school.city || formData.ort
+                });
+              } else {
+                setFormData({ ...formData, linked_school_id: null });
+              }
+            }}
+            location={formData.ort}
+            placeholder="z.B. Max-Mustermann-Gymnasium"
+            className="text-sm w-full"
+          />
+          {formData.linked_school_id && (
+            <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+              <Check className="h-3 w-3" />
+              Mit registrierter Schule verknüpft
+            </p>
+          )}
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="sm:col-span-1">
+          <Label htmlFor="abschlussjahr">Abschlussjahr</Label>
+          <Input
+            id="abschlussjahr"
+            value={formData.abschlussjahr || ''}
+            onChange={(e) => setFormData({ ...formData, abschlussjahr: e.target.value })}
+            placeholder="z.B. 2024"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={4}
             className="text-sm w-full"
           />
         </div>
