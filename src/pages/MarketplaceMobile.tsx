@@ -262,32 +262,30 @@ export default function MarketplaceMobile() {
   const postsScrollRef = useRef<HTMLDivElement>(null);
   const [postIndex, setPostIndex] = React.useState(0);
 
-  // Fetch People (Users) - using RPC for public access
+  // Fetch People (Users)
   const peopleQuery = useQuery<Person[]>({
     queryKey: ['mp-people-mobile'],
     queryFn: async () => {
-      // Try RPC first (bypasses RLS)
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_public_profiles', {
-        limit_count: 20
-      });
+      console.log('🔍 Fetching profiles...');
       
-      if (!rpcError && rpcData && rpcData.length > 0) {
-        return rpcData as Person[];
-      }
-      
-      // Fallback to direct query
+      // Direct query without RLS filter
       const { data, error } = await supabase
         .from('profiles')
         .select('id, vorname, nachname, avatar_url, bio, wunschberuf')
-        .not('vorname', 'is', null)
         .order('created_at', { ascending: false })
         .limit(20);
       
+      console.log('📊 Profiles result:', { data, error, count: data?.length });
+      
       if (error) {
-        console.error('Error fetching profiles:', error);
+        console.error('❌ Error fetching profiles:', error);
         return [];
       }
-      return (data || []) as Person[];
+      
+      // Filter out profiles without names client-side
+      const filtered = (data || []).filter(p => p.vorname || p.nachname);
+      console.log('✅ Filtered profiles:', filtered.length);
+      return filtered as Person[];
     },
   });
 
