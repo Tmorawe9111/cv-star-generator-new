@@ -17,6 +17,8 @@ import { toast } from '@/hooks/use-toast';
 import { useFollowCompany } from '@/hooks/useFollowCompany';
 import { openSearchMode } from '@/lib/event-bus';
 import { Input } from '@/components/ui/input';
+import { useIsMobile } from '@/hooks/use-mobile';
+import MarketplaceMobile from './MarketplaceMobile';
 
 // Simple types for the new sections
  type Person = { id: string; vorname?: string | null; nachname?: string | null; avatar_url?: string | null };
@@ -43,6 +45,17 @@ const CompanyListItem: React.FC<{ c: Company }> = ({ c }) => {
 };
 
 export default function Marketplace() {
+  const isMobile = useIsMobile();
+  
+  // Show stunning mobile design on mobile devices
+  if (isMobile) {
+    return <MarketplaceMobile />;
+  }
+
+  return <MarketplaceDesktop />;
+}
+
+function MarketplaceDesktop() {
   const [q, setQ] = React.useState('');
   const [appliedQ, setAppliedQ] = React.useState('');
   const [openComposer, setOpenComposer] = React.useState(false);
