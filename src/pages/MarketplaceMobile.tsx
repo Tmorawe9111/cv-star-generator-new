@@ -65,6 +65,8 @@ type Job = {
   company_id: string;
   location?: string | null;
   employment_type?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
 };
 
 // Section Header - Einheitlich (fixed height)
@@ -457,7 +459,7 @@ const JobCard: React.FC<{
     )}>
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       
-      <Link to={`/stelle/${job.id}`} className="flex flex-col relative z-10">
+      <Link to={`/stelle/${job.id}`} className="flex flex-col relative z-10 flex-1">
         <div className="flex items-center gap-2 mb-2">
           <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center overflow-hidden shadow-md ring-1 ring-black/5 shrink-0">
             {companyLogo ? (
@@ -468,17 +470,32 @@ const JobCard: React.FC<{
           </div>
           <p className="text-[10px] text-gray-600 truncate flex-1">{companyName || 'Unternehmen'}</p>
         </div>
-        <p className="font-semibold text-[13px] text-gray-900 line-clamp-2 leading-tight mb-1">{job.title}</p>
-        {job.location && (
-          <p className="text-[10px] text-gray-500 flex items-center gap-0.5">
-            <MapPin className="h-2.5 w-2.5" /> {job.location}
+        <p className="font-semibold text-[13px] text-gray-900 line-clamp-2 leading-tight mb-2">{job.title}</p>
+        
+        {/* Standort & Details - aligned */}
+        <div className="space-y-1 mt-auto">
+          <p className="text-[10px] text-gray-500 flex items-center gap-1">
+            <MapPin className="h-2.5 w-2.5 shrink-0" /> 
+            <span className="truncate">{job.location || 'Flexibel'}</span>
           </p>
-        )}
-        {job.employment_type && (
-          <span className="mt-1 inline-block text-[9px] bg-black/5 text-gray-600 px-2 py-0.5 rounded-full w-fit">
-            {job.employment_type}
-          </span>
-        )}
+          <div className="flex items-center gap-2">
+            {job.employment_type && (
+              <span className="text-[9px] bg-black/5 text-gray-600 px-2 py-0.5 rounded-full">
+                {job.employment_type}
+              </span>
+            )}
+            {(job.salary_min || job.salary_max) && (
+              <span className="text-[9px] bg-green-500/10 text-green-700 px-2 py-0.5 rounded-full">
+                {job.salary_min && job.salary_max 
+                  ? `${Math.round(job.salary_min/1000)}k - ${Math.round(job.salary_max/1000)}k €`
+                  : job.salary_max 
+                    ? `bis ${Math.round(job.salary_max/1000)}k €`
+                    : `ab ${Math.round(job.salary_min!/1000)}k €`
+                }
+              </span>
+            )}
+          </div>
+        </div>
       </Link>
       
       {/* Bewerben Button */}
@@ -497,12 +514,12 @@ const JobCard: React.FC<{
 
 // Dummy Jobs für Demo
 const DUMMY_JOBS: Job[] = [
-  { id: 'demo-1', title: 'Frontend Developer (React)', company_id: 'demo', location: 'Berlin', employment_type: 'Vollzeit' },
-  { id: 'demo-2', title: 'UX/UI Designer', company_id: 'demo', location: 'München', employment_type: 'Vollzeit' },
-  { id: 'demo-3', title: 'Product Manager', company_id: 'demo', location: 'Hamburg', employment_type: 'Vollzeit' },
-  { id: 'demo-4', title: 'Backend Engineer (Node.js)', company_id: 'demo', location: 'Remote', employment_type: 'Vollzeit' },
-  { id: 'demo-5', title: 'Marketing Manager', company_id: 'demo', location: 'Frankfurt', employment_type: 'Teilzeit' },
-  { id: 'demo-6', title: 'Data Analyst', company_id: 'demo', location: 'Köln', employment_type: 'Vollzeit' },
+  { id: 'demo-1', title: 'Frontend Developer (React)', company_id: 'demo', location: 'Berlin', employment_type: 'Vollzeit', salary_min: 55000, salary_max: 75000 },
+  { id: 'demo-2', title: 'UX/UI Designer', company_id: 'demo', location: 'München', employment_type: 'Vollzeit', salary_min: 50000, salary_max: 70000 },
+  { id: 'demo-3', title: 'Product Manager', company_id: 'demo', location: 'Hamburg', employment_type: 'Vollzeit', salary_min: 65000, salary_max: 90000 },
+  { id: 'demo-4', title: 'Backend Engineer (Node.js)', company_id: 'demo', location: 'Remote', employment_type: 'Vollzeit', salary_min: 60000, salary_max: 85000 },
+  { id: 'demo-5', title: 'Marketing Manager', company_id: 'demo', location: 'Frankfurt', employment_type: 'Teilzeit', salary_min: 40000, salary_max: 55000 },
+  { id: 'demo-6', title: 'Data Analyst', company_id: 'demo', location: 'Köln', employment_type: 'Vollzeit', salary_min: 48000, salary_max: 65000 },
 ];
 
 
@@ -613,7 +630,7 @@ export default function MarketplaceMobile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('job_posts')
-        .select('id, title, company_id, location, employment_type')
+        .select('id, title, company_id, location, employment_type, salary_min, salary_max')
         .eq('status', 'active')
         .limit(20);
       if (error) return [];
