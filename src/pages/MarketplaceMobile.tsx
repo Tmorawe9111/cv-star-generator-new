@@ -73,7 +73,7 @@ const SectionHeader: React.FC<{
   </div>
 );
 
-// Card für "Für dich" (Person oder Unternehmen) - gleiche Größe wie andere Cards
+// Card für "Für dich" - Apple/Instagram Style
 const ForYouCard: React.FC<{ 
   item: Person | Company; 
   type: 'person' | 'company';
@@ -94,57 +94,78 @@ const ForYouCard: React.FC<{
   const imageUrl = isPerson ? person.avatar_url : company.logo_url;
   const linkTo = isPerson ? `/u/${person.id}` : `/companies/${company.id}`;
   
-  // Verschiedene Zahlen basierend auf Index
   const mutualCount = [3, 7, 2, 5, 4, 8, 6, 9, 1, 11][index % 10];
 
+  // Gradient colors
+  const gradients = [
+    'from-amber-500/10 via-orange-500/5 to-red-500/10',
+    'from-emerald-500/10 via-teal-500/5 to-cyan-500/10',
+    'from-violet-500/10 via-purple-500/5 to-pink-500/10',
+    'from-blue-500/10 via-indigo-500/5 to-violet-500/10',
+    'from-rose-500/10 via-pink-500/5 to-fuchsia-500/10',
+  ];
+  const gradient = gradients[index % 5];
+
   return (
-    <div className="min-w-[160px] w-[160px] h-[240px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
-      <Link to={linkTo} className="flex flex-col items-center">
+    <div className={cn(
+      "min-w-[156px] w-[156px] h-[220px] rounded-[20px] p-3 flex flex-col relative overflow-hidden",
+      "bg-gradient-to-br", gradient,
+      "border border-white/60 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.1)]",
+      "backdrop-blur-sm transition-all duration-300 active:scale-[0.98]"
+    )}>
+      {/* Shine effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      
+      <Link to={linkTo} className="flex flex-col items-center relative z-10">
         {isPerson ? (
-          <Avatar className="h-12 w-12 mb-1.5">
-            <AvatarImage src={imageUrl ?? undefined} className="object-cover" />
-            <AvatarFallback className="text-base font-semibold bg-gradient-to-br from-blue-50 to-purple-50">
-              {name.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative mb-2">
+            <div className="absolute -inset-1 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-20 blur-sm" />
+            <Avatar className="h-14 w-14 ring-2 ring-white shadow-lg">
+              <AvatarImage src={imageUrl ?? undefined} className="object-cover" />
+              <AvatarFallback className="text-lg font-bold bg-gradient-to-br from-blue-100 to-purple-100 text-gray-700">
+                {name.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         ) : (
-          <div className="h-12 w-12 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-1.5">
-            {imageUrl ? (
-              <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
-            ) : (
-              <Building2 className="h-6 w-6 text-gray-400" />
-            )}
+          <div className="relative mb-2">
+            <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center overflow-hidden shadow-lg ring-1 ring-black/5">
+              {imageUrl ? (
+                <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
+              ) : (
+                <Building2 className="h-7 w-7 text-gray-400" />
+              )}
+            </div>
           </div>
         )}
-        <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{name}</p>
-        {/* Branche & Standort */}
-        <p className="text-[10px] text-gray-500 truncate w-full text-center">{branche}</p>
-        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5">
+        <p className="font-semibold text-[13px] text-gray-900 truncate w-full text-center leading-tight">{name}</p>
+        <p className="text-[10px] text-gray-600 truncate w-full text-center mt-0.5">{branche}</p>
+        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5 mt-0.5">
           <MapPin className="h-2.5 w-2.5" /> {stadt}
         </p>
       </Link>
       
       {/* Gemeinsame Kontakte / Mitarbeiter */}
-      <div className="flex items-center justify-center mt-2">
+      <div className="flex items-center justify-center mt-auto mb-2 relative z-10">
         <OverlappingAvatars 
           avatars={DEMO_AVATARS} 
           count={mutualCount}
-          label={`${mutualCount} Mitarbeiter`}
+          label={isPerson ? '' : `${mutualCount} Mitarbeiter`}
           type={isPerson ? 'mutual' : 'employees'}
         />
       </div>
 
-      {/* Button - immer unten */}
-      <div className="mt-auto pt-2">
+      {/* Button */}
+      <div className="relative z-10">
         <Button 
           size="sm" 
           onClick={onAction}
           disabled={actionDone}
           className={cn(
-            "w-full h-8 text-xs rounded-xl font-medium",
+            "w-full h-9 text-xs rounded-full font-semibold shadow-lg active:scale-95 transition-all",
             actionDone 
-              ? "bg-gray-100 text-gray-500" 
-              : "bg-blue-500 hover:bg-blue-600 text-white"
+              ? "bg-gray-100/80 text-gray-500 shadow-none" 
+              : "bg-black hover:bg-gray-800 text-white shadow-black/20"
           )}
         >
           {actionDone ? '✓' : actionLabel}
@@ -188,7 +209,7 @@ const OverlappingAvatars: React.FC<{
   </div>
 );
 
-// Neue Person Card mit gemeinsamen Kontakten
+// Neue Person Card - Apple/Instagram Style
 const PersonCard: React.FC<{ 
   person: Person; 
   onConnect: () => void; 
@@ -199,53 +220,68 @@ const PersonCard: React.FC<{
   const isConnected = status === 'accepted';
   const isPending = status === 'pending';
   
-  // Verschiedene Zahlen basierend auf Index
   const mutualCounts = [4, 2, 6, 3, 8, 5, 1, 7, 9, 3];
   const mutualCount = mutualCounts[index % 10];
 
+  // Gradient colors based on index for variety
+  const gradients = [
+    'from-violet-500/10 via-purple-500/5 to-fuchsia-500/10',
+    'from-blue-500/10 via-cyan-500/5 to-teal-500/10',
+    'from-rose-500/10 via-pink-500/5 to-red-500/10',
+    'from-amber-500/10 via-orange-500/5 to-yellow-500/10',
+    'from-emerald-500/10 via-green-500/5 to-lime-500/10',
+  ];
+  const gradient = gradients[index % 5];
+
   return (
-    <div className="min-w-[160px] w-[160px] h-[240px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
-      <Link to={`/u/${person.id}`} className="flex flex-col items-center">
-        <Avatar className="h-12 w-12 mb-1.5">
-          <AvatarImage src={person.avatar_url ?? undefined} className="object-cover" />
-          <AvatarFallback className="text-base font-semibold bg-gradient-to-br from-blue-50 to-purple-50">
-            {name.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{name}</p>
-        {/* Branche & Standort */}
-        <p className="text-[10px] text-gray-500 truncate w-full text-center">{person.branche}</p>
-        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5">
+    <div className={cn(
+      "min-w-[156px] w-[156px] h-[220px] rounded-[20px] p-3 flex flex-col relative overflow-hidden",
+      "bg-gradient-to-br", gradient,
+      "border border-white/60 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.1)]",
+      "backdrop-blur-sm transition-all duration-300 active:scale-[0.98]"
+    )}>
+      {/* Subtle shine effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      
+      <Link to={`/u/${person.id}`} className="flex flex-col items-center relative z-10">
+        {/* Avatar with ring */}
+        <div className="relative mb-2">
+          <div className="absolute -inset-1 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-20 blur-sm" />
+          <Avatar className="h-14 w-14 ring-2 ring-white shadow-lg">
+            <AvatarImage src={person.avatar_url ?? undefined} className="object-cover" />
+            <AvatarFallback className="text-lg font-bold bg-gradient-to-br from-blue-100 to-purple-100 text-gray-700">
+              {name.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+        <p className="font-semibold text-[13px] text-gray-900 truncate w-full text-center leading-tight">{name}</p>
+        <p className="text-[10px] text-gray-600 truncate w-full text-center mt-0.5">{person.branche}</p>
+        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5 mt-0.5">
           <MapPin className="h-2.5 w-2.5" /> {person.stadt}
         </p>
       </Link>
       
       {/* Gemeinsame Kontakte */}
-      <div className="flex items-center justify-center mt-2">
-        <OverlappingAvatars 
-          avatars={DEMO_AVATARS} 
-          count={mutualCount}
-          label=""
-          type="mutual"
-        />
+      <div className="flex items-center justify-center mt-auto mb-2 relative z-10">
+        <OverlappingAvatars avatars={DEMO_AVATARS} count={mutualCount} label="" type="mutual" />
       </div>
 
-      {/* Button - immer unten */}
-      <div className="mt-auto pt-2">
+      {/* Button */}
+      <div className="relative z-10">
         {!isConnected && !isPending ? (
           <Button 
             size="sm" 
             onClick={onConnect}
-            className="w-full h-8 text-xs rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-medium"
+            className="w-full h-9 text-xs rounded-full bg-black hover:bg-gray-800 text-white font-semibold shadow-lg shadow-black/20 active:scale-95 transition-all"
           >
-            <UserPlus className="h-3 w-3 mr-1" /> Vernetzen
+            Vernetzen
           </Button>
         ) : (
           <Button 
             size="sm" 
             variant="secondary"
             disabled
-            className="w-full h-8 text-xs rounded-xl bg-gray-100 text-gray-500"
+            className="w-full h-9 text-xs rounded-full bg-gray-100/80 text-gray-500 font-medium"
           >
             {isPending ? 'Angefragt' : 'Vernetzt ✓'}
           </Button>
@@ -255,56 +291,70 @@ const PersonCard: React.FC<{
   );
 };
 
-// Neue Company Card mit Mitarbeitern
+// Neue Company Card - Apple/Instagram Style
 const CompanyCard: React.FC<{ 
   company: Company;
   index?: number;
 }> = ({ company, index = 0 }) => {
   const { isFollowing, toggleFollow, loading } = useFollowCompany(company.id);
   
-  // Verschiedene Mitarbeiterzahlen basierend auf Index
   const employeeCounts = [24, 8, 156, 42, 15, 67, 5, 89, 31, 12];
   const employeeCount = employeeCounts[index % 10];
+
+  // Gradient colors based on index
+  const gradients = [
+    'from-blue-500/10 via-indigo-500/5 to-violet-500/10',
+    'from-teal-500/10 via-emerald-500/5 to-green-500/10',
+    'from-orange-500/10 via-amber-500/5 to-yellow-500/10',
+    'from-pink-500/10 via-rose-500/5 to-red-500/10',
+    'from-cyan-500/10 via-sky-500/5 to-blue-500/10',
+  ];
+  const gradient = gradients[index % 5];
   
   return (
-    <div className="min-w-[160px] w-[160px] h-[240px] bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col">
-      <Link to={`/companies/${company.id}`} className="flex flex-col items-center">
-        <div className="h-12 w-12 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-1.5">
-          {company.logo_url ? (
-            <img src={company.logo_url} alt={company.name} className="h-full w-full object-cover" />
-          ) : (
-            <Building2 className="h-6 w-6 text-gray-400" />
-          )}
+    <div className={cn(
+      "min-w-[156px] w-[156px] h-[220px] rounded-[20px] p-3 flex flex-col relative overflow-hidden",
+      "bg-gradient-to-br", gradient,
+      "border border-white/60 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.1)]",
+      "backdrop-blur-sm transition-all duration-300 active:scale-[0.98]"
+    )}>
+      {/* Subtle shine effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      
+      <Link to={`/companies/${company.id}`} className="flex flex-col items-center relative z-10">
+        {/* Logo with shadow */}
+        <div className="relative mb-2">
+          <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center overflow-hidden shadow-lg ring-1 ring-black/5">
+            {company.logo_url ? (
+              <img src={company.logo_url} alt={company.name} className="h-full w-full object-cover" />
+            ) : (
+              <Building2 className="h-7 w-7 text-gray-400" />
+            )}
+          </div>
         </div>
-        <p className="font-semibold text-sm text-gray-900 truncate w-full text-center">{company.name}</p>
-        {/* Branche & Standort */}
-        <p className="text-[10px] text-gray-500 truncate w-full text-center">{company.industry}</p>
-        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5">
+        <p className="font-semibold text-[13px] text-gray-900 truncate w-full text-center leading-tight">{company.name}</p>
+        <p className="text-[10px] text-gray-600 truncate w-full text-center mt-0.5">{company.industry}</p>
+        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5 mt-0.5">
           <MapPin className="h-2.5 w-2.5" /> {company.city}
         </p>
       </Link>
       
       {/* Mitarbeiter */}
-      <div className="flex items-center justify-center mt-2">
-        <OverlappingAvatars 
-          avatars={DEMO_AVATARS} 
-          count={employeeCount}
-          label={`${employeeCount} Mitarbeiter`}
-          type="employees"
-        />
+      <div className="flex items-center justify-center mt-auto mb-2 relative z-10">
+        <OverlappingAvatars avatars={DEMO_AVATARS} count={employeeCount} label={`${employeeCount} Mitarbeiter`} type="employees" />
       </div>
 
-      {/* Button - immer unten */}
-      <div className="mt-auto pt-2">
+      {/* Button */}
+      <div className="relative z-10">
         <Button 
           size="sm" 
           onClick={toggleFollow}
           disabled={loading}
           className={cn(
-            "w-full h-8 text-xs rounded-xl font-medium",
+            "w-full h-9 text-xs rounded-full font-semibold shadow-lg active:scale-95 transition-all",
             isFollowing 
-              ? "bg-gray-100 hover:bg-gray-200 text-gray-600" 
-              : "bg-blue-500 hover:bg-blue-600 text-white"
+              ? "bg-gray-100/80 text-gray-600 shadow-none" 
+              : "bg-black hover:bg-gray-800 text-white shadow-black/20"
           )}
         >
           {isFollowing ? 'Gefolgt ✓' : 'Folgen'}
