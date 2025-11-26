@@ -39,7 +39,7 @@ export function LocationsManager({ onUpgradeClick }: LocationsManagerProps) {
   const currentPlan = (company?.active_plan_id || company?.plan_type || 'free') as PlanKey;
   const maxLocations = getMaxLocations(currentPlan);
 
-  // Fetch locations
+  // Fetch locations - with fallback from companies table if no locations exist
   const { data: locations = [], isLoading } = useQuery({
     queryKey: ['company-locations', companyId],
     queryFn: async () => {
@@ -54,6 +54,59 @@ export function LocationsManager({ onUpgradeClick }: LocationsManagerProps) {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
+      
+      // If no locations exist, try to create one from company data
+      if (!data || data.length === 0) {
+        // Fetch company data for fallback
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('street, house_number, postal_code, city, location')
+          .eq('id', companyId)
+          .single();
+        
+        if (companyData && (companyData.city || companyData.location)) {
+          // Get coordinates from postal_codes table
+          let lat: number | null = null;
+          let lon: number | null = null;
+          
+          if (companyData.postal_code) {
+            const { data: plzData } = await supabase
+              .from('postal_codes')
+              .select('lat, lon')
+              .eq('plz', companyData.postal_code)
+              .single();
+            
+            if (plzData) {
+              lat = plzData.lat;
+              lon = plzData.lon;
+            }
+          }
+          
+          // Create the primary location from company data
+          const { data: newLocation, error: insertError } = await supabase
+            .from('company_locations')
+            .insert({
+              company_id: companyId,
+              name: 'Hauptstandort',
+              street: companyData.street || null,
+              house_number: companyData.house_number || null,
+              postal_code: companyData.postal_code || '',
+              city: companyData.city || companyData.location || '',
+              country: 'Deutschland',
+              is_primary: true,
+              is_active: true,
+              lat,
+              lon,
+            })
+            .select()
+            .single();
+          
+          if (!insertError && newLocation) {
+            return [newLocation] as CompanyLocation[];
+          }
+        }
+      }
+      
       return (data || []) as CompanyLocation[];
     },
     enabled: !!companyId,
