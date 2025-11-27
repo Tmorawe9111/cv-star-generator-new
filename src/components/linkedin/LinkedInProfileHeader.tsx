@@ -34,6 +34,15 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const isOwner = user?.id === profile?.id;
 
+  // Format branch name (capitalize + expand abbreviations)
+  const formatBranche = (branche: string) => {
+    if (!branche) return '';
+    // Expand common abbreviations
+    if (branche.toLowerCase() === 'it') return 'Informationstechnik';
+    // Capitalize first letter
+    return branche.charAt(0).toUpperCase() + branche.slice(1);
+  };
+
   // Get the status label and info line based on user status
   const getProfileInfo = (p: any) => {
     if (!p) return { statusLine: '', location: '' };
@@ -55,7 +64,7 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
     switch (p.status) {
       case 'schueler':
         // Schüler: "Schüler • Interessiert an [Branche]"
-        const schuelerBranche = branche ? branche.charAt(0).toUpperCase() + branche.slice(1) : '';
+        const schuelerBranche = formatBranche(branche);
         return {
           statusLine: schuelerBranche ? `Schüler • Interessiert an ${schuelerBranche}` : 'Schüler',
           location: ort
@@ -64,7 +73,7 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
       case 'azubi':
         // "Ausbildung bei [Firma] • [Branche]"
         const azubiFirma = currentJob?.unternehmen || p.ausbildungsbetrieb || '';
-        const azubiBranche = branche ? branche.charAt(0).toUpperCase() + branche.slice(1) : '';
+        const azubiBranche = formatBranche(branche);
         if (azubiFirma && azubiBranche) {
           return {
             statusLine: `Ausbildung bei ${azubiFirma} • ${azubiBranche}`,
@@ -90,7 +99,7 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
         // Fachkraft: "[Position] bei [Firma] • [Branche]"
         const position = currentJob?.position || currentJob?.titel || p.aktueller_beruf || '';
         const firma = currentJob?.unternehmen || '';
-        const fachkraftBranche = branche ? branche.charAt(0).toUpperCase() + branche.slice(1) : '';
+        const fachkraftBranche = formatBranche(branche);
         
         if (position && firma && fachkraftBranche) {
           return {
@@ -129,9 +138,8 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
         };
         
       default:
-        const defaultBranche = branche ? branche.charAt(0).toUpperCase() + branche.slice(1) : '';
         return {
-          statusLine: defaultBranche || '',
+          statusLine: formatBranche(branche) || '',
           location: ort
         };
     }
