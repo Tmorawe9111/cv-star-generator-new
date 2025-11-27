@@ -194,23 +194,22 @@ export default function CommunityMessages() {
       }
     };
     
+    // Fixed layout: Header at top, Composer above bottom bar, Messages fill the rest
     return (
-      <div 
-        className="min-h-screen bg-background flex flex-col"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
-        {/* Chat Header - Current conversation info */}
-        <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="fixed inset-0 bg-background flex flex-col" style={{ top: '48px', bottom: '64px' }}>
+        {/* Chat Header */}
+        <div 
+          className="shrink-0 border-b bg-background"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
           <div className="flex items-center gap-3 px-3 py-2">
-            {/* Back to all messages */}
             <Button variant="ghost" size="sm" onClick={closeChat} className="h-9 px-2 gap-1 text-primary -ml-1">
               <ArrowLeft className="h-5 w-5" />
               <span className="text-sm font-medium">Alle</span>
             </Button>
             
-            {/* Current Chat Avatar & Name */}
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Avatar className="h-9 w-9 shrink-0">
                 <AvatarImage src={selected?.otherUser?.avatar_url} alt={name} />
@@ -222,7 +221,6 @@ export default function CommunityMessages() {
               </div>
             </div>
             
-            {/* Quick Switch to other chats */}
             {recentChats.length > 0 && (
               <div className="flex items-center gap-0.5 shrink-0">
                 {recentChats.slice(0, 3).map((c) => {
@@ -248,8 +246,8 @@ export default function CommunityMessages() {
           </div>
         </div>
 
-        {/* Messages */}
-        <div ref={listRef} className="flex-1 overflow-auto px-3 pt-2 pb-4 space-y-1 bg-background">
+        {/* Messages - scrollable area */}
+        <div ref={listRef} className="flex-1 overflow-y-auto px-3 pt-1 pb-2 space-y-1">
           {messages.map((m, idx) => {
             const prev = messages[idx - 1];
             const showDay = !prev || !isSameDay(m.created_at, prev?.created_at);
@@ -259,7 +257,7 @@ export default function CommunityMessages() {
             return (
               <React.Fragment key={m.id}>
                 {showDay && (
-                  <div className="flex justify-center py-4">
+                  <div className="flex justify-center py-3">
                     <span className="text-xs text-muted-foreground font-medium">
                       {getDayLabel(m.created_at)}
                     </span>
@@ -280,7 +278,7 @@ export default function CommunityMessages() {
                   </div>
                 </div>
                 {isLastInGroup && (
-                  <div className={`text-[11px] text-muted-foreground mb-3 ${isSelf ? 'text-right pr-2' : 'text-left pl-2'}`}>
+                  <div className={`text-[11px] text-muted-foreground mb-2 ${isSelf ? 'text-right pr-2' : 'text-left pl-2'}`}>
                     {formatTime(m.created_at)}
                   </div>
                 )}
@@ -299,10 +297,10 @@ export default function CommunityMessages() {
           )}
         </div>
 
-        {/* Composer - iMessage Style, above bottom bar */}
-        <div className="sticky bottom-0 border-t bg-background px-3 py-2 pb-[calc(env(safe-area-inset-bottom)+70px)]">
+        {/* Composer - fixed at bottom, always visible */}
+        <div className="shrink-0 border-t bg-background px-3 py-2">
           <div className="flex items-end gap-2">
-            <div className="flex-1 relative">
+            <div className="flex-1">
               <input
                 ref={inputRef}
                 type="text"
