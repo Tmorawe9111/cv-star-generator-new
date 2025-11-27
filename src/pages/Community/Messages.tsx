@@ -3,35 +3,47 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
 import { useMessaging } from "@/hooks/useMessaging";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { NewMessageSearch } from "@/components/community/NewMessageSearch";
 import { useSearchParams } from "react-router-dom";
+import { ArrowLeft, Send, MoreHorizontal, Phone, Video } from "lucide-react";
+
+const formatTime = (iso?: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+};
 
 const formatDate = (iso?: string | null) => {
   if (!iso) return "";
   const d = new Date(iso);
   const now = new Date();
-  const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString("de-DE", { day: "2-digit", month: sameYear ? "short" : "2-digit" });
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return formatTime(iso);
+  if (diffDays === 1) return "Gestern";
+  if (diffDays < 7) return d.toLocaleDateString("de-DE", { weekday: "short" });
+  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
 };
+
 const isSameDay = (a?: string | null, b?: string | null) => {
   if (!a || !b) return false;
   const da = new Date(a), db = new Date(b);
   return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
 };
-const weekdayLabel = (iso?: string | null) => {
+
+const getDayLabel = (iso?: string | null) => {
   if (!iso) return "";
   const d = new Date(iso);
-  return d.toLocaleDateString("de-DE", { weekday: "long" }).toUpperCase();
-};
-const formatDateTime = (iso?: string | null) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return "Heute";
+  if (diffDays === 1) return "Gestern";
+  return d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
 };
 
 export default function CommunityMessages() {
@@ -45,50 +57,38 @@ export default function CommunityMessages() {
   const [loading, setLoading] = React.useState(true);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [isNewMessageOpen, setIsNewMessageOpen] = React.useState(false);
+  const [showChat, setShowChat] = React.useState(false);
   const selected = React.useMemo(() => items.find((c) => c.id === selectedId) || null, [items, selectedId]);
 
-  // Listen for new message event from TopNavBar
   React.useEffect(() => {
-    const handleOpenNewMessage = () => {
-      setIsNewMessageOpen(true);
-    };
-    
-    if (typeof window !== 'undefined') {
-      window.addEventListener('open-new-message', handleOpenNewMessage as EventListener);
-      return () => {
-        window.removeEventListener('open-new-message', handleOpenNewMessage as EventListener);
-      };
-    }
+    const handleOpenNewMessage = () => setIsNewMessageOpen(true);
+    window.addEventListener('open-new-message', handleOpenNewMessage as EventListener);
+    return () => window.removeEventListener('open-new-message', handleOpenNewMessage as EventListener);
   }, []);
 
-  // Listen for filter-messages event from TopNavBar
   React.useEffect(() => {
     const handleFilterMessages = (e: Event) => {
       const customEvent = e as CustomEvent;
       setQuery(customEvent.detail || "");
     };
-    
-    if (typeof window !== 'undefined') {
-      window.addEventListener('filter-messages', handleFilterMessages as EventListener);
-      return () => {
-        window.removeEventListener('filter-messages', handleFilterMessages as EventListener);
-      };
-    }
+    window.addEventListener('filter-messages', handleFilterMessages as EventListener);
+    return () => window.removeEventListener('filter-messages', handleFilterMessages as EventListener);
   }, []);
 
-  // Set selected conversation from URL params
   React.useEffect(() => {
     const conversationId = searchParams.get('conversation');
     if (conversationId) {
       setSelectedId(conversationId);
+      if (isMobile) setShowChat(true);
     }
-  }, [searchParams]);
+  }, [searchParams, isMobile]);
 
   type Msg = { id: string; conversation_id: string; sender_id: string; content: string; created_at: string };
   const [messages, setMessages] = React.useState<Msg[]>([]);
   const [composer, setComposer] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const listRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   // Load conversations
   React.useEffect(() => {
@@ -98,11 +98,11 @@ export default function CommunityMessages() {
       const data = await loadConversationsWithLast();
       if (!mounted) return;
       setItems(data);
-      setSelectedId((cur) => cur || data[0]?.id || null);
+      if (!isMobile) setSelectedId((cur) => cur || data[0]?.id || null);
       setLoading(false);
     })();
     return () => { mounted = false; };
-  }, [loadConversationsWithLast]);
+  }, [loadConversationsWithLast, isMobile]);
 
   // Load messages for selected conversation
   React.useEffect(() => {
@@ -117,7 +117,6 @@ export default function CommunityMessages() {
       if (!mounted) return;
       if (error) { setMessages([]); return; }
       setMessages((data || []) as Msg[]);
-      // scroll to bottom
       setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' }), 50);
     })();
     return () => { mounted = false; };
@@ -139,10 +138,8 @@ export default function CommunityMessages() {
       setSending(true);
       await sendMessage(selected.otherUser.id, composer);
       setComposer("");
-      // refresh conversation list and messages
       const updated = await loadConversationsWithLast();
       setItems(updated);
-      // Re-load thread
       const { data } = await supabase
         .from("messages")
         .select("id, conversation_id, sender_id, content, created_at")
@@ -155,187 +152,328 @@ export default function CommunityMessages() {
     }
   };
 
-  // Mobile View
-  if (isMobile) {
-    return (
-      <>
-        {/* New Message Search Modal */}
-        <NewMessageSearch open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen} />
+  const openChat = (id: string) => {
+    setSelectedId(id);
+    if (isMobile) setShowChat(true);
+  };
 
-        <main className="w-full min-h-screen bg-background pb-20">
-          {/* Filter chips - sticky below TopNavBar */}
-          <div className="sticky top-12 z-30 bg-background border-b border-border px-3 py-2 overflow-x-auto scrollbar-hide">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary whitespace-nowrap">Nachrichten</span>
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted whitespace-nowrap">Ungelesen</span>
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted whitespace-nowrap">Meine Kontakte</span>
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted whitespace-nowrap">InMail</span>
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted whitespace-nowrap">Als Favorit markiert</span>
+  const closeChat = () => {
+    setShowChat(false);
+    setSelectedId(null);
+  };
+
+  // Mobile Chat View (iMessage Style)
+  const MobileChatView = () => {
+    const name = [selected?.otherUser?.vorname, selected?.otherUser?.nachname].filter(Boolean).join(" ") || "Unbekannt";
+    
+    return (
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-2 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <Button variant="ghost" size="icon" onClick={closeChat} className="h-9 w-9">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex items-center gap-3 flex-1 min-w-0" onClick={() => {/* Navigate to profile */}}>
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={selected?.otherUser?.avatar_url} alt={name} />
+              <AvatarFallback className="text-sm font-medium">{name.slice(0,2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold truncate">{name}</div>
+              <div className="text-xs text-muted-foreground">Online</div>
             </div>
           </div>
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <Phone className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <Video className="h-5 w-5" />
+          </Button>
+        </div>
 
-          {/* Conversation list - full width on mobile */}
-          <div className="px-0">
-            {loading && <div className="p-3 text-sm text-muted-foreground text-center">Lade…</div>}
-            {!loading && filtered.length === 0 && (
-              <div className="p-3 text-sm text-muted-foreground text-center">Keine Konversationen gefunden.</div>
+        {/* Messages */}
+        <div ref={listRef} className="flex-1 overflow-auto px-3 py-4 space-y-1 bg-background">
+          {messages.map((m, idx) => {
+            const prev = messages[idx - 1];
+            const showDay = !prev || !isSameDay(m.created_at, prev?.created_at);
+            const isSelf = m.sender_id === user?.id;
+            const isLastInGroup = !messages[idx + 1] || messages[idx + 1].sender_id !== m.sender_id || !isSameDay(m.created_at, messages[idx + 1]?.created_at);
+            
+            return (
+              <React.Fragment key={m.id}>
+                {showDay && (
+                  <div className="flex justify-center py-4">
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {getDayLabel(m.created_at)}
+                    </span>
+                  </div>
+                )}
+                <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                  <div 
+                    className={`
+                      max-w-[80%] px-4 py-2 text-[15px] leading-relaxed
+                      ${isSelf 
+                        ? 'bg-primary text-primary-foreground rounded-[20px] rounded-br-md' 
+                        : 'bg-muted rounded-[20px] rounded-bl-md'
+                      }
+                      ${isLastInGroup ? 'mb-2' : 'mb-0.5'}
+                    `}
+                  >
+                    {m.content}
+                  </div>
+                </div>
+                {isLastInGroup && (
+                  <div className={`text-[11px] text-muted-foreground mb-3 ${isSelf ? 'text-right pr-2' : 'text-left pl-2'}`}>
+                    {formatTime(m.created_at)}
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center py-12">
+              <Avatar className="h-20 w-20 mb-4">
+                <AvatarImage src={selected?.otherUser?.avatar_url} alt={name} />
+                <AvatarFallback className="text-2xl font-medium">{name.slice(0,2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="text-lg font-semibold">{name}</div>
+              <div className="text-sm text-muted-foreground mt-1">Starte eine Unterhaltung</div>
+            </div>
+          )}
+        </div>
+
+        {/* Composer - iMessage Style */}
+        <div className="border-t bg-background px-3 py-2 pb-safe">
+          <div className="flex items-end gap-2">
+            <div className="flex-1 relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={composer}
+                onChange={(e) => setComposer(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
+                placeholder="Nachricht"
+                className="w-full px-4 py-2.5 rounded-full bg-muted border-0 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <Button 
+              size="icon" 
+              className="h-10 w-10 rounded-full shrink-0"
+              onClick={onSend} 
+              disabled={!composer.trim() || sending}
+            >
+              <Send className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Mobile Conversation List (Apple Style)
+  if (isMobile) {
+    if (showChat && selected) {
+      return <MobileChatView />;
+    }
+
+    return (
+      <>
+        <NewMessageSearch open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen} />
+        
+        <div className="min-h-screen bg-background">
+          {/* Search Bar */}
+          <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-3 border-b">
+            <Input 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              placeholder="Suchen" 
+              className="bg-muted border-0 rounded-xl h-10"
+            />
+          </div>
+
+          {/* Conversation List */}
+          <div className="divide-y divide-border">
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-sm text-muted-foreground">Lädt...</div>
+              </div>
             )}
+            
+            {!loading && filtered.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 px-4">
+                <div className="text-6xl mb-4">💬</div>
+                <div className="text-lg font-semibold text-center">Keine Nachrichten</div>
+                <div className="text-sm text-muted-foreground text-center mt-1">
+                  Starte eine neue Unterhaltung
+                </div>
+              </div>
+            )}
+            
             {!loading && filtered.map((c) => {
               const name = [c.otherUser?.vorname, c.otherUser?.nachname].filter(Boolean).join(" ") || "Unbekannt";
-              const active = selectedId === c.id;
+              const hasUnread = false; // TODO: Implement unread status
+              
               return (
                 <button 
                   key={c.id} 
-                  className={`w-full text-left px-4 py-3 border-b border-border flex items-start gap-3 ${active ? 'bg-muted' : 'hover:bg-muted/60'}`} 
-                  onClick={() => setSelectedId(c.id)}
+                  className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-muted/60 transition-colors"
+                  onClick={() => openChat(c.id)}
                 >
-                  <Avatar className="h-12 w-12 shrink-0">
-                    <AvatarImage src={c.otherUser?.avatar_url ?? undefined} alt={name} />
-                    <AvatarFallback>{name.slice(0,2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="text-sm font-medium truncate flex-1">{name}</div>
-                      <div className="text-[11px] text-muted-foreground shrink-0">{formatDate(c.lastMessageAt)}</div>
+                  <div className="relative">
+                    <Avatar className="h-14 w-14">
+                      <AvatarImage src={c.otherUser?.avatar_url} alt={name} />
+                      <AvatarFallback className="text-lg font-medium">{name.slice(0,2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    {/* Online indicator */}
+                    <div className="absolute bottom-0 right-0 h-4 w-4 bg-green-500 rounded-full border-2 border-background" />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <span className={`text-base truncate ${hasUnread ? 'font-semibold' : 'font-medium'}`}>
+                        {name}
+                      </span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {formatDate(c.lastMessageAt)}
+                      </span>
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">{c.lastMessage?.content || '—'}</div>
+                    <div className={`text-sm truncate ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                      {c.lastMessage?.content || 'Keine Nachrichten'}
+                    </div>
                   </div>
                 </button>
               );
             })}
           </div>
-        </main>
+        </div>
       </>
     );
   }
 
-  // Desktop View
+  // Desktop View (unchanged but cleaned up)
   return (
     <>
-      {/* New Message Search Modal */}
       <NewMessageSearch open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen} />
 
-      <main className="w-full py-2 sm:py-4 pb-[56px] md:pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)_320px] gap-4">
+      <main className="w-full py-4 pb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)_280px] gap-4">
           {/* Left: Conversation list */}
           <Card className="p-0 overflow-hidden">
-            <div className="p-3 border-b">
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-semibold">Nachrichten</h1>
-                <div className="ml-auto" />
-              </div>
-              {/* Search only on desktop - mobile uses TopNavBar */}
-              <div className="mt-2">
-                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nachrichten durchsuchen" aria-label="Nachrichten durchsuchen" />
-              </div>
-              {/* Filter chips (UI only) */}
-              <div className="mt-2 flex flex-wrap gap-2 text-xs">
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary">Nachrichten</span>
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted">Ungelesen</span>
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted">Meine Kontakte</span>
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted">InMail</span>
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-muted">Als Favorit markiert</span>
+            <div className="p-4 border-b">
+              <h1 className="text-lg font-semibold mb-3">Nachrichten</h1>
+              <Input 
+                value={query} 
+                onChange={(e) => setQuery(e.target.value)} 
+                placeholder="Suchen" 
+                className="bg-muted border-0 rounded-xl"
+              />
             </div>
-          </div>
-          <div className="max-h-[calc(100vh-220px)] lg:max-h-[calc(100vh-200px)] overflow-auto p-2">
-            {loading && <div className="p-3 text-sm text-muted-foreground">Lade…</div>}
-            {!loading && filtered.length === 0 && (
-              <div className="p-3 text-sm text-muted-foreground">Keine Konversationen gefunden.</div>
-            )}
-            {!loading && filtered.map((c) => {
-              const name = [c.otherUser?.vorname, c.otherUser?.nachname].filter(Boolean).join(" ") || "Unbekannt";
-              const active = selectedId === c.id;
-              return (
-                <button key={c.id} className={`w-full text-left px-2 py-2 rounded-lg flex items-start gap-3 ${active ? 'bg-muted' : 'hover:bg-muted/60'}`} onClick={() => setSelectedId(c.id)}>
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={c.otherUser?.avatar_url ?? undefined} alt={name} />
-                    <AvatarFallback>{name.slice(0,2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-medium truncate flex-1">{name}</div>
-                      <div className="text-[11px] text-muted-foreground">{formatDate(c.lastMessageAt)}</div>
+            <div className="max-h-[calc(100vh-200px)] overflow-auto">
+              {loading && <div className="p-4 text-sm text-muted-foreground text-center">Lädt...</div>}
+              {!loading && filtered.length === 0 && (
+                <div className="p-4 text-sm text-muted-foreground text-center">Keine Konversationen</div>
+              )}
+              {!loading && filtered.map((c) => {
+                const name = [c.otherUser?.vorname, c.otherUser?.nachname].filter(Boolean).join(" ") || "Unbekannt";
+                const active = selectedId === c.id;
+                return (
+                  <button 
+                    key={c.id} 
+                    className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${active ? 'bg-primary/10' : 'hover:bg-muted/60'}`} 
+                    onClick={() => setSelectedId(c.id)}
+                  >
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={c.otherUser?.avatar_url} alt={name} />
+                      <AvatarFallback>{name.slice(0,2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <span className="text-sm font-medium truncate">{name}</span>
+                        <span className="text-xs text-muted-foreground">{formatDate(c.lastMessageAt)}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground truncate">{c.lastMessage?.content || '—'}</div>
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">{c.lastMessage?.content || '—'}</div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </Card>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
 
-        {/* Center: Conversation thread */}
-        <Card className="flex flex-col min-h-[60vh]">
-          {!selected ? (
-            <div className="p-6 text-sm text-muted-foreground">Wähle eine Konversation links aus.</div>
-          ) : (
-            <>
-              <div className="p-4 border-b">
-                <div className="flex items-center gap-3">
+          {/* Center: Chat */}
+          <Card className="flex flex-col min-h-[70vh]">
+            {!selected ? (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                Wähle eine Konversation
+              </div>
+            ) : (
+              <>
+                <div className="p-4 border-b flex items-center gap-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={selected.otherUser?.avatar_url ?? undefined} alt="" />
+                    <AvatarImage src={selected.otherUser?.avatar_url} alt="" />
                     <AvatarFallback>{([selected.otherUser?.vorname, selected.otherUser?.nachname].filter(Boolean).join(" ") || 'U').slice(0,2).toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">{[selected.otherUser?.vorname, selected.otherUser?.nachname].filter(Boolean).join(" ") || 'Unbekannt'}</div>
-                    <div className="text-xs text-muted-foreground truncate">Unterhaltung</div>
+                  <div>
+                    <div className="font-semibold">{[selected.otherUser?.vorname, selected.otherUser?.nachname].filter(Boolean).join(" ") || 'Unbekannt'}</div>
+                    <div className="text-xs text-muted-foreground">Online</div>
                   </div>
                 </div>
-              </div>
 
-              <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3 bg-background">
-                {messages.map((m, idx) => {
-                  const prev = messages[idx - 1];
-                  const showDay = !prev || !isSameDay(m.created_at, prev?.created_at);
-                  const isSelf = m.sender_id === user?.id;
-                  return (
-                    <React.Fragment key={m.id}>
-                      {showDay && (
-                        <div className="my-3 text-center">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-muted text-muted-foreground text-[11px] uppercase tracking-wide">
-                            {weekdayLabel(m.created_at)}
-                          </span>
+                <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-1">
+                  {messages.map((m, idx) => {
+                    const prev = messages[idx - 1];
+                    const showDay = !prev || !isSameDay(m.created_at, prev?.created_at);
+                    const isSelf = m.sender_id === user?.id;
+                    const isLastInGroup = !messages[idx + 1] || messages[idx + 1].sender_id !== m.sender_id;
+                    
+                    return (
+                      <React.Fragment key={m.id}>
+                        {showDay && (
+                          <div className="flex justify-center py-4">
+                            <span className="text-xs text-muted-foreground">{getDayLabel(m.created_at)}</span>
+                          </div>
+                        )}
+                        <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[70%] px-4 py-2 text-sm rounded-2xl ${isSelf ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                            {m.content}
+                          </div>
                         </div>
-                      )}
-                      <div className={`flex w-full ${isSelf ? 'justify-end' : 'justify-start'} gap-2`}>
-                        <div className={`${isSelf ? 'bg-primary text-primary-foreground' : 'bg-muted'} rounded-lg px-3 py-2 text-sm max-w-[75%] whitespace-pre-wrap`}>
-                          {m.content}
-                        </div>
-                      </div>
-                      <div className={`text-[11px] text-muted-foreground ${isSelf ? 'text-right pr-1' : 'text-left pl-1'} -mt-1`}>
-                        {formatDateTime(m.created_at)}
-                      </div>
-                    </React.Fragment>
-                  );
-                })}
-                {messages.length === 0 && (
-                  <div className="text-sm text-muted-foreground">Noch keine Nachrichten. Schreib als erstes!</div>
-                )}
-              </div>
-
-              <div className="border-t p-3">
-                <div className="flex items-end gap-2">
-                  <Textarea rows={2} value={composer} onChange={(e) => setComposer(e.target.value)} placeholder="Nachricht schreiben…" className="min-h-[44px]" />
-                  <Button onClick={onSend} disabled={!composer.trim() || sending}>{sending ? 'Senden…' : 'Senden'}</Button>
+                        {isLastInGroup && (
+                          <div className={`text-[11px] text-muted-foreground mb-2 ${isSelf ? 'text-right' : 'text-left'}`}>
+                            {formatTime(m.created_at)}
+                          </div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
-              </div>
-            </>
-          )}
-        </Card>
 
-        {/* Right: Weitere Posteingänge (ohne Werbung) */}
-        <div className="space-y-4">
-          <Card className="p-4">
+                <div className="border-t p-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={composer}
+                      onChange={(e) => setComposer(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && onSend()}
+                      placeholder="Nachricht schreiben..."
+                      className="rounded-full bg-muted border-0"
+                    />
+                    <Button size="icon" className="rounded-full h-10 w-10" onClick={onSend} disabled={!composer.trim() || sending}>
+                      <Send className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </Card>
+
+          {/* Right sidebar */}
+          <Card className="p-4 hidden lg:block">
             <div className="text-sm font-semibold mb-3">Weitere Posteingänge</div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between"><span>Ausbildungsbasis</span><span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] leading-none px-1">1</span></div>
-              <div className="flex items-center justify-between"><span>Zettelcloud</span><span className="text-muted-foreground text-xs">—</span></div>
-              <div className="flex items-center justify-between"><span>Recruiter‑Nachrichten</span><span className="text-muted-foreground text-xs">—</span></div>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <div>Keine weiteren Posteingänge</div>
             </div>
           </Card>
         </div>
-      </div>
-    </main>
+      </main>
     </>
   );
 }
