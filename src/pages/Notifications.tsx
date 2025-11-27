@@ -53,16 +53,21 @@ export default function NotificationsPage() {
 
         if (updateError) throw updateError;
 
-        // Auto follow back
-        await supabase
+        // Auto follow back (ignore if already exists)
+        const { error: followBackError } = await supabase
           .from('follows')
-          .upsert({
+          .insert({
             follower_id: user.id,
             follower_type: 'profile',
             followee_id: followerId,
             followee_type: notification.payload?.follower_type || 'company',
             status: 'accepted'
-          }, { onConflict: 'follower_id,followee_id' });
+          });
+        
+        // Ignore duplicate key error (23505)
+        if (followBackError && followBackError.code !== '23505') {
+          console.warn('Follow back error:', followBackError);
+        }
 
         toast({ title: 'Anfrage angenommen', description: 'Ihr seid jetzt verbunden.' });
       } else if (action === 'decline') {
