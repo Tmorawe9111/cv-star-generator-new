@@ -111,6 +111,7 @@ export function LinkedInProfileSidebar({
 
   // Languages handlers
   const startEditingLanguages = () => {
+    console.log('✏️ startEditingLanguages - displayLanguages:', displayLanguages);
     // Use displayLanguages (which has the latest saved data) instead of profile.sprachen
     setTempLanguages([...displayLanguages]);
     setEditingLanguages(true);
@@ -132,9 +133,18 @@ export function LinkedInProfileSidebar({
   };
 
   const addLanguage = () => {
+    console.log('➕ addLanguage called');
+    console.log('➕ newLanguage:', newLanguage);
+    console.log('➕ newLanguageLevel:', newLanguageLevel);
+    console.log('➕ tempLanguages before:', tempLanguages);
+    
     if (newLanguage.trim() && !tempLanguages.find(l => l.sprache === newLanguage.trim())) {
-      setTempLanguages([...tempLanguages, { sprache: newLanguage.trim(), niveau: newLanguageLevel }]);
+      const updated = [...tempLanguages, { sprache: newLanguage.trim(), niveau: newLanguageLevel }];
+      console.log('➕ tempLanguages after:', updated);
+      setTempLanguages(updated);
       setNewLanguage('');
+    } else {
+      console.log('➕ NOT adding - either empty or duplicate');
     }
   };
 
