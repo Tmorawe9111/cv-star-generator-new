@@ -249,7 +249,7 @@ export default function CommunityMessages() {
         </div>
 
         {/* Messages */}
-        <div ref={listRef} className="flex-1 overflow-auto px-3 py-4 space-y-1 bg-background">
+        <div ref={listRef} className="flex-1 overflow-auto px-3 pt-2 pb-4 space-y-1 bg-background">
           {messages.map((m, idx) => {
             const prev = messages[idx - 1];
             const showDay = !prev || !isSameDay(m.created_at, prev?.created_at);
@@ -299,8 +299,8 @@ export default function CommunityMessages() {
           )}
         </div>
 
-        {/* Composer - iMessage Style */}
-        <div className="border-t bg-background px-3 py-2 pb-safe">
+        {/* Composer - iMessage Style, above bottom bar */}
+        <div className="sticky bottom-0 border-t bg-background px-3 py-2 pb-[calc(env(safe-area-inset-bottom)+70px)]">
           <div className="flex items-end gap-2">
             <div className="flex-1 relative">
               <input
