@@ -62,27 +62,27 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
         };
         
       case 'azubi':
-        // Auszubildender: "Auszubildender bei [Firma] • [Branche]"
+        // "Ausbildung bei [Firma] • [Branche]"
         const azubiFirma = currentJob?.unternehmen || p.ausbildungsbetrieb || '';
         const azubiBranche = branche ? branche.charAt(0).toUpperCase() + branche.slice(1) : '';
         if (azubiFirma && azubiBranche) {
           return {
-            statusLine: `Auszubildender bei ${azubiFirma} • ${azubiBranche}`,
+            statusLine: `Ausbildung bei ${azubiFirma} • ${azubiBranche}`,
             location: ort
           };
         } else if (azubiFirma) {
           return {
-            statusLine: `Auszubildender bei ${azubiFirma}`,
+            statusLine: `Ausbildung bei ${azubiFirma}`,
             location: ort
           };
         } else if (azubiBranche) {
           return {
-            statusLine: `Auszubildender • ${azubiBranche}`,
+            statusLine: `Ausbildung • ${azubiBranche}`,
             location: ort
           };
         }
         return {
-          statusLine: 'Auszubildender',
+          statusLine: 'In Ausbildung',
           location: ort
         };
         
