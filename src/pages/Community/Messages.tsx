@@ -413,28 +413,48 @@ export default function CommunityMessages() {
     );
   }
 
-  // Desktop View (unchanged but cleaned up)
+  // Desktop View - Apple iMessage Style
   return (
     <>
       <NewMessageSearch open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen} />
 
-      <main className="w-full py-4 pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)_280px] gap-4">
-          {/* Left: Conversation list */}
-          <Card className="p-0 overflow-hidden">
+      <main className="w-full h-[calc(100vh-4rem)]">
+        <div className="h-full flex">
+          {/* Left: Conversation list - Apple Sidebar Style */}
+          <div className="w-[340px] border-r bg-background flex flex-col shrink-0">
+            {/* Header */}
             <div className="p-4 border-b">
-              <h1 className="text-lg font-semibold mb-3">Nachrichten</h1>
+              <div className="flex items-center justify-between mb-3">
+                <h1 className="text-xl font-semibold">Nachrichten</h1>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => setIsNewMessageOpen(true)}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
               <Input 
                 value={query} 
                 onChange={(e) => setQuery(e.target.value)} 
                 placeholder="Suchen" 
-                className="bg-muted border-0 rounded-xl"
+                className="bg-muted/50 border-0 rounded-xl h-9"
               />
             </div>
-            <div className="max-h-[calc(100vh-200px)] overflow-auto">
-              {loading && <div className="p-4 text-sm text-muted-foreground text-center">Lädt...</div>}
+            
+            {/* Conversation List */}
+            <div className="flex-1 overflow-y-auto">
+              {loading && (
+                <div className="p-8 text-sm text-muted-foreground text-center">Lädt...</div>
+              )}
               {!loading && filtered.length === 0 && (
-                <div className="p-4 text-sm text-muted-foreground text-center">Keine Konversationen</div>
+                <div className="p-8 text-center">
+                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                    <Send className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Keine Nachrichten</p>
+                </div>
               )}
               {!loading && filtered.map((c) => {
                 const name = [c.otherUser?.vorname, c.otherUser?.nachname].filter(Boolean).join(" ") || "Unbekannt";
@@ -442,66 +462,119 @@ export default function CommunityMessages() {
                 return (
                   <button 
                     key={c.id} 
-                    className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${active ? 'bg-primary/10' : 'hover:bg-muted/60'}`} 
+                    className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-all ${
+                      active 
+                        ? 'bg-primary/10 border-l-2 border-primary' 
+                        : 'hover:bg-muted/50 border-l-2 border-transparent'
+                    }`} 
                     onClick={() => setSelectedId(c.id)}
                   >
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={c.otherUser?.avatar_url} alt={name} />
-                      <AvatarFallback>{name.slice(0,2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={c.otherUser?.avatar_url} alt={name} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 font-medium">
+                          {name.slice(0,2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* Online indicator */}
+                      <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className="text-sm font-medium truncate">{name}</span>
-                        <span className="text-xs text-muted-foreground">{formatDate(c.lastMessageAt)}</span>
+                        <span className={`text-[15px] truncate ${active ? 'font-semibold' : 'font-medium'}`}>{name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{formatDate(c.lastMessageAt)}</span>
                       </div>
-                      <div className="text-sm text-muted-foreground truncate">{c.lastMessage?.content || '—'}</div>
+                      <div className="text-sm text-muted-foreground truncate">{c.lastMessage?.content || 'Keine Nachrichten'}</div>
                     </div>
                   </button>
                 );
               })}
             </div>
-          </Card>
+          </div>
 
-          {/* Center: Chat */}
-          <Card className="flex flex-col min-h-[70vh]">
+          {/* Center: Chat - Apple Messages Style */}
+          <div className="flex-1 flex flex-col bg-background min-w-0">
             {!selected ? (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                Wähle eine Konversation
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Send className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Keine Unterhaltung ausgewählt</h2>
+                <p className="text-muted-foreground max-w-sm">
+                  Wähle eine Unterhaltung aus der Liste oder starte eine neue Nachricht
+                </p>
               </div>
             ) : (
               <>
-                <div className="p-4 border-b flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={selected.otherUser?.avatar_url} alt="" />
-                    <AvatarFallback>{([selected.otherUser?.vorname, selected.otherUser?.nachname].filter(Boolean).join(" ") || 'U').slice(0,2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-semibold">{[selected.otherUser?.vorname, selected.otherUser?.nachname].filter(Boolean).join(" ") || 'Unbekannt'}</div>
-                    <div className="text-xs text-muted-foreground">Online</div>
+                {/* Chat Header */}
+                <div className="px-6 py-4 border-b flex items-center gap-4 bg-background/95 backdrop-blur">
+                  <div className="relative">
+                    <Avatar className="h-11 w-11">
+                      <AvatarImage src={selected.otherUser?.avatar_url} alt="" />
+                      <AvatarFallback className="font-medium">
+                        {([selected.otherUser?.vorname, selected.otherUser?.nachname].filter(Boolean).join(" ") || 'U').slice(0,2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
                   </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-[15px]">
+                      {[selected.otherUser?.vorname, selected.otherUser?.nachname].filter(Boolean).join(" ") || 'Unbekannt'}
+                    </div>
+                    <div className="text-xs text-green-500 font-medium">Online</div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
                 </div>
 
-                <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-1">
+                {/* Messages */}
+                <div ref={listRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-1">
+                  {messages.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                      <Avatar className="h-20 w-20 mb-4">
+                        <AvatarImage src={selected.otherUser?.avatar_url} alt="" />
+                        <AvatarFallback className="text-2xl font-medium">
+                          {([selected.otherUser?.vorname, selected.otherUser?.nachname].filter(Boolean).join(" ") || 'U').slice(0,2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="text-lg font-semibold">
+                        {[selected.otherUser?.vorname, selected.otherUser?.nachname].filter(Boolean).join(" ") || 'Unbekannt'}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">Starte eine Unterhaltung</div>
+                    </div>
+                  )}
                   {messages.map((m, idx) => {
                     const prev = messages[idx - 1];
                     const showDay = !prev || !isSameDay(m.created_at, prev?.created_at);
                     const isSelf = m.sender_id === user?.id;
-                    const isLastInGroup = !messages[idx + 1] || messages[idx + 1].sender_id !== m.sender_id;
+                    const isLastInGroup = !messages[idx + 1] || messages[idx + 1].sender_id !== m.sender_id || !isSameDay(m.created_at, messages[idx + 1]?.created_at);
                     
                     return (
                       <React.Fragment key={m.id}>
                         {showDay && (
                           <div className="flex justify-center py-4">
-                            <span className="text-xs text-muted-foreground">{getDayLabel(m.created_at)}</span>
+                            <span className="text-xs text-muted-foreground font-medium px-3 py-1 bg-muted/50 rounded-full">
+                              {getDayLabel(m.created_at)}
+                            </span>
                           </div>
                         )}
                         <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[70%] px-4 py-2 text-sm rounded-2xl ${isSelf ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                          <div 
+                            className={`
+                              max-w-[65%] px-4 py-2.5 text-[15px] leading-relaxed
+                              ${isSelf 
+                                ? 'bg-primary text-primary-foreground rounded-[20px] rounded-br-md' 
+                                : 'bg-muted rounded-[20px] rounded-bl-md'
+                              }
+                              ${isLastInGroup ? 'mb-1' : 'mb-0.5'}
+                            `}
+                          >
                             {m.content}
                           </div>
                         </div>
                         {isLastInGroup && (
-                          <div className={`text-[11px] text-muted-foreground mb-2 ${isSelf ? 'text-right' : 'text-left'}`}>
+                          <div className={`text-[11px] text-muted-foreground mb-3 ${isSelf ? 'text-right pr-1' : 'text-left pl-1'}`}>
                             {formatTime(m.created_at)}
                           </div>
                         )}
@@ -510,31 +583,31 @@ export default function CommunityMessages() {
                   })}
                 </div>
 
-                <div className="border-t p-3">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={composer}
-                      onChange={(e) => setComposer(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && onSend()}
-                      placeholder="Nachricht schreiben..."
-                      className="rounded-full bg-muted border-0"
-                    />
-                    <Button size="icon" className="rounded-full h-10 w-10" onClick={onSend} disabled={!composer.trim() || sending}>
+                {/* Composer */}
+                <div className="border-t px-6 py-4 bg-background">
+                  <div className="flex items-end gap-3">
+                    <div className="flex-1">
+                      <input
+                        value={composer}
+                        onChange={(e) => setComposer(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
+                        placeholder="Nachricht"
+                        className="w-full px-4 py-2.5 rounded-full bg-muted border-0 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <Button 
+                      size="icon" 
+                      className="h-10 w-10 rounded-full shrink-0"
+                      onClick={onSend} 
+                      disabled={!composer.trim() || sending}
+                    >
                       <Send className="h-5 w-5" />
                     </Button>
                   </div>
                 </div>
               </>
             )}
-          </Card>
-
-          {/* Right sidebar */}
-          <Card className="p-4 hidden lg:block">
-            <div className="text-sm font-semibold mb-3">Weitere Posteingänge</div>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <div>Keine weiteren Posteingänge</div>
-            </div>
-          </Card>
+          </div>
         </div>
       </main>
     </>
