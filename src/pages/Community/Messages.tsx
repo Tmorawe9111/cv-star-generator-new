@@ -162,33 +162,95 @@ export default function CommunityMessages() {
     setSelectedId(null);
   };
 
-  // Mobile Chat View (iMessage Style)
+  // Get recent conversations for quick switch (max 5)
+  const recentChats = React.useMemo(() => {
+    return items.filter(c => c.id !== selectedId).slice(0, 5);
+  }, [items, selectedId]);
+
+  // Mobile Chat View (iMessage Style with Quick Switch)
   const MobileChatView = () => {
     const name = [selected?.otherUser?.vorname, selected?.otherUser?.nachname].filter(Boolean).join(" ") || "Unbekannt";
     
+    // Swipe handling
+    const [touchStart, setTouchStart] = React.useState<number | null>(null);
+    const [touchEnd, setTouchEnd] = React.useState<number | null>(null);
+    const minSwipeDistance = 50;
+
+    const onTouchStart = (e: React.TouchEvent) => {
+      setTouchEnd(null);
+      setTouchStart(e.targetTouches[0].clientX);
+    };
+
+    const onTouchMove = (e: React.TouchEvent) => {
+      setTouchEnd(e.targetTouches[0].clientX);
+    };
+
+    const onTouchEnd = () => {
+      if (!touchStart || !touchEnd) return;
+      const distance = touchEnd - touchStart;
+      const isRightSwipe = distance > minSwipeDistance;
+      if (isRightSwipe) {
+        closeChat();
+      }
+    };
+    
     return (
-      <div className="fixed inset-0 z-50 bg-background flex flex-col">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-2 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <Button variant="ghost" size="icon" onClick={closeChat} className="h-9 w-9">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-3 flex-1 min-w-0" onClick={() => {/* Navigate to profile */}}>
-            <Avatar className="h-9 w-9">
+      <div 
+        className="fixed inset-0 z-50 bg-background flex flex-col"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Header with Quick Switch */}
+        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          {/* Main Header Row */}
+          <div className="flex items-center gap-2 px-2 py-2">
+            <Button variant="ghost" size="sm" onClick={closeChat} className="h-9 px-2 gap-1 text-primary">
+              <ArrowLeft className="h-5 w-5" />
+              <span className="text-sm">Chats</span>
+            </Button>
+            
+            {/* Quick Switch Avatars */}
+            {recentChats.length > 0 && (
+              <div className="flex items-center gap-1 flex-1 justify-center overflow-x-auto scrollbar-hide">
+                {recentChats.map((c) => {
+                  const otherName = [c.otherUser?.vorname, c.otherUser?.nachname].filter(Boolean).join(" ") || "?";
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedId(c.id)}
+                      className="relative shrink-0 transition-transform active:scale-95"
+                    >
+                      <Avatar className="h-8 w-8 ring-2 ring-background">
+                        <AvatarImage src={c.otherUser?.avatar_url} alt={otherName} />
+                        <AvatarFallback className="text-xs">{otherName.slice(0,1).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      {/* Unread indicator */}
+                      {c.unreadCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 h-3 w-3 bg-primary rounded-full border-2 border-background" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            
+            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
+              <MoreHorizontal className="h-5 w-5" />
+            </Button>
+          </div>
+          
+          {/* Current Chat Info */}
+          <div className="flex items-center justify-center gap-2 pb-2">
+            <Avatar className="h-8 w-8">
               <AvatarImage src={selected?.otherUser?.avatar_url} alt={name} />
               <AvatarFallback className="text-sm font-medium">{name.slice(0,2).toUpperCase()}</AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold truncate">{name}</div>
-              <div className="text-xs text-muted-foreground">Online</div>
+            <div className="text-center">
+              <div className="text-sm font-semibold">{name}</div>
+              <div className="text-[11px] text-green-500 font-medium">Online</div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="h-9 w-9">
-            <Phone className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9">
-            <Video className="h-5 w-5" />
-          </Button>
         </div>
 
         {/* Messages */}
