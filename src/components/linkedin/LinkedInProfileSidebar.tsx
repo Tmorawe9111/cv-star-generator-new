@@ -87,7 +87,8 @@ export function LinkedInProfileSidebar({
 
   // Skills handlers
   const startEditingSkills = () => {
-    setTempSkills(profile?.faehigkeiten || []);
+    // Use displaySkills (which has the latest saved data) instead of profile.faehigkeiten
+    setTempSkills([...displaySkills]);
     setEditingSkills(true);
   };
 
@@ -110,7 +111,8 @@ export function LinkedInProfileSidebar({
 
   // Languages handlers
   const startEditingLanguages = () => {
-    setTempLanguages(profile?.sprachen || []);
+    // Use displayLanguages (which has the latest saved data) instead of profile.sprachen
+    setTempLanguages([...displayLanguages]);
     setEditingLanguages(true);
   };
 
