@@ -40,6 +40,9 @@ export default function NotificationsList({ recipientType, recipientId, filter, 
       // Exclude notifications older than 14 days
       if (createdAt < fourteenDaysAgo) return false;
       
+      // Exclude follow_request_received - these are shown in the FollowRequestsBanner
+      if (n.type === 'follow_request_received') return false;
+      
       if (!filter) return true;
       if (filter === 'unread') return !n.read_at;
       if (Array.isArray(filter)) return filter.includes(n.type);
