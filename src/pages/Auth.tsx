@@ -44,7 +44,7 @@ const Auth = () => {
               title: "Registrierung unvollständig",
               description: "Bitte vervollständigen Sie Ihre Unternehmensregistrierung.",
             });
-            navigate('/signup/company');
+            navigate('/unternehmensregistrierung');
             return;
           }
 
@@ -170,7 +170,7 @@ const Auth = () => {
             title: "Registrierung unvollständig",
             description: "Bitte vervollständigen Sie Ihre Unternehmensregistrierung.",
           });
-          navigate('/signup/company?mode=complete');
+          navigate('/unternehmensregistrierung?mode=complete');
           return;
         }
         
@@ -297,7 +297,7 @@ const Auth = () => {
             title: "Bitte nutzen Sie die Firmen-Registrierung",
             description: "Sie werden weitergeleitet...",
           });
-          setTimeout(() => navigate('/signup/company'), 1000);
+          setTimeout(() => navigate('/unternehmensregistrierung'), 1000);
           return;
         }
 
@@ -431,7 +431,7 @@ const Auth = () => {
                     {role === 'company' ? (
                       <>
                         Noch kein Unternehmenskonto?{' '}
-                        <button type="button" className="underline" onClick={() => navigate('/signup/company')}>Jetzt erstellen</button>
+                        <button type="button" className="underline" onClick={() => navigate('/unternehmensregistrierung')}>Jetzt erstellen</button>
                       </>
                     ) : (
                       <>

@@ -110,7 +110,7 @@ export default function CompanyLandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
               <Button asChild size="lg" className="text-lg px-8 py-3">
-                <Link to="/signup/company">Unternehmen-Account erstellen</Link>
+                <Link to="/unternehmensregistrierung">Unternehmen-Account erstellen</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="text-lg px-8 py-3 bg-transparent border-white text-white hover:bg-white hover:text-black">
                 <Link to="/produkt#demo">Demo ansehen</Link>
@@ -161,7 +161,7 @@ export default function CompanyLandingPage() {
           </div>
           <div className="text-center">
             <Button asChild size="lg">
-              <Link to="/signup/company">Jetzt kostenlos starten</Link>
+              <Link to="/unternehmensregistrierung">Jetzt kostenlos starten</Link>
             </Button>
           </div>
         </div>
@@ -268,7 +268,7 @@ export default function CompanyLandingPage() {
             Bereit, passende Kandidaten schneller zu finden?
           </h2>
           <Button asChild size="lg" variant="secondary" className="text-lg px-8 py-3">
-            <Link to="/signup/company">Kostenlos registrieren</Link>
+            <Link to="/unternehmensregistrierung">Kostenlos registrieren</Link>
           </Button>
         </div>
       </section>

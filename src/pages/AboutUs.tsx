@@ -111,7 +111,7 @@ export default function AboutUs() {
                 <Link to="/company" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
                   Unternehmen
                 </Link>
-                <Link to="/signup/company" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
+                <Link to="/unternehmensregistrierung" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
                   Registrieren
                 </Link>
                 <Link to="/about" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
@@ -178,7 +178,7 @@ export default function AboutUs() {
                 Gespräch buchen
               </button>
               <Link
-                to="/signup/company"
+                to="/unternehmensregistrierung"
                 className="inline-flex items-center rounded-full border border-[#5170ff]/40 bg-white px-5 py-3 text-sm font-semibold text-[#5170ff] shadow-sm transition hover:border-[#5170ff]"
               >
                 Unternehmen registrieren

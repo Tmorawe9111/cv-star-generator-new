@@ -135,7 +135,7 @@ export function CompanyLayout() {
 
   // Redirect to signup if no company
   if (!company) {
-    return <Navigate to="/signup/company" replace />;
+    return <Navigate to="/unternehmensregistrierung" replace />;
   }
 
   // Render onboarding popups if not completed

@@ -35,7 +35,7 @@ const pricingTiers = [
     ],
     ctaLabelMonthly: 'Jetzt starten',
     ctaLabelYearly: 'Jetzt starten',
-    ctaHref: '/signup/company?plan=base'
+    ctaHref: '/unternehmensregistrierung?plan=base'
   },
   {
     id: 'pro',
@@ -55,7 +55,7 @@ const pricingTiers = [
     ],
     ctaLabelMonthly: 'Jetzt starten',
     ctaLabelYearly: 'Jetzt starten',
-    ctaHref: '/signup/company?plan=pro'
+    ctaHref: '/unternehmensregistrierung?plan=pro'
   },
   {
     id: 'enterprise',
@@ -157,7 +157,7 @@ export default function CompanyLanding() {
                 <Link to="/company" className="rounded-md px-3 py-2 text-sm font-medium text-[#5170ff] hover:bg-blue-50">
                   Unternehmen
                 </Link>
-                <Link to="/signup/company" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
+                <Link to="/unternehmensregistrierung" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
                   Registrieren
                 </Link>
                 <Link to="/about" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
@@ -220,7 +220,7 @@ export default function CompanyLanding() {
 
             <div className="mt-8 flex items-center justify-center gap-4 flex-wrap">
               <Link
-                to="/signup/company?plan=free"
+                to="/unternehmensregistrierung?plan=free"
                 className="inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-semibold text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
                 style={{
                   background: '#5170ff',
@@ -254,7 +254,7 @@ export default function CompanyLanding() {
           Demo buchen
         </button>
         <Link
-          to="/signup/company?plan=free"
+          to="/unternehmensregistrierung?plan=free"
           className="inline-flex items-center rounded-full px-8 py-4 text-base font-semibold text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
           style={{
             background: '#5170ff',
@@ -491,7 +491,7 @@ export default function CompanyLanding() {
                 <ul className="mt-3 space-y-2 text-sm text-gray-600">
                   <li><Link className="hover:underline" to="/about">Über uns</Link></li>
                   <li><a className="hover:underline" href="#community">Community</a></li>
-                  <li><Link className="hover:underline" to="/signup/company">Unternehmen</Link></li>
+                  <li><Link className="hover:underline" to="/unternehmensregistrierung">Unternehmen</Link></li>
                 </ul>
               </div>
               <div>

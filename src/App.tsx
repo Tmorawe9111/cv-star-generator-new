@@ -232,7 +232,7 @@ function UserProtectedRoute({ children }: { children: React.ReactNode }) {
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isCompanyRoute = (location.pathname.startsWith('/company/') || location.pathname.startsWith('/unternehmen/')) && 
-                         location.pathname !== '/signup/company' && 
+                         location.pathname !== '/unternehmensregistrierung' && 
                          location.pathname !== '/unternehmensregistrierung';
   const isLandingPage = location.pathname === '/';
   const isAuthRoute = location.pathname === '/auth' || location.pathname === '/anmelden';
@@ -375,7 +375,8 @@ const App = () => {
               <Route path="/analytics" element={<Navigate to="/admin/analytics" replace />} />
               <Route path="/onboarding" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><ProfileCreationFlow /></BaseLayout></Suspense>} />
               <Route path="/unternehmen/onboarding" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyOnboarding /></Suspense>} />
-              <Route path="/signup/company" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySignup /></Suspense>} />
+              <Route path="/unternehmensregistrierung" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySignup /></Suspense>} />
+              <Route path="/signup/company" element={<Navigate to="/unternehmensregistrierung" replace />} />
               <Route path="/talent" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><Talent /></BaseLayout></Suspense>} />
               <Route path="/datenschutz" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Datenschutz /></Suspense>} />
               <Route path="/impressum" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Impressum /></Suspense>} />
@@ -397,10 +398,11 @@ const App = () => {
               
               
               {/* Company signup route */}
-              <Route path="/signup/company" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySignup /></Suspense>} />
+              <Route path="/unternehmensregistrierung" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySignup /></Suspense>} />
+              <Route path="/signup/company" element={<Navigate to="/unternehmensregistrierung" replace />} />
               
               {/* Redirect old onboarding to signup */}
-              <Route path="/company/onboarding" element={<Navigate to="/signup/company" replace />} />
+              <Route path="/company/onboarding" element={<Navigate to="/unternehmensregistrierung" replace />} />
 
               {/* German Company routes - Primary */}
               <Route
