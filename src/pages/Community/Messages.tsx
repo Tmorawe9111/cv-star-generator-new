@@ -167,7 +167,7 @@ export default function CommunityMessages() {
     return items.filter(c => c.id !== selectedId).slice(0, 5);
   }, [items, selectedId]);
 
-  // Mobile Chat View (iMessage Style with Quick Switch)
+  // Mobile Chat View (iMessage Style - below TopNavBar)
   const MobileChatView = () => {
     const name = [selected?.otherUser?.vorname, selected?.otherUser?.nachname].filter(Boolean).join(" ") || "Unbekannt";
     
@@ -196,60 +196,55 @@ export default function CommunityMessages() {
     
     return (
       <div 
-        className="fixed inset-0 z-50 bg-background flex flex-col"
+        className="min-h-screen bg-background flex flex-col"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        {/* Header with Quick Switch */}
-        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          {/* Main Header Row */}
-          <div className="flex items-center gap-2 px-2 py-2">
-            <Button variant="ghost" size="sm" onClick={closeChat} className="h-9 px-2 gap-1 text-primary">
+        {/* Chat Header - Current conversation info */}
+        <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="flex items-center gap-3 px-3 py-2">
+            {/* Back to all messages */}
+            <Button variant="ghost" size="sm" onClick={closeChat} className="h-9 px-2 gap-1 text-primary -ml-1">
               <ArrowLeft className="h-5 w-5" />
-              <span className="text-sm">Chats</span>
+              <span className="text-sm font-medium">Alle</span>
             </Button>
             
-            {/* Quick Switch Avatars */}
+            {/* Current Chat Avatar & Name */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Avatar className="h-9 w-9 shrink-0">
+                <AvatarImage src={selected?.otherUser?.avatar_url} alt={name} />
+                <AvatarFallback className="text-sm font-medium">{name.slice(0,2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold truncate">{name}</div>
+                <div className="text-[11px] text-green-500 font-medium">Online</div>
+              </div>
+            </div>
+            
+            {/* Quick Switch to other chats */}
             {recentChats.length > 0 && (
-              <div className="flex items-center gap-1 flex-1 justify-center overflow-x-auto scrollbar-hide">
-                {recentChats.map((c) => {
+              <div className="flex items-center gap-0.5 shrink-0">
+                {recentChats.slice(0, 3).map((c) => {
                   const otherName = [c.otherUser?.vorname, c.otherUser?.nachname].filter(Boolean).join(" ") || "?";
                   return (
                     <button
                       key={c.id}
                       onClick={() => setSelectedId(c.id)}
-                      className="relative shrink-0 transition-transform active:scale-95"
+                      className="relative transition-transform active:scale-95"
                     >
-                      <Avatar className="h-8 w-8 ring-2 ring-background">
+                      <Avatar className="h-7 w-7 ring-1 ring-border">
                         <AvatarImage src={c.otherUser?.avatar_url} alt={otherName} />
-                        <AvatarFallback className="text-xs">{otherName.slice(0,1).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback className="text-[10px]">{otherName.slice(0,1).toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      {/* Unread indicator */}
                       {c.unreadCount > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 h-3 w-3 bg-primary rounded-full border-2 border-background" />
+                        <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-primary rounded-full border border-background" />
                       )}
                     </button>
                   );
                 })}
               </div>
             )}
-            
-            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
-              <MoreHorizontal className="h-5 w-5" />
-            </Button>
-          </div>
-          
-          {/* Current Chat Info */}
-          <div className="flex items-center justify-center gap-2 pb-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={selected?.otherUser?.avatar_url} alt={name} />
-              <AvatarFallback className="text-sm font-medium">{name.slice(0,2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div className="text-center">
-              <div className="text-sm font-semibold">{name}</div>
-              <div className="text-[11px] text-green-500 font-medium">Online</div>
-            </div>
           </div>
         </div>
 
