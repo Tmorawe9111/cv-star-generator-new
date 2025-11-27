@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { NotificationsListWithFilters } from '@/components/notifications/NotificationsListWithFilters';
 import { NotificationPreferencesDialog } from '@/components/notifications/NotificationPreferencesDialog';
 import { FollowRequestsBanner } from '@/components/notifications/FollowRequestsBanner';
@@ -7,12 +7,16 @@ import { LeftPanel } from '@/components/dashboard/LeftPanel';
 import { RightPanel } from '@/components/dashboard/RightPanel';
 import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function NotificationsPage() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const isCompany = false;
   const companyId = null;
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleMarkAllRead = () => {
     // Call the function stored by NotificationsList
@@ -20,6 +24,80 @@ export default function NotificationsPage() {
       (window as any).__notificationsMarkAllRead();
     }
   };
+
+  // Handle follow request actions from notification cards
+  const handleNotificationAction = useCallback(async (notification: any, action: string) => {
+    if (notification.type !== 'follow_request_received') return;
+    
+    const followerId = notification.actor_id;
+    if (!followerId || !user?.id) return;
+
+    try {
+      if (action === 'accept') {
+        // Find and update the follow request
+        const { data: followData, error: findError } = await supabase
+          .from('follows')
+          .select('id')
+          .eq('follower_id', followerId)
+          .eq('followee_id', user.id)
+          .eq('status', 'pending')
+          .single();
+
+        if (findError) throw findError;
+
+        // Update to accepted
+        const { error: updateError } = await supabase
+          .from('follows')
+          .update({ status: 'accepted' })
+          .eq('id', followData.id);
+
+        if (updateError) throw updateError;
+
+        // Auto follow back
+        await supabase
+          .from('follows')
+          .upsert({
+            follower_id: user.id,
+            follower_type: 'profile',
+            followee_id: followerId,
+            followee_type: notification.payload?.follower_type || 'company',
+            status: 'accepted'
+          }, { onConflict: 'follower_id,followee_id' });
+
+        toast({ title: 'Anfrage angenommen', description: 'Ihr seid jetzt verbunden.' });
+      } else if (action === 'decline') {
+        // Delete the follow request
+        const { error } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', followerId)
+          .eq('followee_id', user.id)
+          .eq('status', 'pending');
+
+        if (error) throw error;
+
+        toast({ title: 'Anfrage abgelehnt' });
+      }
+
+      // Mark notification as read and remove from UI
+      await supabase
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', notification.id);
+
+      // Invalidate queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['follow-relations'] });
+
+    } catch (error) {
+      console.error('Error handling follow action:', error);
+      toast({ 
+        title: 'Fehler', 
+        description: 'Die Aktion konnte nicht ausgeführt werden.',
+        variant: 'destructive'
+      });
+    }
+  }, [user, queryClient]);
 
   return (
     <main className="w-full overflow-x-hidden">
@@ -67,9 +145,7 @@ export default function NotificationsPage() {
                 <NotificationsListWithFilters
                   recipientType={isCompany ? 'company' : 'profile'}
                   recipientId={isCompany ? companyId : profile?.id ?? null}
-                  onAction={(n, action) => {
-                    console.log('action', n.id, action);
-                  }}
+                  onAction={handleNotificationAction}
                 />
               </div>
 
