@@ -283,7 +283,8 @@ export function LinkedInProfileSidebar({
                 {/* Add new language */}
                 <div className="space-y-2 pt-2 border-t">
                   <p className="text-sm font-medium">Sprache hinzufügen</p>
-                  <Select value={newLanguage} onValueChange={setNewLanguage}>
+                  <p className="text-xs text-muted-foreground">Debug: newLanguage="{newLanguage}", tempLanguages={tempLanguages.length}</p>
+                  <Select value={newLanguage} onValueChange={(val) => { console.log('🔵 Selected language:', val); setNewLanguage(val); }}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Sprache wählen..." />
                     </SelectTrigger>
@@ -304,7 +305,7 @@ export function LinkedInProfileSidebar({
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button size="sm" variant="outline" onClick={addLanguage} disabled={!newLanguage}>
+                    <Button size="sm" variant="outline" onClick={() => { console.log('🟢 + Button clicked, newLanguage:', newLanguage); addLanguage(); }} disabled={!newLanguage}>
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
