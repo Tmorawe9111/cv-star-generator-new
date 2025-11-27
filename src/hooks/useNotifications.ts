@@ -10,6 +10,7 @@ export interface UseNotificationsReturn {
   fetchPage: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  removeItem: (id: string) => void;
   reset: () => void;
 }
 
@@ -99,12 +100,21 @@ export function useNotifications(
     }
   }, [recipientId, recipientType]);
 
+  const removeItem = useCallback((id: string) => {
+    setItems(prev => prev.filter(n => n.id !== id));
+  }, []);
+
   const reset = useCallback(() => {
     setItems([]);
     setHasMore(true);
     setError(undefined);
     cursorRef.current = null;
   }, []);
+
+  // Store removeItem for external access
+  if (typeof window !== 'undefined') {
+    (window as any).__notificationsRemoveItem = removeItem;
+  }
 
   return { 
     items, 
@@ -113,7 +123,8 @@ export function useNotifications(
     error,
     fetchPage, 
     markRead, 
-    markAllRead, 
+    markAllRead,
+    removeItem,
     reset 
   };
 }

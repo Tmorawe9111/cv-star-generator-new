@@ -90,6 +90,11 @@ export default function NotificationsPage() {
         .delete()
         .eq('id', notification.id);
 
+      // Remove from local state immediately
+      if (typeof window !== 'undefined' && (window as any).__notificationsRemoveItem) {
+        (window as any).__notificationsRemoveItem(notification.id);
+      }
+
       // Invalidate queries to refresh the list
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['follow-relations'] });
