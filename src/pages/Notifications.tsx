@@ -84,10 +84,10 @@ export default function NotificationsPage() {
         toast({ title: 'Anfrage abgelehnt' });
       }
 
-      // Mark notification as read and remove from UI
+      // Delete the notification after action
       await supabase
         .from('notifications')
-        .update({ read_at: new Date().toISOString() })
+        .delete()
         .eq('id', notification.id);
 
       // Invalidate queries to refresh the list
