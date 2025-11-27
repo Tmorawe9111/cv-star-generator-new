@@ -311,16 +311,18 @@ export function LinkedInProfileSidebar({
               </div>
             ) : (
               <div className="space-y-1.5 sm:space-y-2">
-                {(() => { console.log('🟣 Rendering languages view, displayLanguages:', displayLanguages, 'length:', displayLanguages?.length); return null; })()}
                 {displayLanguages && displayLanguages.length > 0 ? (
-                  displayLanguages.map((lang: any, idx: number) => (
-                    <div key={idx} className="flex justify-between items-center text-sm">
-                      <span className="font-medium">{lang.sprache || lang}</span>
-                      {lang.niveau && (
-                        <Badge variant="outline" className="text-xs">{lang.niveau}</Badge>
-                      )}
-                    </div>
-                  ))
+                  displayLanguages.map((lang: any, idx: number) => {
+                    console.log('🟣 Rendering lang item:', lang, 'sprache:', lang?.sprache, 'niveau:', lang?.niveau);
+                    return (
+                      <div key={idx} className="flex justify-between items-center text-sm border p-2 rounded bg-muted/30">
+                        <span className="font-medium">{lang?.sprache || String(lang)}</span>
+                        {lang?.niveau && (
+                          <Badge variant="outline" className="text-xs">{lang.niveau}</Badge>
+                        )}
+                      </div>
+                    );
+                  })
                 ) : (
                   <p className="text-muted-foreground text-sm">Keine Sprachen hinzugefügt</p>
                 )}
