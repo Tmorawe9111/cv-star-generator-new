@@ -227,6 +227,7 @@ export default function TopNavBar() {
   const isDashboard = location.pathname === '/dashboard' || location.pathname === '/';
   
   // Sticky navbar at top with high z-index and scroll behavior
+  // Messages page uses fixed positioning to prevent scroll
   return (
     <>
       {/* Main Navbar */}
@@ -234,10 +235,11 @@ export default function TopNavBar() {
       {!(isMarketplace && isSearchMode) && !isComposerOpen && !isVisibilityPromptOpen && (
         <div 
           className={cn(
-            "sticky top-0 z-[300] border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
-            // Scroll behavior only on mobile, but hide on all devices when visibility prompt is open
-            "transition-transform duration-300",
-            isNavbarVisible && !isVisibilityPromptOpen ? "translate-y-0" : "-translate-y-full"
+            "z-[300] border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+            // Messages page: fixed, other pages: sticky with scroll behavior
+            isMessagesPage ? "fixed top-0 left-0 right-0" : "sticky top-0",
+            !isMessagesPage && "transition-transform duration-300",
+            !isMessagesPage && (isNavbarVisible && !isVisibilityPromptOpen ? "translate-y-0" : "-translate-y-full")
           )}
         >
           <div className="flex h-12 md:h-14 items-center px-2 sm:px-3 md:px-4 gap-1 sm:gap-2 md:gap-4 max-w-full overflow-hidden">
