@@ -142,7 +142,7 @@ export function useFollowRelations() {
 
       if (updateError) throw updateError;
 
-      // 2. Automatically follow back (Profile → Company)
+      // 2. Automatically follow back (Profile → Company) - ignore if already exists
       const { error: insertError } = await supabase
         .from('follows')
         .insert({
@@ -154,18 +154,31 @@ export function useFollowRelations() {
         });
 
       if (insertError && insertError.code !== '23505') { // Ignore duplicate key errors
-        throw insertError;
+        console.warn('Follow back error (non-duplicate):', insertError);
       }
 
-      // 3. Immediately remove from pending requests list
+      // 3. Delete related notification
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('actor_id', companyId)
+        .eq('recipient_id', user.id)
+        .eq('type', 'follow_request_received');
+
+      // 4. Immediately remove from pending requests list
       setCompanyFollowRequests(prev => prev.filter(req => req.id !== followId));
+
+      // 5. Remove from notifications UI
+      if (typeof window !== 'undefined' && (window as any).__notificationsRemoveItem) {
+        // We don't have the notification ID here, so we'll rely on refetch
+      }
 
       toast({
         title: 'Anfrage angenommen',
         description: 'Sie folgen dem Unternehmen jetzt und es kann Ihre Posts sehen.',
       });
 
-      // 4. Refetch both lists to ensure consistency
+      // 6. Refetch both lists to ensure consistency
       await Promise.all([fetchCompanyFollowRequests(), fetchFollowedCompanies()]);
     } catch (error) {
       console.error('Error accepting company follow:', error);
@@ -180,8 +193,14 @@ export function useFollowRelations() {
   }, [user, fetchCompanyFollowRequests, fetchFollowedCompanies]);
 
   const declineCompanyFollow = useCallback(async (followId: string) => {
+    if (!user) return;
+    
     setLoading(true);
     try {
+      // Get the company ID before deleting
+      const request = companyFollowRequests.find(r => r.id === followId);
+      const companyId = request?.company?.id;
+
       // Delete the follow request instead of updating to 'rejected'
       const { error } = await supabase
         .from('follows')
@@ -189,6 +208,16 @@ export function useFollowRelations() {
         .eq('id', followId);
 
       if (error) throw error;
+
+      // Delete related notification
+      if (companyId) {
+        await supabase
+          .from('notifications')
+          .delete()
+          .eq('actor_id', companyId)
+          .eq('recipient_id', user.id)
+          .eq('type', 'follow_request_received');
+      }
 
       // Immediately remove from pending requests list
       setCompanyFollowRequests(prev => prev.filter(req => req.id !== followId));
@@ -210,7 +239,7 @@ export function useFollowRelations() {
     } finally {
       setLoading(false);
     }
-  }, [fetchCompanyFollowRequests]);
+  }, [user, companyFollowRequests, fetchCompanyFollowRequests]);
 
   const unfollowCompany = useCallback(async (followId: string) => {
     setLoading(true);
