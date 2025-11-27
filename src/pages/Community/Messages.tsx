@@ -332,7 +332,7 @@ export default function CommunityMessages() {
     );
   };
 
-  // Mobile Conversation List (Apple Style)
+  // Mobile Conversation List (Apple Style - No search bar, uses TopNavBar)
   if (isMobile) {
     if (showChat && selected) {
       return <MobileChatView />;
@@ -343,30 +343,22 @@ export default function CommunityMessages() {
         <NewMessageSearch open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen} />
         
         <div className="min-h-screen bg-background">
-          {/* Search Bar */}
-          <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-3 border-b">
-            <Input 
-              value={query} 
-              onChange={(e) => setQuery(e.target.value)} 
-              placeholder="Suchen" 
-              className="bg-muted border-0 rounded-xl h-10"
-            />
-          </div>
-
-          {/* Conversation List */}
-          <div className="divide-y divide-border">
+          {/* Conversation List - No padding, full width */}
+          <div className="divide-y divide-border/50">
             {loading && (
-              <div className="flex items-center justify-center py-12">
+              <div className="flex items-center justify-center py-16">
                 <div className="text-sm text-muted-foreground">Lädt...</div>
               </div>
             )}
             
             {!loading && filtered.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16 px-4">
-                <div className="text-6xl mb-4">💬</div>
-                <div className="text-lg font-semibold text-center">Keine Nachrichten</div>
-                <div className="text-sm text-muted-foreground text-center mt-1">
-                  Starte eine neue Unterhaltung
+              <div className="flex flex-col items-center justify-center py-20 px-6">
+                <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Send className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <div className="text-xl font-semibold text-center">Keine Nachrichten</div>
+                <div className="text-sm text-muted-foreground text-center mt-2 max-w-[240px]">
+                  Tippe auf den Stift oben rechts, um eine neue Unterhaltung zu starten
                 </div>
               </div>
             )}
@@ -378,31 +370,36 @@ export default function CommunityMessages() {
               return (
                 <button 
                   key={c.id} 
-                  className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-muted/60 transition-colors"
+                  className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-muted/50 transition-colors"
                   onClick={() => openChat(c.id)}
                 >
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <Avatar className="h-14 w-14">
                       <AvatarImage src={c.otherUser?.avatar_url} alt={name} />
-                      <AvatarFallback className="text-lg font-medium">{name.slice(0,2).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback className="text-lg font-medium bg-gradient-to-br from-primary/20 to-primary/10">
+                        {name.slice(0,2).toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                     {/* Online indicator */}
-                    <div className="absolute bottom-0 right-0 h-4 w-4 bg-green-500 rounded-full border-2 border-background" />
+                    <div className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 bg-green-500 rounded-full border-2 border-background" />
                   </div>
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className={`text-base truncate ${hasUnread ? 'font-semibold' : 'font-medium'}`}>
+                      <span className={`text-[15px] truncate ${hasUnread ? 'font-semibold' : 'font-medium'}`}>
                         {name}
                       </span>
                       <span className="text-xs text-muted-foreground shrink-0">
                         {formatDate(c.lastMessageAt)}
                       </span>
                     </div>
-                    <div className={`text-sm truncate ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                    <div className={`text-[14px] truncate ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
                       {c.lastMessage?.content || 'Keine Nachrichten'}
                     </div>
                   </div>
+                  
+                  {/* Chevron */}
+                  <ArrowLeft className="h-4 w-4 text-muted-foreground/50 rotate-180 shrink-0" />
                 </button>
               );
             })}
