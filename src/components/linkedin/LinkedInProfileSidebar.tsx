@@ -111,8 +111,6 @@ export function LinkedInProfileSidebar({
 
   // Languages handlers
   const startEditingLanguages = () => {
-    console.log('✏️ startEditingLanguages - displayLanguages:', displayLanguages);
-    // Use displayLanguages (which has the latest saved data) instead of profile.sprachen
     setTempLanguages([...displayLanguages]);
     setEditingLanguages(true);
   };
@@ -133,18 +131,9 @@ export function LinkedInProfileSidebar({
   };
 
   const addLanguage = () => {
-    console.log('➕ addLanguage called');
-    console.log('➕ newLanguage:', newLanguage);
-    console.log('➕ newLanguageLevel:', newLanguageLevel);
-    console.log('➕ tempLanguages before:', tempLanguages);
-    
     if (newLanguage.trim() && !tempLanguages.find(l => l.sprache === newLanguage.trim())) {
-      const updated = [...tempLanguages, { sprache: newLanguage.trim(), niveau: newLanguageLevel }];
-      console.log('➕ tempLanguages after:', updated);
-      setTempLanguages(updated);
+      setTempLanguages([...tempLanguages, { sprache: newLanguage.trim(), niveau: newLanguageLevel }]);
       setNewLanguage('');
-    } else {
-      console.log('➕ NOT adding - either empty or duplicate');
     }
   };
 
@@ -281,10 +270,9 @@ export function LinkedInProfileSidebar({
                 </div>
                 
                 {/* Add new language */}
-                <div className="space-y-2 pt-2 border-t">
+                <div className="space-y-3 pt-3 border-t">
                   <p className="text-sm font-medium">Sprache hinzufügen</p>
-                  <p className="text-xs text-muted-foreground">Debug: newLanguage="{newLanguage}", tempLanguages={tempLanguages.length}</p>
-                  <Select value={newLanguage} onValueChange={(val) => { console.log('🔵 Selected language:', val); setNewLanguage(val); }}>
+                  <Select value={newLanguage} onValueChange={setNewLanguage}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Sprache wählen..." />
                     </SelectTrigger>
@@ -294,20 +282,25 @@ export function LinkedInProfileSidebar({
                       ))}
                     </SelectContent>
                   </Select>
-                  <div className="flex gap-2">
-                    <Select value={newLanguageLevel} onValueChange={setNewLanguageLevel}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LANGUAGE_LEVELS.map(level => (
-                          <SelectItem key={level} value={level}>{level}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button size="sm" variant="outline" onClick={() => { console.log('🟢 + Button clicked, newLanguage:', newLanguage); addLanguage(); }} disabled={!newLanguage}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                  <Select value={newLanguageLevel} onValueChange={setNewLanguageLevel}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Niveau wählen..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LANGUAGE_LEVELS.map(level => (
+                        <SelectItem key={level} value={level}>{level}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    className={`w-full ${newLanguage ? 'bg-primary hover:bg-primary/90' : ''}`}
+                    variant={newLanguage ? "default" : "outline"}
+                    onClick={addLanguage} 
+                    disabled={!newLanguage}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Sprache hinzufügen
+                  </Button>
                   </div>
                 </div>
                 
@@ -325,17 +318,14 @@ export function LinkedInProfileSidebar({
             ) : (
               <div className="space-y-1.5 sm:space-y-2">
                 {displayLanguages && displayLanguages.length > 0 ? (
-                  displayLanguages.map((lang: any, idx: number) => {
-                    console.log('🟣 Rendering lang item:', lang, 'sprache:', lang?.sprache, 'niveau:', lang?.niveau);
-                    return (
-                      <div key={idx} className="flex justify-between items-center text-sm border p-2 rounded bg-muted/30">
-                        <span className="font-medium">{lang?.sprache || String(lang)}</span>
-                        {lang?.niveau && (
-                          <Badge variant="outline" className="text-xs">{lang.niveau}</Badge>
-                        )}
-                      </div>
-                    );
-                  })
+                  displayLanguages.map((lang: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center text-sm">
+                      <span className="font-medium">{lang?.sprache || String(lang)}</span>
+                      {lang?.niveau && (
+                        <Badge variant="outline" className="text-xs">{lang.niveau}</Badge>
+                      )}
+                    </div>
+                  ))
                 ) : (
                   <p className="text-muted-foreground text-sm">Keine Sprachen hinzugefügt</p>
                 )}
