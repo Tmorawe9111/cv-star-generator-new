@@ -35,7 +35,7 @@ const pricingTiers = [
     ],
     ctaLabelMonthly: 'Jetzt starten',
     ctaLabelYearly: 'Jetzt starten',
-    ctaHref: '/unternehmensregistrierung?plan=base'
+    ctaHref: '/unternehmensregistrierung?tarif=basis'
   },
   {
     id: 'pro',
@@ -55,7 +55,7 @@ const pricingTiers = [
     ],
     ctaLabelMonthly: 'Jetzt starten',
     ctaLabelYearly: 'Jetzt starten',
-    ctaHref: '/unternehmensregistrierung?plan=pro'
+    ctaHref: '/unternehmensregistrierung?tarif=profi'
   },
   {
     id: 'enterprise',
@@ -220,7 +220,7 @@ export default function CompanyLanding() {
 
             <div className="mt-8 flex items-center justify-center gap-4 flex-wrap">
               <Link
-                to="/unternehmensregistrierung?plan=free"
+                to="/unternehmensregistrierung"
                 className="inline-flex items-center gap-2 rounded-full px-8 py-4 text-base font-semibold text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
                 style={{
                   background: '#5170ff',
@@ -254,7 +254,7 @@ export default function CompanyLanding() {
           Demo buchen
         </button>
         <Link
-          to="/unternehmensregistrierung?plan=free"
+          to="/unternehmensregistrierung"
           className="inline-flex items-center rounded-full px-8 py-4 text-base font-semibold text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
           style={{
             background: '#5170ff',
