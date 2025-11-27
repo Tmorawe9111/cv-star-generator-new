@@ -25,9 +25,24 @@ const LANGUAGE_LEVELS = [
   'Grundkenntnisse',
   'Gute Kenntnisse', 
   'Fließend',
-  'Verhandlungssicher',
   'Muttersprache'
 ];
+
+// Priority for sorting (higher = shown first)
+const LEVEL_PRIORITY: Record<string, number> = {
+  'Muttersprache': 4,
+  'Fließend': 3,
+  'Gute Kenntnisse': 2,
+  'Grundkenntnisse': 1,
+  // Legacy mappings
+  'C2': 4,
+  'C1': 3,
+  'B2': 3,
+  'B1': 2,
+  'A2': 1,
+  'A1': 1,
+  'Verhandlungssicher': 3,
+};
 
 const COMMON_LANGUAGES = [
   'Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Italienisch',
@@ -317,14 +332,25 @@ export function LinkedInProfileSidebar({
             ) : (
               <div className="space-y-1.5 sm:space-y-2">
                 {displayLanguages && displayLanguages.length > 0 ? (
-                  displayLanguages.map((lang: any, idx: number) => (
-                    <div key={idx} className="flex justify-between items-center text-sm">
-                      <span className="font-medium">{lang?.sprache || String(lang)}</span>
-                      {lang?.niveau && (
-                        <Badge variant="outline" className="text-xs">{lang.niveau}</Badge>
-                      )}
-                    </div>
-                  ))
+                  [...displayLanguages]
+                    .sort((a, b) => (LEVEL_PRIORITY[b?.niveau] || 0) - (LEVEL_PRIORITY[a?.niveau] || 0))
+                    .map((lang: any, idx: number) => {
+                      // Normalize legacy levels
+                      let niveau = lang?.niveau;
+                      if (niveau === 'C2' || niveau === 'Verhandlungssicher') niveau = 'Muttersprache';
+                      if (niveau === 'C1' || niveau === 'B2') niveau = 'Fließend';
+                      if (niveau === 'B1') niveau = 'Gute Kenntnisse';
+                      if (niveau === 'A1' || niveau === 'A2') niveau = 'Grundkenntnisse';
+                      
+                      return (
+                        <div key={idx} className="flex justify-between items-center text-sm">
+                          <span className="font-medium">{lang?.sprache || String(lang)}</span>
+                          {niveau && (
+                            <Badge variant="outline" className="text-xs">{niveau}</Badge>
+                          )}
+                        </div>
+                      );
+                    })
                 ) : (
                   <p className="text-muted-foreground text-sm">Keine Sprachen hinzugefügt</p>
                 )}
