@@ -75,3 +75,30 @@ export const subscribeVisibilityPromptClosed = (handler: () => void) => {
   window.addEventListener('visibility-prompt-closed', listener);
   return () => window.removeEventListener('visibility-prompt-closed', listener);
 };
+
+// Generic modal/popup events - hides navbar when any modal is open
+export const notifyModalOpened = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('modal-opened'));
+  }
+};
+
+export const subscribeModalOpened = (handler: () => void) => {
+  if (typeof window === 'undefined') return () => {};
+  const listener = () => handler();
+  window.addEventListener('modal-opened', listener);
+  return () => window.removeEventListener('modal-opened', listener);
+};
+
+export const notifyModalClosed = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('modal-closed'));
+  }
+};
+
+export const subscribeModalClosed = (handler: () => void) => {
+  if (typeof window === 'undefined') return () => {};
+  const listener = () => handler();
+  window.addEventListener('modal-closed', listener);
+  return () => window.removeEventListener('modal-closed', listener);
+};

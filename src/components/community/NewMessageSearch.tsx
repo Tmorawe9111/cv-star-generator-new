@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { notifyModalOpened, notifyModalClosed } from "@/lib/event-bus";
 
 interface NewMessageSearchProps {
   open: boolean;
@@ -96,13 +97,15 @@ export function NewMessageSearch({ open, onOpenChange }: NewMessageSearchProps) 
     }
   };
 
-  // Focus input when sheet opens
+  // Focus input when sheet opens and notify navbar
   useEffect(() => {
     if (open) {
+      notifyModalOpened();
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
     } else {
+      notifyModalClosed();
       setSearchQuery("");
     }
   }, [open]);

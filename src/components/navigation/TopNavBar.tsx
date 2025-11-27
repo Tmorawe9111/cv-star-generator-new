@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Bell, Search as SearchIcon, MessageSquare, Users, User, LogOut, Settings, MoreHorizontal, Plus, ArrowLeft, Pencil } from "lucide-react";
-import { subscribeOpenSearchMode, openPostComposer, subscribeComposerOpened, subscribeComposerClosed, subscribeVisibilityPromptOpened, subscribeVisibilityPromptClosed } from '@/lib/event-bus';
+import { subscribeOpenSearchMode, openPostComposer, subscribeComposerOpened, subscribeComposerClosed, subscribeVisibilityPromptOpened, subscribeVisibilityPromptClosed, subscribeModalOpened, subscribeModalClosed } from '@/lib/event-bus';
 import FeedSortBar from '@/components/community/FeedSortBar';
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -63,6 +63,7 @@ export default function TopNavBar() {
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isVisibilityPromptOpen, setIsVisibilityPromptOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
@@ -206,6 +207,20 @@ export default function TopNavBar() {
     };
   }, []);
 
+  // Listen for generic modal opened/closed events (hides navbar for any popup)
+  useEffect(() => {
+    const unsubscribeOpened = subscribeModalOpened(() => {
+      setIsModalOpen(true);
+    });
+    const unsubscribeClosed = subscribeModalClosed(() => {
+      setIsModalOpen(false);
+    });
+    return () => {
+      unsubscribeOpened();
+      unsubscribeClosed();
+    };
+  }, []);
+
   // Handle search input focus
   const handleSearchFocus = () => {
     setIsSearchMode(true);
@@ -231,8 +246,8 @@ export default function TopNavBar() {
   return (
     <>
       {/* Main Navbar */}
-      {/* Desktop: Original layout, Mobile: Instagram-style with scroll behavior */}
-      {!(isMarketplace && isSearchMode) && !isComposerOpen && !isVisibilityPromptOpen && (
+      {/* Hide navbar when any modal/popup is open */}
+      {!(isMarketplace && isSearchMode) && !isComposerOpen && !isVisibilityPromptOpen && !isModalOpen && (
         <div 
           className={cn(
             "z-[300] border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
