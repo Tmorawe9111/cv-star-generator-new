@@ -1,13 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Edit3, MapPin, Building2, X, Check, Loader2 } from 'lucide-react';
+import { Camera, MapPin, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { normalizeImageUrl } from '@/lib/image-utils';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -30,55 +26,126 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
   onSave,
   isSaving = false
 }) => {
-  const { refetchProfile } = useAuth();
+  const { refetchProfile, user } = useAuth();
   const queryClient = useQueryClient();
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [headline, setHeadline] = useState(profile?.headline || '');
-
-  // Use authenticated user's ID for live profile data
-  const { user } = useAuth();
-  const { data: liveProfile } = usePublicProfile(user?.id);
-
-  // Sync local headline state with profile changes
-  React.useEffect(() => {
-    setHeadline(profile?.headline || '');
-  }, [profile?.headline]);
-  const [currentPosition, setCurrentPosition] = useState('');
   const coverInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const hasHeadline = false;
   const isOwner = user?.id === profile?.id;
 
-  // Show company badge from live data
-  const company = liveProfile?.company_id ? {
-    name: liveProfile.company_name!,
-    logo: liveProfile.company_logo,
-    href: `/companies/${liveProfile.company_id}`,
-  } : null;
-
-  // Get current position from profile data
-  React.useEffect(() => {
-    const position = getCurrentPosition(profile);
-    setCurrentPosition(position);
-  }, [profile]);
+  // Get the status label and info line based on user status
+  const getProfileInfo = (p: any) => {
+    if (!p) return { statusLine: '', location: '' };
+    
+    const branche = p.branche || '';
+    const ort = p.ort || '';
+    
+    // Get current/latest job from berufserfahrung
+    const currentJob = p.berufserfahrung?.find((job: any) => {
+      if (!job.zeitraum_bis || job.zeitraum_bis === 'heute' || job.zeitraum_bis === '') return true;
+      try {
+        const bisDate = new Date(job.zeitraum_bis);
+        return bisDate > new Date();
+      } catch {
+        return false;
+      }
+    }) || p.berufserfahrung?.[0]; // Fallback to first entry
+    
+    switch (p.status) {
+      case 'schueler':
+        // Schüler: "Schüler • Interessiert an [Branche]"
+        return {
+          statusLine: branche ? `Schüler • Interessiert an ${branche}` : 'Schüler',
+          location: ort
+        };
+        
+      case 'azubi':
+        // Azubi: "Azubi bei [Firma] • [Branche]"
+        const azubiFirma = currentJob?.unternehmen || p.ausbildungsbetrieb || '';
+        if (azubiFirma && branche) {
+          return {
+            statusLine: `Azubi bei ${azubiFirma} • ${branche}`,
+            location: ort
+          };
+        } else if (azubiFirma) {
+          return {
+            statusLine: `Azubi bei ${azubiFirma}`,
+            location: ort
+          };
+        } else if (branche) {
+          return {
+            statusLine: `Azubi • ${branche}`,
+            location: ort
+          };
+        }
+        return {
+          statusLine: 'Azubi',
+          location: ort
+        };
+        
+      case 'ausgelernt':
+        // Fachkraft: "[Position] bei [Firma] • [Branche]"
+        const position = currentJob?.position || currentJob?.titel || p.aktueller_beruf || '';
+        const firma = currentJob?.unternehmen || '';
+        
+        if (position && firma && branche) {
+          return {
+            statusLine: `${position} bei ${firma} • ${branche}`,
+            location: ort
+          };
+        } else if (position && firma) {
+          return {
+            statusLine: `${position} bei ${firma}`,
+            location: ort
+          };
+        } else if (position && branche) {
+          return {
+            statusLine: `${position} • ${branche}`,
+            location: ort
+          };
+        } else if (firma && branche) {
+          return {
+            statusLine: `${firma} • ${branche}`,
+            location: ort
+          };
+        } else if (position) {
+          return {
+            statusLine: position,
+            location: ort
+          };
+        } else if (branche) {
+          return {
+            statusLine: branche,
+            location: ort
+          };
+        }
+        return {
+          statusLine: 'Fachkraft',
+          location: ort
+        };
+        
+      default:
+        return {
+          statusLine: branche || '',
+          location: ort
+        };
+    }
+  };
 
   const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const inputEl = event.target;
     const file = inputEl.files?.[0];
     if (!file) {
-      // ensure change fires next time even with same file
       inputEl.value = '';
       return;
     }
 
     setIsUploadingCover(true);
     try {
-      // Upload to Supabase Storage and update profile
       const { uploadCoverImage } = await import('@/lib/supabase-storage');
       const uploadResult = await uploadCoverImage(file);
 
-      // Update profile in database
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { error } = await supabase
@@ -86,21 +153,15 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
           .update({ cover_image_url: uploadResult.url })
           .eq('id', user.id);
         
-        if (error) {
-          console.error('Error updating cover_image_url in database:', error);
-          throw error;
-        }
+        if (error) throw error;
         
-        // Update local state
         onProfileUpdate({ cover_image_url: uploadResult.url });
         
-        // Also update cover_url and titelbild_url for backwards compatibility
         await supabase
           .from('profiles')
           .update({ cover_url: uploadResult.url, titelbild_url: uploadResult.url })
           .eq('id', user.id);
         
-        // Invalidate and refetch profile data
         queryClient.invalidateQueries({ queryKey: ['user-profile'] });
         await refetchProfile?.();
         
@@ -110,11 +171,10 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
       console.error('Error uploading cover:', error);
       toast({ 
         title: "Upload fehlgeschlagen", 
-        description: "Das Titelbild konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut.",
+        description: "Das Titelbild konnte nicht hochgeladen werden.",
         variant: "destructive"
       });
     } finally {
-      // reset input so selecting the same file works again
       try { inputEl.value = ''; } catch {}
       try { coverInputRef.current && (coverInputRef.current.value = ''); } catch {}
       setIsUploadingCover(false);
@@ -131,11 +191,9 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
 
     setIsUploadingAvatar(true);
     try {
-      // Upload to Supabase Storage and update profile
       const { uploadProfileImage } = await import('@/lib/supabase-storage');
       const uploadResult = await uploadProfileImage(file);
       
-      // Update profile in database
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { error } = await supabase
@@ -153,7 +211,6 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
       }
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      // Fallback to base64 if Supabase upload fails
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
@@ -171,268 +228,43 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
     }
   };
 
-  const handleHeadlineUpdate = async () => {
-    await onProfileUpdate({ headline });
-  };
-
-  const getCurrentPosition = (profile: any) => {
-    if (!profile?.status) return '';
-    
-    switch (profile.status) {
-      case 'schueler':
-        return profile.geplanter_abschluss || 'Abitur';
-      case 'azubi':
-        const currentJob = profile.berufserfahrung?.find((job: any) => {
-          if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
-          try {
-            const bisDate = new Date(job.zeitraum_bis);
-            return bisDate > new Date();
-          } catch {
-            return true;
-          }
-        });
-        return currentJob?.titel || profile.ausbildungsberuf || 'Ausbildung';
-      case 'ausgelernt':
-        const currentEmployment = profile.berufserfahrung?.find((job: any) => {
-          if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
-          try {
-            const bisDate = new Date(job.zeitraum_bis);
-            return bisDate > new Date();
-          } catch {
-            return true;
-          }
-        });
-        return currentEmployment?.titel || profile.aktueller_beruf || 'Position';
-      default:
-        return '';
-    }
-  };
-
-  const updateCurrentPosition = async (newPosition: string) => {
-    if (!profile?.status) return;
-    
-    let updates: any = {};
-    
-    switch (profile.status) {
-      case 'schueler':
-        updates.geplanter_abschluss = newPosition;
-        // Update schulbildung if exists
-        if (profile.schulbildung && profile.schulbildung.length > 0) {
-          const updatedSchulbildung = [...profile.schulbildung];
-          updatedSchulbildung[0] = { ...updatedSchulbildung[0], schulform: newPosition };
-          updates.schulbildung = updatedSchulbildung;
-        }
-        break;
-        
-      case 'azubi':
-        updates.ausbildungsberuf = newPosition;
-        // Update berufserfahrung if exists
-        if (profile.berufserfahrung && profile.berufserfahrung.length > 0) {
-          const updatedBerufserfahrung = [...profile.berufserfahrung];
-          const currentJobIndex = updatedBerufserfahrung.findIndex((job: any) => {
-            if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
-            try {
-              const bisDate = new Date(job.zeitraum_bis);
-              return bisDate > new Date();
-            } catch {
-              return true;
-            }
-          });
-          if (currentJobIndex !== -1) {
-            updatedBerufserfahrung[currentJobIndex] = { 
-              ...updatedBerufserfahrung[currentJobIndex], 
-              titel: newPosition 
-            };
-            updates.berufserfahrung = updatedBerufserfahrung;
-          }
-        }
-        break;
-        
-      case 'ausgelernt':
-        updates.aktueller_beruf = newPosition;
-        // Update berufserfahrung if exists
-        if (profile.berufserfahrung && profile.berufserfahrung.length > 0) {
-          const updatedBerufserfahrung = [...profile.berufserfahrung];
-          const currentJobIndex = updatedBerufserfahrung.findIndex((job: any) => {
-            if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
-            try {
-              const bisDate = new Date(job.zeitraum_bis);
-              return bisDate > new Date();
-            } catch {
-              return true;
-            }
-          });
-          if (currentJobIndex !== -1) {
-            updatedBerufserfahrung[currentJobIndex] = { 
-              ...updatedBerufserfahrung[currentJobIndex], 
-              titel: newPosition 
-            };
-            updates.berufserfahrung = updatedBerufserfahrung;
-          }
-        }
-        break;
-    }
-    
-    try {
-      await onProfileUpdate(updates);
-      toast({
-        title: "Position aktualisiert",
-        description: "Ihre Position wurde erfolgreich aktualisiert."
-      });
-    } catch (error) {
-      console.error('Error updating position:', error);
-      toast({
-        title: "Fehler beim Speichern",
-        description: "Die Position konnte nicht aktualisiert werden.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getEmployerOrSchool = (p: any) => {
-    if (!p) return '';
-    if (p.status === 'schueler') {
-      return p.schule || p.schulbildung?.[0]?.name || '';
-    }
-    if (p.status === 'azubi' || p.status === 'ausgelernt') {
-      const current = p.berufserfahrung?.find((job: any) => {
-        if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
-        try {
-          const bisDate = new Date(job.zeitraum_bis);
-          return bisDate > new Date();
-        } catch {
-          return true;
-        }
-      });
-      return current?.unternehmen || p.ausbildungsbetrieb || '';
-    }
-    return '';
-  };
-
-  const getStatusDescription = (profile: any) => {
-    if (!profile?.status) return '';
-    
-    const currentYear = new Date().getFullYear();
-    
-    switch (profile.status) {
-      case 'schueler':
-        const schoolName = profile.schule || profile.schulbildung?.[0]?.name || 'Schule';
-        const graduationYear = profile.abschlussjahr || 
-          (profile.schulbildung?.[0]?.zeitraum_bis ? new Date(profile.schulbildung[0].zeitraum_bis).getFullYear() : currentYear + 1);
-        const studentPosition = getCurrentPosition(profile);
-        return `${studentPosition} an der ${schoolName}, Abschluss voraussichtlich ${graduationYear}`;
-      
-      case 'azubi':
-        const currentJob = profile.berufserfahrung?.find((job: any) => {
-          if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
-          try {
-            const bisDate = new Date(job.zeitraum_bis);
-            return bisDate > new Date();
-          } catch {
-            return true;
-          }
-        });
-        const company = profile.ausbildungsbetrieb || currentJob?.unternehmen || 'Betrieb';
-        const endDate = profile.voraussichtliches_ende || 
-          (currentJob?.zeitraum_bis && currentJob.zeitraum_bis !== 'heute' ? new Date(currentJob.zeitraum_bis).getFullYear() : currentYear + 2);
-        const apprenticePosition = getCurrentPosition(profile);
-        return `${apprenticePosition} bei ${company} bis ${endDate}`;
-      
-      case 'ausgelernt':
-        const currentEmployment = profile.berufserfahrung?.find((job: any) => {
-          if (!job.zeitraum_bis || job.zeitraum_bis === 'heute') return true;
-          try {
-            const bisDate = new Date(job.zeitraum_bis);
-            return bisDate > new Date();
-          } catch {
-            return true;
-          }
-        });
-        const employer = currentEmployment?.unternehmen || 'Unternehmen';
-        const startYear = profile.abschlussjahr_ausgelernt || 
-          (currentEmployment?.zeitraum_von ? new Date(currentEmployment.zeitraum_von).getFullYear() : currentYear);
-        const employeePosition = getCurrentPosition(profile);
-        return `${employeePosition} bei ${employer} seit ${startYear}`;
-      
-      default:
-        return '';
-    }
-  };
+  const { statusLine, location } = getProfileInfo(profile);
+  const coverUrl = profile?.cover_image_url || profile?.cover_url || profile?.titelbild_url;
 
   return (
     <div className="relative bg-background rounded-xl shadow-sm border overflow-visible">
-      {/* Cover Photo */}
-      <div className="relative h-32 sm:h-36 md:h-40 lg:h-48 overflow-hidden rounded-t-xl bg-gradient-to-r from-primary/20 to-accent/30">
-        {profile?.cover_image_url || profile?.cover_url || profile?.titelbild_url ? (
+      {/* Cover Photo - Clickable to change */}
+      <div 
+        className={`relative h-28 sm:h-32 md:h-36 lg:h-44 overflow-hidden rounded-t-xl bg-gradient-to-r from-primary/10 via-primary/5 to-accent/10 ${isOwner ? 'cursor-pointer group' : ''}`}
+        onClick={() => isOwner && coverInputRef.current?.click()}
+      >
+        {coverUrl ? (
           <img 
-            src={normalizeImageUrl((profile.cover_image_url || profile.cover_url || profile.titelbild_url) as string) || (profile.cover_image_url || profile.cover_url || profile.titelbild_url) as string}
-            alt={(profile?.vorname || profile?.nachname) ? `Titelbild von ${profile?.vorname ?? ''} ${profile?.nachname ?? ''}`.trim() : 'Titelbild'} 
-            className="w-full h-full object-cover object-[center_top]"
+            src={normalizeImageUrl(coverUrl as string) || coverUrl as string}
+            alt="Titelbild" 
+            className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]"
             loading="lazy"
             decoding="async"
-            sizes="(max-width: 768px) 100vw, 800px"
-            onError={(e) => {
-              const originalUrl = profile.cover_image_url || profile.cover_url || profile.titelbild_url;
-              console.error('Cover image load error:', originalUrl);
-              console.error('Normalized URL:', normalizeImageUrl(originalUrl as string));
-              // Don't hide the image, just log the error - might be a temporary network issue
-              // e.currentTarget.style.display = 'none';
-            }}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-r from-primary/10 to-accent/20" />
+          <div className="w-full h-full bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10" />
         )}
 
-        {/* Add prominent add button when there is no cover */}
-        {isOwner && !(profile?.cover_image_url || profile?.cover_url || profile?.titelbild_url) && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <label
-              htmlFor="cover-upload"
-              className="cursor-pointer inline-flex items-center gap-2 rounded-md border border-dashed px-4 py-2 bg-background/70 hover:bg-background/80 transition-colors text-sm"
-              aria-label="Titelbild hinzufügen"
-            >
-              <Camera className="h-4 w-4" />
-              {isUploadingCover ? 'Lädt…' : 'Titelbild hinzufügen'}
-            </label>
-          </div>
-        )}
-
-        {/* Edit Controls Overlay for Desktop */}
-        {isOwner && !isEditing && onStartEdit && (
-          <div className="absolute right-3 top-3 hidden md:block">
-            <Button size="sm" variant="secondary" onClick={onStartEdit}>
-              <Edit3 className="h-4 w-4 mr-2" />
-              Bearbeiten
-            </Button>
-          </div>
-        )}
-        
-        {isOwner && isEditing && onCancelEdit && onSave && (
-          <div className="absolute right-3 top-3 hidden md:flex gap-2">
-            <Button size="sm" variant="outline" onClick={onCancelEdit} disabled={isSaving}>
-              <X className="h-4 w-4 mr-2" />
-              Abbrechen
-            </Button>
-            <Button size="sm" onClick={onSave} disabled={isSaving}>
-              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
-              Speichern
-            </Button>
-          </div>
-        )}
-
+        {/* Hover overlay for cover change */}
         {isOwner && (
-          <div className="absolute right-3 bottom-3">
-            <Button size="sm" variant="secondary" asChild disabled={isUploadingCover}>
-              <label htmlFor="cover-upload" className="flex items-center" aria-label="Titelbild ändern">
-                <Camera className="h-4 w-4 mr-2" />
-                {isUploadingCover ? 'Lädt…' : ((profile?.cover_image_url || profile?.cover_url || profile?.titelbild_url) ? 'Titelbild ändern' : 'Titelbild hinzufügen')}
-              </label>
-            </Button>
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2">
+              {isUploadingCover ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
+              {isUploadingCover ? 'Lädt...' : 'Titelbild ändern'}
+            </div>
           </div>
         )}
         
         <input
-          id="cover-upload"
           ref={coverInputRef}
           type="file"
           accept="image/*"
@@ -441,29 +273,28 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
         />
       </div>
 
-      {/* Profile Info */}
-      <div className="px-4 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
-        {/* Avatar */}
-        <div className="relative -mt-12 sm:-mt-14 md:-mt-16 mb-2 sm:mb-3">
+      {/* Profile Info - Clean Apple Style */}
+      <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6">
+        {/* Avatar - Overlapping cover */}
+        <div className="relative -mt-10 sm:-mt-12 md:-mt-14 mb-3 sm:mb-4">
           <div className="relative inline-block">
-            <Avatar className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 lg:w-28 lg:h-28 border-4 border-background shadow-lg">
+            <Avatar className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 border-4 border-background shadow-lg ring-2 ring-background">
               <AvatarImage src={profile?.avatar_url} alt="Profilbild" loading="lazy" decoding="async" />
-              <AvatarFallback className="text-base sm:text-lg md:text-xl font-bold bg-primary/10">
+              <AvatarFallback className="text-lg sm:text-xl md:text-2xl font-semibold bg-primary/10 text-primary">
                 {profile?.vorname?.[0]}{profile?.nachname?.[0]}
               </AvatarFallback>
             </Avatar>
             {isOwner && (
-              <Button
-                asChild
-                variant="secondary"
-                size="icon"
-                className="absolute -bottom-0.5 -right-0.5 h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 rounded-full"
-                disabled={isUploadingAvatar}
+              <label 
+                htmlFor="avatar-upload" 
+                className="absolute -bottom-1 -right-1 h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-background border-2 border-background shadow-md flex items-center justify-center cursor-pointer hover:bg-muted transition-colors"
               >
-                <label htmlFor="avatar-upload" aria-label="Profilbild ändern" className="flex items-center justify-center">
-                  <Camera className="h-4 w-4" />
-                </label>
-              </Button>
+                {isUploadingAvatar ? (
+                  <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                )}
+              </label>
             )}
           </div>
           
@@ -477,56 +308,27 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
           />
         </div>
 
-        {/* Name and Headline */}
-         <div className="space-y-1.5 sm:space-y-2 min-w-0">
-          <h1 className="text-xl sm:text-xl md:text-2xl lg:text-3xl font-bold text-foreground leading-tight break-words">
+        {/* Name and Info - Minimal and Clean */}
+        <div className="space-y-1">
+          {/* Name */}
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight">
             {profile?.vorname} {profile?.nachname}
           </h1>
           
-          {/* Professional Status - Mobile optimized badge + Editable position */}
-          {profile?.status && (
-            <div className="space-y-1.5 sm:space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
-                <Badge variant="secondary" className="text-xs sm:text-xs md:text-sm w-fit px-2 py-0.5">
-                  {profile.status === 'schueler' ? 'Schüler' : 
-                   profile.status === 'azubi' ? 'Azubi im Handwerk' : 
-                   'Angestellter im Handwerk'}
-                </Badge>
-                <div className="rounded-md border px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-xs md:text-sm text-muted-foreground">
-                  {currentPosition || '—'}
-                </div>
-              </div>
-              <p className="text-sm sm:text-sm md:text-base font-medium text-primary leading-tight line-clamp-2">
-                {getStatusDescription(profile)}
-              </p>
-            </div>
+          {/* Status Line - One clear line */}
+          {statusLine && (
+            <p className="text-sm sm:text-base text-foreground/80 font-medium">
+              {statusLine}
+            </p>
           )}
           
-           <p className="text-sm sm:text-sm md:text-base font-medium text-muted-foreground line-clamp-2">
-             {headline || '—'}
-           </p>
-           
-           {/* Show company employment badge */}
-           {company && (
-             <div className="flex items-center gap-2 mt-2">
-               <Building2 className="h-4 w-4 text-muted-foreground" />
-               <a href={company.href} className="hover:underline">
-                 <Badge variant="secondary" className="flex items-center gap-1">
-                   {company.logo && (
-                     <img src={company.logo} alt="" className="w-4 h-4 rounded-sm" />
-                   )}
-                   {company.name}
-                 </Badge>
-               </a>
-             </div>
-           )}
-           
-           <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-1">
-            <MapPin className="h-4 w-4" aria-hidden />
-            <span>{profile?.ort || '—'}</span>
-            {profile?.branche && <span> • {profile.branche}</span>}
-            {getEmployerOrSchool(profile) && <span> • {getEmployerOrSchool(profile)}</span>}
-          </p>
+          {/* Location - Subtle */}
+          {location && (
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5 pt-0.5">
+              <MapPin className="h-3.5 w-3.5" />
+              {location}
+            </p>
+          )}
         </div>
       </div>
     </div>
