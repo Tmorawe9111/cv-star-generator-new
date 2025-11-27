@@ -325,7 +325,7 @@ export default function CommunityMessages() {
     );
   };
 
-  // Mobile Conversation List (Apple Style - No search bar, uses TopNavBar)
+  // Mobile Conversation List - Fixed layout, only chats scroll
   if (isMobile) {
     if (showChat && selected) {
       return <MobileChatView />;
@@ -335,9 +335,16 @@ export default function CommunityMessages() {
       <>
         <NewMessageSearch open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen} />
         
-        <div className="min-h-screen bg-background">
-          {/* Conversation List - No padding, full width */}
-          <div className="divide-y divide-border/50">
+        {/* Fixed container between TopNavBar and BottomBar */}
+        <div className="fixed inset-0 bg-background flex flex-col" style={{ top: '48px', bottom: '64px' }}>
+          {/* Header - stays fixed */}
+          <div className="shrink-0 px-4 py-3 border-b bg-background">
+            <h1 className="text-xl font-bold">Chats</h1>
+            <p className="text-sm text-muted-foreground">{filtered.length} Unterhaltungen</p>
+          </div>
+          
+          {/* Scrollable chat list */}
+          <div className="flex-1 overflow-y-auto">
             {loading && (
               <div className="flex items-center justify-center py-16">
                 <div className="text-sm text-muted-foreground">Lädt...</div>
@@ -345,7 +352,7 @@ export default function CommunityMessages() {
             )}
             
             {!loading && filtered.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 px-6">
+              <div className="flex flex-col items-center justify-center h-full px-6">
                 <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
                   <Send className="h-10 w-10 text-muted-foreground" />
                 </div>
@@ -356,46 +363,50 @@ export default function CommunityMessages() {
               </div>
             )}
             
-            {!loading && filtered.map((c) => {
-              const name = [c.otherUser?.vorname, c.otherUser?.nachname].filter(Boolean).join(" ") || "Unbekannt";
-              const hasUnread = false; // TODO: Implement unread status
-              
-              return (
-                <button 
-                  key={c.id} 
-                  className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-muted/50 transition-colors"
-                  onClick={() => openChat(c.id)}
-                >
-                  <div className="relative shrink-0">
-                    <Avatar className="h-14 w-14">
-                      <AvatarImage src={c.otherUser?.avatar_url} alt={name} />
-                      <AvatarFallback className="text-lg font-medium bg-gradient-to-br from-primary/20 to-primary/10">
-                        {name.slice(0,2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Online indicator */}
-                    <div className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 bg-green-500 rounded-full border-2 border-background" />
-                  </div>
+            {!loading && (
+              <div className="divide-y divide-border/50">
+                {filtered.map((c) => {
+                  const name = [c.otherUser?.vorname, c.otherUser?.nachname].filter(Boolean).join(" ") || "Unbekannt";
+                  const hasUnread = false; // TODO: Implement unread status
                   
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className={`text-[15px] truncate ${hasUnread ? 'font-semibold' : 'font-medium'}`}>
-                        {name}
-                      </span>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {formatDate(c.lastMessageAt)}
-                      </span>
-                    </div>
-                    <div className={`text-[14px] truncate ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                      {c.lastMessage?.content || 'Keine Nachrichten'}
-                    </div>
-                  </div>
-                  
-                  {/* Chevron */}
-                  <ArrowLeft className="h-4 w-4 text-muted-foreground/50 rotate-180 shrink-0" />
-                </button>
-              );
-            })}
+                  return (
+                    <button 
+                      key={c.id} 
+                      className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-muted/50 transition-colors"
+                      onClick={() => openChat(c.id)}
+                    >
+                      <div className="relative shrink-0">
+                        <Avatar className="h-14 w-14">
+                          <AvatarImage src={c.otherUser?.avatar_url} alt={name} />
+                          <AvatarFallback className="text-lg font-medium bg-gradient-to-br from-primary/20 to-primary/10">
+                            {name.slice(0,2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        {/* Online indicator */}
+                        <div className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 bg-green-500 rounded-full border-2 border-background" />
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <span className={`text-[15px] truncate ${hasUnread ? 'font-semibold' : 'font-medium'}`}>
+                            {name}
+                          </span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {formatDate(c.lastMessageAt)}
+                          </span>
+                        </div>
+                        <div className={`text-[14px] truncate ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                          {c.lastMessage?.content || 'Keine Nachrichten'}
+                        </div>
+                      </div>
+                      
+                      {/* Chevron */}
+                      <ArrowLeft className="h-4 w-4 text-muted-foreground/50 rotate-180 shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </>
