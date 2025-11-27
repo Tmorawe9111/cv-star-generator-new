@@ -39,7 +39,7 @@ export function useFollowRelations() {
     if (!user) return;
     
     try {
-      // First get the follow records
+      // First get the pending follow records
       const { data: followsData, error: followsError } = await supabase
         .from('follows')
         .select('id, follower_id, created_at')
@@ -55,17 +55,48 @@ export function useFollowRelations() {
         return;
       }
 
-      // Then get the company details
       const companyIds = followsData.map(f => f.follower_id);
+
+      // Check if user already follows any of these companies (already connected)
+      const { data: alreadyFollowing } = await supabase
+        .from('follows')
+        .select('followee_id')
+        .eq('follower_id', user.id)
+        .eq('follower_type', 'profile')
+        .eq('followee_type', 'company')
+        .eq('status', 'accepted')
+        .in('followee_id', companyIds);
+
+      const alreadyFollowingIds = new Set((alreadyFollowing || []).map(f => f.followee_id));
+
+      // Filter out companies user already follows and auto-accept those
+      const pendingFollows = followsData.filter(f => !alreadyFollowingIds.has(f.follower_id));
+      
+      // Auto-accept follow requests from companies user already follows
+      const toAutoAccept = followsData.filter(f => alreadyFollowingIds.has(f.follower_id));
+      if (toAutoAccept.length > 0) {
+        await supabase
+          .from('follows')
+          .update({ status: 'accepted' })
+          .in('id', toAutoAccept.map(f => f.id));
+      }
+
+      if (pendingFollows.length === 0) {
+        setCompanyFollowRequests([]);
+        return;
+      }
+
+      // Then get the company details
+      const pendingCompanyIds = pendingFollows.map(f => f.follower_id);
       const { data: companiesData, error: companiesError } = await supabase
         .from('companies')
         .select('id, name, logo_url, industry, main_location')
-        .in('id', companyIds);
+        .in('id', pendingCompanyIds);
 
       if (companiesError) throw companiesError;
 
       // Combine the data
-      const combined = followsData.map(follow => {
+      const combined = pendingFollows.map(follow => {
         const company = companiesData?.find(c => c.id === follow.follower_id);
         return {
           id: follow.id,
