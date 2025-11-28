@@ -36,10 +36,45 @@ export default function CreateAdmin() {
     }
     setLoading(true);
     try {
+      // Versuche zuerst die Edge Function
       const { data, error } = await supabase.functions.invoke("admin-user-actions", {
         body: { action: "create_admin", email, password },
       });
-      if (error) throw error;
+      
+      if (error) {
+        // Fallback: Versuche User zu erstellen und Rolle direkt zuzuweisen
+        console.warn("Edge Function failed, trying direct approach", error);
+        
+        // 1. Erstelle User
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        
+        if (signUpError) throw signUpError;
+        
+        if (!signUpData.user) {
+          throw new Error("User creation failed");
+        }
+        
+        // 2. Weise Admin-Rolle zu (mit RPC oder direkt)
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: signUpData.user.id, role: "admin" });
+        
+        if (roleError) {
+          // Wenn das auch fehlschlägt, zeige Anleitung
+          throw new Error("Rolle konnte nicht zugewiesen werden. Bitte manuell in Supabase zuweisen.");
+        }
+        
+        toast({ 
+          title: "Admin erstellt", 
+          description: "Bitte bestätige deine E-Mail und logge dich dann ein." 
+        });
+        navigate("/auth", { replace: true });
+        return;
+      }
+      
       // Auto-Login und Redirect ins Admin-Panel
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
       if (signInErr) {
@@ -53,7 +88,11 @@ export default function CreateAdmin() {
     } catch (err: any) {
       console.error("Create admin error", err);
       const message = err?.message || err?.error || "Unbekannter Fehler";
-      toast({ title: "Fehler beim Erstellen", description: String(message) });
+      toast({ 
+        title: "Fehler beim Erstellen", 
+        description: `${String(message)}. Siehe MANUAL_ADMIN_SETUP.sql für manuelle Anleitung.`,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
