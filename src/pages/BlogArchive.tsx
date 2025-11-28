@@ -3,15 +3,15 @@ import { useBlogPosts } from '@/hooks/useBlogPosts';
 import BaseLayout from '@/components/layout/BaseLayout';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { useSEO } from '@/hooks/useSEO';
-import { NewsroomGrid } from '@/components/blog/NewsroomGrid';
+import { BlogArchive } from '@/components/blog/BlogArchive';
 
-export default function Blog() {
+export default function BlogArchivePage() {
   const { data: posts, isLoading } = useBlogPosts({ status: 'published' });
 
   const seoData = useSEO({
-    title: 'Newsroom – BeVisiblle',
-    description: 'Aktuelle Einblicke in Pflege, Handwerk und Industrie. Ratgeber für Schüler, Azubis und Fachkräfte.',
-    keywords: ['Blog', 'Ratgeber', 'Ausbildung', 'Karriere', 'Tipps'],
+    title: 'Newsroom Archiv – BeVisiblle',
+    description: 'Alle Artikel im Archiv. Durchsuche nach Themen, Jahren und Monaten.',
+    keywords: ['Blog', 'Archiv', 'Artikel', 'Newsroom'],
   });
 
   return (
@@ -23,7 +23,7 @@ export default function Blog() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           </div>
         ) : posts && posts.length > 0 ? (
-          <NewsroomGrid articles={posts} />
+          <BlogArchive articles={posts} />
         ) : (
           <div className="min-h-screen bg-white flex items-center justify-center">
             <div className="text-center">
@@ -36,3 +36,4 @@ export default function Blog() {
     </>
   );
 }
+

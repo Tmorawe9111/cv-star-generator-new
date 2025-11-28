@@ -28,20 +28,24 @@ interface UseBlogPostsOptions {
   category?: string;
   limit?: number;
   offset?: number;
+  status?: 'published' | 'draft' | 'archived';
 }
 
 export function useBlogPosts(options: UseBlogPostsOptions = {}) {
-  const { industry, targetAudience, category, limit = 10, offset = 0 } = options;
+  const { industry, targetAudience, category, limit = 10, offset = 0, status = 'published' } = options;
 
   return useQuery({
-    queryKey: ['blog-posts', industry, targetAudience, category, limit, offset],
+    queryKey: ['blog-posts', industry, targetAudience, category, limit, offset, status],
     queryFn: async () => {
       let query = supabase
         .from('blog_posts')
         .select('*')
-        .eq('status', 'published')
         .order('published_at', { ascending: false })
         .range(offset, offset + limit - 1);
+
+      if (status) {
+        query = query.eq('status', status);
+      }
 
       if (industry) {
         query = query.eq('industry_sector', industry);

@@ -1,21 +1,20 @@
 import React, { useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useBlogPosts } from '@/hooks/useBlogPosts';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useBlogPost } from '@/hooks/useBlogPosts';
 import BaseLayout from '@/components/layout/BaseLayout';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { useSEO } from '@/hooks/useSEO';
+import { ArticleHeader } from '@/components/blog/ArticleHeader';
+import { ArticleHero } from '@/components/blog/ArticleHero';
+import { MoreFromSection } from '@/components/blog/MoreFromSection';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar, Tag } from 'lucide-react';
-import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
-import { Badge } from '@/components/ui/badge';
+import { ArrowLeft } from 'lucide-react';
 
 export default function BlogPostDetail() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  
-  const { data: posts, isLoading } = useBlogPosts({ status: 'published' });
-  const post = posts?.find((p) => p.slug === slug);
+
+  const { data: post, isLoading } = useBlogPost(slug || '');
 
   const seoData = useSEO({
     title: post?.seo_title || post?.title || 'Blog-Artikel',
@@ -23,29 +22,21 @@ export default function BlogPostDetail() {
     keywords: post?.seo_keywords || [],
   });
 
-  const getIndustryLabel = (industry?: string) => {
-    const labels: Record<string, string> = {
-      pflege: 'Pflege',
-      handwerk: 'Handwerk',
-      industrie: 'Industrie',
-      allgemein: 'Allgemein',
-    };
-    return labels[industry || ''] || null;
-  };
-
-  const getAudienceLabel = (audience?: string) => {
-    const labels: Record<string, string> = {
-      schueler: 'Schüler',
-      azubi: 'Azubi',
-      profi: 'Profi',
-      unternehmen: 'Unternehmen',
-    };
-    return labels[audience || ''] || null;
+  const getCategoryLabel = () => {
+    if (post?.category) return post.category.toUpperCase();
+    if (post?.industry_sector) {
+      const labels: Record<string, string> = {
+        pflege: 'PFLEGE',
+        handwerk: 'HANDWERK',
+        industrie: 'INDUSTRIE',
+      };
+      return labels[post.industry_sector] || 'KARRIERE';
+    }
+    return 'KARRIERE';
   };
 
   useEffect(() => {
     if (post) {
-      // JSON-LD Schema für BlogPosting
       const jsonLd = {
         '@context': 'https://schema.org',
         '@type': 'BlogPosting',
@@ -71,7 +62,7 @@ export default function BlogPostDetail() {
   if (isLoading) {
     return (
       <BaseLayout>
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center bg-white">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       </BaseLayout>
@@ -81,7 +72,7 @@ export default function BlogPostDetail() {
   if (!post) {
     return (
       <BaseLayout>
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center bg-white">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Artikel nicht gefunden</h1>
             <Button onClick={() => navigate('/blog')}>Zurück zum Blog</Button>
@@ -95,79 +86,45 @@ export default function BlogPostDetail() {
     <>
       <SEOHead {...seoData} />
       <BaseLayout>
-        <article className="min-h-screen bg-background">
-          <div className="max-w-4xl mx-auto px-6 py-12">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate('/blog')}
-              className="mb-6"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Zurück zum Blog
-            </Button>
-
-            <header className="mb-8">
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                {getIndustryLabel(post.industry_sector) && (
-                  <Badge variant="outline">{getIndustryLabel(post.industry_sector)}</Badge>
-                )}
-                {getAudienceLabel(post.target_audience) && (
-                  <Badge variant="secondary">{getAudienceLabel(post.target_audience)}</Badge>
-                )}
-                {post.category && (
-                  <Badge variant="outline">
-                    <Tag className="h-3 w-3 mr-1" />
-                    {post.category}
-                  </Badge>
-                )}
-              </div>
-              
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">{post.title}</h1>
-              
-              {post.excerpt && (
-                <p className="text-xl text-muted-foreground mb-4">{post.excerpt}</p>
-              )}
-              
-              {post.published_at && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  {format(new Date(post.published_at), 'dd. MMMM yyyy', { locale: de })}
-                </div>
-              )}
-            </header>
-
-            {post.featured_image && (
-              <img 
-                src={post.featured_image} 
-                alt={post.title}
-                className="w-full h-auto rounded-lg mb-8"
-              />
-            )}
-
-            <div 
-              className="prose prose-lg max-w-none"
-              dangerouslySetInnerHTML={{ __html: post.content }}
-            />
-
-            {post.tags && post.tags.length > 0 && (
-              <div className="mt-8 pt-8 border-t">
-                <h3 className="text-sm font-semibold mb-3">Tags:</h3>
-                <div className="flex flex-wrap gap-2">
-                  {post.tags.map((tag, index) => (
-                    <Badge key={index} variant="outline">{tag}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-12 pt-8 border-t text-center">
-              <h2 className="text-2xl font-semibold mb-4">Bereit für deinen Traumjob?</h2>
-              <Button size="lg" onClick={() => navigate('/cv-generator')}>
-                Jetzt CV erstellen
+        <main className="bg-white min-h-screen pb-24">
+          <article className="pt-20 lg:pt-32">
+            {/* Header (Zentriert, schmal) */}
+            <div className="max-w-[720px] mx-auto px-6">
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/blog')}
+                className="mb-8 -ml-2"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Zurück
               </Button>
+              <ArticleHeader
+                label={getCategoryLabel()}
+                date={post.published_at}
+                title={post.title}
+              />
             </div>
+
+            {/* Hero Image (Breiter als Text -> "Breakout") */}
+            <div className="max-w-[1024px] mx-auto px-6 my-12">
+              <ArticleHero
+                src={post.featured_image}
+                caption={post.excerpt || undefined}
+                alt={post.title}
+              />
+            </div>
+
+            {/* Content (Wieder schmal) */}
+            <div className="max-w-[720px] mx-auto px-6 prose prose-lg prose-slate prose-headings:font-bold prose-headings:tracking-tight prose-a:text-blue-600 hover:prose-a:underline prose-img:rounded-2xl">
+              <div dangerouslySetInnerHTML={{ __html: post.content }} />
+            </div>
+          </article>
+
+          {/* Footer "More from..." */}
+          <div className="max-w-[1024px] mx-auto px-6 mt-24">
+            <MoreFromSection />
           </div>
-        </article>
+        </main>
       </BaseLayout>
     </>
   );

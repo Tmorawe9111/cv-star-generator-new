@@ -31,6 +31,7 @@ const ChatFlowContainer = lazy(() => import("@/components/cv-creation/flows/Chat
 
 // Lazy load non-critical pages to reduce initial bundle size
 const Blog = lazy(() => import("./pages/Blog"));
+const BlogArchive = lazy(() => import("./pages/BlogArchive"));
 const BlogPostDetail = lazy(() => import("./pages/BlogPostDetail"));
 const Unternehmen = lazy(() => import("./pages/Unternehmen"));
 const CompanyLandingPage = lazy(() => import("@/components/marketing/CompanyLandingPage"));
@@ -372,6 +373,7 @@ const App = () => {
               <Route path="/company-advanced" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyOnboarding /></Suspense>} />
               <Route path="/company/onboarding/apple" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><AppleOnboardingWizard /></Suspense>} />
               <Route path="/blog" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Blog /></Suspense>} />
+              <Route path="/blog/archive" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BlogArchive /></Suspense>} />
               <Route path="/blog/:slug" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BlogPostDetail /></Suspense>} />
               <Route path="/p/:slug" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><PublicPage /></Suspense>} />
               <Route path="/unternehmen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><CompanyLandingPage /></BaseLayout></Suspense>} />
