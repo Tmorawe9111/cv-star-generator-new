@@ -30,6 +30,7 @@ const navItems: ReadonlyArray<NavItem> = [
   { title: "Matches", url: "/admin/matches", icon: HeartHandshake, roles: ["SuperAdmin", "SupportAgent"] },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
   { title: "Content", url: "/admin/content", icon: FileText, roles: ["SuperAdmin", "ContentEditor", "SupportAgent"] },
+  { title: "Blog", url: "/admin/blog", icon: FileText, roles: ["SuperAdmin", "ContentEditor", "SupportAgent"] },
   { title: "Support", url: "/admin/support", icon: LifeBuoy },
   { title: "Tools", url: "/admin/tools", icon: Wrench, roles: ["SuperAdmin", "ContentEditor", "SupportAgent"] },
   { title: "Admin Settings", url: "/admin/settings", icon: Settings, roles: ["SuperAdmin"] },

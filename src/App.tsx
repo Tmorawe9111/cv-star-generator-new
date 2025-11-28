@@ -112,6 +112,8 @@ const JobsPage = lazy(() => import("./pages/Admin/Jobs"));
 const MatchesPage = lazy(() => import("./pages/Admin/Matches"));
 const AnalyticsPage = lazy(() => import("./pages/Admin/Analytics"));
 const ContentPage = lazy(() => import("./pages/Admin/Content"));
+const BlogList = lazy(() => import("./pages/Admin/BlogList"));
+const BlogEditor = lazy(() => import("./pages/Admin/BlogEditor"));
 const SupportPage = lazy(() => import("./pages/Admin/Support"));
 const AdminTools = lazy(() => import("./pages/Admin/Tools"));
 const AdminAuthGate = lazy(() => import("@/components/admin/AdminAuthGate"));
@@ -586,6 +588,9 @@ const App = () => {
                 <Route path="matches" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><MatchesPage /></Suspense>} />
                 <Route path="analytics" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><AnalyticsPage /></Suspense>} />
                 <Route path="content" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><ContentPage /></Suspense>} />
+                <Route path="blog" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BlogList /></Suspense>} />
+                <Route path="blog/new" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BlogEditor /></Suspense>} />
+                <Route path="blog/edit/:id" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BlogEditor /></Suspense>} />
                 {/* Legacy content routes remain accessible */}
                 <Route path="pages" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><PagesList /></Suspense>} />
                 <Route path="pages/new" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><PageEditor /></Suspense>} />
