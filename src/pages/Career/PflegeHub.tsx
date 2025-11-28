@@ -1,6 +1,8 @@
 import { useSEO } from '@/hooks/useSEO';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { OrganizationStructuredData } from '@/components/seo/StructuredData';
+import CareerHubHeader from '@/components/career/CareerHubHeader';
+import CareerHubHero from '@/components/career/CareerHubHero';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -19,31 +21,17 @@ export default function PflegeHub() {
       <SEOHead {...seoData} />
       <OrganizationStructuredData />
       
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-        {/* Hero Section */}
-        <section className="container mx-auto px-4 py-16 md:py-24">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 rounded-full mb-6">
-              <Heart className="h-5 w-5 text-blue-600" />
-              <span className="text-sm font-medium text-blue-600">Pflege & Gesundheit</span>
-            </div>
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              Deine Karriere in der <span className="text-blue-600">Pflege</span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Von der Ausbildung zur Fachkraft – finde deinen Weg in der Pflege. 
-              Werde von Arbeitgebern gefunden oder finde deine Traumstelle.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700">
-                <Link to="/registrieren">Jetzt kostenlos starten</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link to="/karriere/pflege/unternehmen">Für Unternehmen</Link>
-              </Button>
-            </div>
-          </div>
-        </section>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <CareerHubHeader />
+        
+        <CareerHubHero
+          headline="Deine Karriere in der Pflege startet hier mit"
+          subtitle="Jobs, Community und Weiterbildung an einem Ort"
+          description="Ob Ausbildung oder Fachkraft – finde passende Stellen im Gesundheitswesen und tausche dich mit Kolleg:innen aus der Branche aus."
+          heroImage="/assets/hero-healthcare-cropped.png"
+          ctaText="Jetzt registrieren"
+          ctaLink="/cv-generator"
+        />
 
         {/* Zielgruppen-Sektion */}
         <section className="container mx-auto px-4 py-16">

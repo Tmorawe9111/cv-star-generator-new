@@ -1,6 +1,8 @@
 import { useSEO } from '@/hooks/useSEO';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { OrganizationStructuredData } from '@/components/seo/StructuredData';
+import CareerHubHeader from '@/components/career/CareerHubHeader';
+import CareerHubHero from '@/components/career/CareerHubHero';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -19,31 +21,18 @@ export default function HandwerkHub() {
       <SEOHead {...seoData} />
       <OrganizationStructuredData />
       
-      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
-        {/* Hero Section */}
-        <section className="container mx-auto px-4 py-16 md:py-24">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 rounded-full mb-6">
-              <Wrench className="h-5 w-5 text-orange-600" />
-              <span className="text-sm font-medium text-orange-600">Handwerk</span>
-            </div>
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              Deine Karriere im <span className="text-orange-600">Handwerk</span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Vom Azubi zum Meister – finde deinen Weg im Handwerk. 
-              Entdecke Ausbildungen, Jobs und Karrieremöglichkeiten.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700">
-                <Link to="/registrieren">Jetzt kostenlos starten</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link to="/karriere/handwerk/unternehmen">Für Unternehmen</Link>
-              </Button>
-            </div>
-          </div>
-        </section>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <CareerHubHeader />
+        
+        <CareerHubHero
+          headline="Handwerk hat goldenen Boden"
+          headlineExtra="– und"
+          subtitle="Dein Netzwerk für Azubis und Fachkräfte im Handwerk"
+          description="Zeige deine praktischen Fähigkeiten, finde Ausbildungsplätze oder Jobs im Handwerk und vernetze dich mit Gleichgesinnten."
+          heroImage="/assets/hero-construction-cropped.png"
+          ctaText="Jetzt registrieren"
+          ctaLink="/cv-generator"
+        />
 
         {/* Zielgruppen-Sektion */}
         <section className="container mx-auto px-4 py-16">

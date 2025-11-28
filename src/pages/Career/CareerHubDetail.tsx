@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useSEO } from '@/hooks/useSEO';
 import { SEOHead } from '@/components/seo/SEOHead';
+import CareerHubHeader from '@/components/career/CareerHubHeader';
 import { useContentHub } from '@/hooks/useContentHub';
 import { useBlogPosts } from '@/hooks/useBlogPosts';
 import { Link } from 'react-router-dom';
@@ -78,24 +79,22 @@ export default function CareerHubDetail({ industry }: CareerHubDetailProps) {
     <>
       <SEOHead {...seoData} />
       
-      <div className="min-h-screen bg-white">
-        {/* Header */}
-        <div className="border-b bg-white sticky top-0 z-10">
-          <div className="container mx-auto px-4 py-4">
-            <Button asChild variant="ghost" size="sm">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <CareerHubHeader />
+        
+        {/* Content */}
+        <div className="container mx-auto px-4 pt-32 pb-8">
+          <div className="max-w-4xl mx-auto">
+            {/* Back Button */}
+            <Button asChild variant="ghost" size="sm" className="mb-6">
               <Link to={`/karriere/${industry}`}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Zurück
               </Link>
             </Button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto">
+            
             {/* Title */}
-            <h1 className="text-4xl font-bold mb-4">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">
               {hub?.title || seo.title}
             </h1>
 
