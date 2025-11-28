@@ -24,33 +24,6 @@ export function BlogArchive({ articles }: BlogArchiveProps) {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
 
-  // Gruppiere Artikel nach Monat (wie im Screenshot)
-  const groupedArticles = useMemo(() => {
-    const groups: Record<string, Array<typeof articles[0]>> = {};
-
-    filteredArticles.forEach((article) => {
-      if (!article.published_at) return;
-
-      const date = new Date(article.published_at);
-      const displayKey = format(date, 'MMMM yyyy', { locale: de });
-
-      if (!groups[displayKey]) {
-        groups[displayKey] = [];
-      }
-      groups[displayKey].push(article);
-    });
-
-    // Sortiere die Keys (neueste zuerst)
-    const sortedKeys = Object.keys(groups).sort((a, b) => {
-      // Parse "November 2025" zu Date
-      const dateA = new Date(a);
-      const dateB = new Date(b);
-      return dateB.getTime() - dateA.getTime();
-    });
-
-    return { groups, sortedKeys };
-  }, [filteredArticles]);
-
   // Filtere Artikel
   const filteredArticles = useMemo(() => {
     let filtered = articles;
@@ -82,6 +55,41 @@ export function BlogArchive({ articles }: BlogArchiveProps) {
 
     return filtered;
   }, [articles, selectedTopic, selectedYear, selectedMonth]);
+
+  // Gruppiere Artikel nach Monat (wie im Screenshot)
+  const groupedArticles = useMemo(() => {
+    const groups: Record<string, Array<typeof articles[0]>> = {};
+
+    filteredArticles.forEach((article) => {
+      if (!article.published_at) return;
+
+      const date = new Date(article.published_at);
+      const displayKey = format(date, 'MMMM yyyy', { locale: de });
+
+      if (!groups[displayKey]) {
+        groups[displayKey] = [];
+      }
+      groups[displayKey].push(article);
+    });
+
+    // Sortiere die Keys (neueste zuerst) - Parse "November 2025" zu Date
+    const sortedKeys = Object.keys(groups).sort((a, b) => {
+      // Versuche "MMMM yyyy" zu parsen
+      const parseMonthYear = (str: string) => {
+        const parts = str.split(' ');
+        const monthNames = ['januar', 'februar', 'märz', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'dezember'];
+        const monthIndex = monthNames.findIndex(m => m === parts[0].toLowerCase());
+        const year = parseInt(parts[1]);
+        return new Date(year, monthIndex, 1);
+      };
+      
+      const dateA = parseMonthYear(a);
+      const dateB = parseMonthYear(b);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    return { groups, sortedKeys };
+  }, [filteredArticles]);
 
   // Extrahiere verfügbare Jahre und Topics
   const availableYears = useMemo(() => {
