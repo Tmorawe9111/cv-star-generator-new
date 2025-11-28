@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useSEO } from '@/hooks/useSEO';
+import { SEOHead } from '@/components/seo/SEOHead';
 import { useContentHub } from '@/hooks/useContentHub';
 import { useBlogPosts } from '@/hooks/useBlogPosts';
 import { Link } from 'react-router-dom';
@@ -56,7 +57,7 @@ export default function CareerHubDetail({ industry }: CareerHubDetailProps) {
   };
 
   const seo = getSEO();
-  const { SEOHead } = useSEO({
+  const seoData = useSEO({
     ...seo,
     industry,
     targetAudience
@@ -65,7 +66,7 @@ export default function CareerHubDetail({ industry }: CareerHubDetailProps) {
   if (hubLoading) {
     return (
       <>
-        <SEOHead />
+        <SEOHead {...seoData} />
         <div className="min-h-screen flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
@@ -75,7 +76,7 @@ export default function CareerHubDetail({ industry }: CareerHubDetailProps) {
 
   return (
     <>
-      <SEOHead />
+      <SEOHead {...seoData} />
       
       <div className="min-h-screen bg-white">
         {/* Header */}

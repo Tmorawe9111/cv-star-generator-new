@@ -1,5 +1,4 @@
 import { useLocation } from 'react-router-dom';
-import { SEOHead } from '@/components/seo/SEOHead';
 
 interface UseSEOOptions {
   title?: string;
@@ -11,11 +10,21 @@ interface UseSEOOptions {
   targetAudience?: 'schueler' | 'azubi' | 'profi' | 'unternehmen';
 }
 
-export function useSEO(options: UseSEOOptions) {
+export interface SEOData {
+  title: string;
+  description: string;
+  keywords: string[];
+  image?: string;
+  type: 'website' | 'article' | 'profile';
+  industry?: 'pflege' | 'handwerk' | 'industrie';
+  targetAudience?: 'schueler' | 'azubi' | 'profi' | 'unternehmen';
+}
+
+export function useSEO(options: UseSEOOptions = {}): SEOData {
   const location = useLocation();
 
   // Automatische SEO basierend auf Route
-  const getRouteSEO = () => {
+  const getRouteSEO = (): Partial<SEOData> => {
     const path = location.pathname;
 
     // Karriere-Hubs
@@ -57,17 +66,16 @@ export function useSEO(options: UseSEOOptions) {
   const routeSEO = getRouteSEO();
 
   // Merge mit übergebenen Options
-  const finalSEO = {
-    ...routeSEO,
-    ...options,
-    title: options.title || routeSEO.title,
-    description: options.description || routeSEO.description,
-    keywords: options.keywords || routeSEO.keywords || []
+  const finalSEO: SEOData = {
+    title: options.title || routeSEO.title || 'BeVisiblle - Netzwerk für Fachkräfte',
+    description: options.description || routeSEO.description || 'Vernetze dich mit anderen Fachkräften',
+    keywords: options.keywords || routeSEO.keywords || ['Fachkräfte', 'Ausbildung', 'Karriere'],
+    image: options.image || routeSEO.image,
+    type: options.type || routeSEO.type || 'website',
+    industry: options.industry || routeSEO.industry,
+    targetAudience: options.targetAudience || routeSEO.targetAudience
   };
 
-  return {
-    SEOHead: () => <SEOHead {...finalSEO} />,
-    seoData: finalSEO
-  };
+  return finalSEO;
 }
 

@@ -1,4 +1,5 @@
 import { useSEO } from '@/hooks/useSEO';
+import { SEOHead } from '@/components/seo/SEOHead';
 import { OrganizationStructuredData } from '@/components/seo/StructuredData';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { GraduationCap, Briefcase, TrendingUp, Heart } from 'lucide-react';
 
 export default function PflegeHub() {
-  const { SEOHead } = useSEO({
+  const seoData = useSEO({
     title: 'Pflegeausbildung & Karriere bei BeVisiblle',
     description: 'Finde deine Pflegeausbildung oder deine Traumstelle als Pflegefachkraft. BeVisiblle verbindet Pflegekräfte mit Arbeitgebern.',
     keywords: ['Pflegeausbildung', 'Pflegefachkraft', 'Pflege Jobs', 'Generalistik', 'Altenpflege', 'Krankenpflege'],
@@ -15,7 +16,7 @@ export default function PflegeHub() {
 
   return (
     <>
-      <SEOHead />
+      <SEOHead {...seoData} />
       <OrganizationStructuredData />
       
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">

@@ -1,4 +1,5 @@
 import { useSEO } from '@/hooks/useSEO';
+import { SEOHead } from '@/components/seo/SEOHead';
 import { OrganizationStructuredData } from '@/components/seo/StructuredData';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { GraduationCap, Briefcase, TrendingUp, Factory } from 'lucide-react';
 
 export default function IndustrieHub() {
-  const { SEOHead } = useSEO({
+  const seoData = useSEO({
     title: 'Industrie: Duales Studium & Karriere bei BeVisiblle',
     description: 'Karriere in der Industrie: Duales Studium, Ausbildung oder Fachkraft. Finde deinen Weg in der Metall- und Elektroindustrie.',
     keywords: ['Industrie Ausbildung', 'Duales Studium', 'M+E Industrie', 'Industriemeister', 'Mechatroniker', 'Industriekaufmann'],
@@ -15,7 +16,7 @@ export default function IndustrieHub() {
 
   return (
     <>
-      <SEOHead />
+      <SEOHead {...seoData} />
       <OrganizationStructuredData />
       
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">

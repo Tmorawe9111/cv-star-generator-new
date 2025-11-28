@@ -1,4 +1,5 @@
 import { useSEO } from '@/hooks/useSEO';
+import { SEOHead } from '@/components/seo/SEOHead';
 import { OrganizationStructuredData } from '@/components/seo/StructuredData';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { GraduationCap, Briefcase, TrendingUp, Wrench } from 'lucide-react';
 
 export default function HandwerkHub() {
-  const { SEOHead } = useSEO({
+  const seoData = useSEO({
     title: 'Handwerk: Ausbildung & Karriere bei BeVisiblle',
     description: 'Entdecke Handwerksausbildungen und Karrieremöglichkeiten im Handwerk. Vom Azubi zum Meister - dein Weg im Handwerk.',
     keywords: ['Handwerk Ausbildung', 'Handwerksmeister', 'Handwerk Jobs', 'Lehre', 'Elektriker', 'SHK', 'Tischler'],
@@ -15,7 +16,7 @@ export default function HandwerkHub() {
 
   return (
     <>
-      <SEOHead />
+      <SEOHead {...seoData} />
       <OrganizationStructuredData />
       
       <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
