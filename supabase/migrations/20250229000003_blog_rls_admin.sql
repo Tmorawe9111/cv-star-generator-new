@@ -9,6 +9,7 @@ DROP POLICY IF EXISTS "Authors can update own posts" ON public.blog_posts;
 DROP POLICY IF EXISTS "Authors can delete own posts" ON public.blog_posts;
 
 -- Neue Policies: Nur Admins/ContentEditors können schreiben
+-- Verwendet die tatsächlichen Enum-Werte aus app_role
 CREATE POLICY "Admins can create posts" ON public.blog_posts
   FOR INSERT 
   WITH CHECK (
@@ -16,7 +17,7 @@ CREATE POLICY "Admins can create posts" ON public.blog_posts
     EXISTS (
       SELECT 1 FROM public.user_roles
       WHERE user_id = auth.uid()
-      AND role IN ('SuperAdmin', 'ContentEditor', 'SupportAgent', 'admin', 'editor')
+      AND role::text IN ('admin', 'editor')
     )
   );
 
@@ -27,7 +28,7 @@ CREATE POLICY "Admins can update posts" ON public.blog_posts
     EXISTS (
       SELECT 1 FROM public.user_roles
       WHERE user_id = auth.uid()
-      AND role IN ('SuperAdmin', 'ContentEditor', 'SupportAgent', 'admin', 'editor')
+      AND role::text IN ('admin', 'editor')
     )
   );
 
@@ -38,7 +39,7 @@ CREATE POLICY "Admins can delete posts" ON public.blog_posts
     EXISTS (
       SELECT 1 FROM public.user_roles
       WHERE user_id = auth.uid()
-      AND role IN ('SuperAdmin', 'ContentEditor', 'SupportAgent', 'admin', 'editor')
+      AND role::text IN ('admin', 'editor')
     )
   );
 
