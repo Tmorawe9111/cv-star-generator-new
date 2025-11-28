@@ -98,6 +98,12 @@ const PublicPage = lazy(() => import("./pages/PublicPage"));
 const UserProfilePage = lazy(() => import("./pages/UserProfile"));
 const PublicCompanyView = lazy(() => import("./pages/Companies/PublicCompanyView"));
 const PublicCompanyViewNew = lazy(() => import("./pages/Companies/PublicCompanyViewNew"));
+
+// Career Hubs - SEO Landing Pages
+const PflegeHub = lazy(() => import("./pages/Career/PflegeHub"));
+const HandwerkHub = lazy(() => import("./pages/Career/HandwerkHub"));
+const IndustrieHub = lazy(() => import("./pages/Career/IndustrieHub"));
+const CareerHubDetail = lazy(() => import("./pages/Career/CareerHubDetail"));
 const Overview = lazy(() => import("./pages/Admin/Overview"));
 const UsersPage = lazy(() => import("./pages/Admin/Users"));
 const CompaniesPage = lazy(() => import("./pages/Admin/Companies"));
@@ -599,6 +605,16 @@ const App = () => {
               {/* Marketing page redirects */}
               <Route path="/fuer-unternehmen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><CompanyLandingPage /></BaseLayout></Suspense>} />
               <Route path="/fuer-bewerber" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><Talent /></BaseLayout></Suspense>} />
+              
+              {/* Career Hubs - SEO Landing Pages (Deutsche URLs) */}
+              <Route path="/karriere/pflege" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><PflegeHub /></BaseLayout></Suspense>} />
+              <Route path="/karriere/handwerk" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><HandwerkHub /></BaseLayout></Suspense>} />
+              <Route path="/karriere/industrie" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><IndustrieHub /></BaseLayout></Suspense>} />
+              
+              {/* Career Hub Details - Zielgruppen-spezifisch */}
+              <Route path="/karriere/pflege/:audience" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><CareerHubDetail industry="pflege" /></BaseLayout></Suspense>} />
+              <Route path="/karriere/handwerk/:audience" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><CareerHubDetail industry="handwerk" /></BaseLayout></Suspense>} />
+              <Route path="/karriere/industrie/:audience" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BaseLayout><CareerHubDetail industry="industrie" /></BaseLayout></Suspense>} />
               
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
