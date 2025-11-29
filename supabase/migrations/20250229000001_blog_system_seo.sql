@@ -40,18 +40,53 @@ CREATE INDEX IF NOT EXISTS idx_blog_category ON public.blog_posts(category) WHER
 -- RLS
 ALTER TABLE public.blog_posts ENABLE ROW LEVEL SECURITY;
 
--- Policies
-CREATE POLICY "Anyone can view published posts" ON public.blog_posts
-  FOR SELECT USING (status = 'published');
+-- Policies (nur erstellen, wenn sie nicht existieren)
+DO $$ 
+BEGIN
+  -- Policy für SELECT (öffentliche Ansicht)
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+    AND tablename = 'blog_posts' 
+    AND policyname = 'Anyone can view published posts'
+  ) THEN
+    CREATE POLICY "Anyone can view published posts" ON public.blog_posts
+      FOR SELECT USING (status = 'published');
+  END IF;
 
-CREATE POLICY "Authenticated can create posts" ON public.blog_posts
-  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+  -- Policy für INSERT
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+    AND tablename = 'blog_posts' 
+    AND policyname = 'Authenticated can create posts'
+  ) THEN
+    CREATE POLICY "Authenticated can create posts" ON public.blog_posts
+      FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+  END IF;
 
-CREATE POLICY "Authors can update own posts" ON public.blog_posts
-  FOR UPDATE USING (auth.uid() = author_id);
+  -- Policy für UPDATE
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+    AND tablename = 'blog_posts' 
+    AND policyname = 'Authors can update own posts'
+  ) THEN
+    CREATE POLICY "Authors can update own posts" ON public.blog_posts
+      FOR UPDATE USING (auth.uid() = author_id);
+  END IF;
 
-CREATE POLICY "Authors can delete own posts" ON public.blog_posts
-  FOR DELETE USING (auth.uid() = author_id);
+  -- Policy für DELETE
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+    AND tablename = 'blog_posts' 
+    AND policyname = 'Authors can delete own posts'
+  ) THEN
+    CREATE POLICY "Authors can delete own posts" ON public.blog_posts
+      FOR DELETE USING (auth.uid() = author_id);
+  END IF;
+END $$;
 
 -- Grant
 GRANT SELECT ON public.blog_posts TO anon, authenticated;

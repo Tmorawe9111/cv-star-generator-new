@@ -1,0 +1,23 @@
+diff --git a/node_modules/react-quill/lib/index.js b/node_modules/react-quill/lib/index.js
+index b77e914..2fc4d09 100644
+--- a/node_modules/react-quill/lib/index.js
++++ b/node_modules/react-quill/lib/index.js
+@@ -320,7 +320,17 @@ var ReactQuill = /** @class */ (function (_super) {
+         if (!this.editingArea) {
+             throw new Error('Instantiating on missing editing area');
+         }
+-        var element = react_dom_1.default.findDOMNode(this.editingArea);
++        // Fix: Replace deprecated findDOMNode with direct ref access
++        // In React 18+, refs can directly point to DOM elements
++        var element = this.editingArea;
++        // If it's a React component instance, try to get the DOM node
++        if (element && typeof element === 'object' && 'current' in element) {
++            element = element.current;
++        }
++        // Fallback to findDOMNode only if element is still not a DOM node
++        if (!element || !(element instanceof Element || element instanceof HTMLElement)) {
++            element = react_dom_1.default.findDOMNode(this.editingArea);
++        }
+         if (!element) {
+             throw new Error('Cannot find element for editing area');
+         }

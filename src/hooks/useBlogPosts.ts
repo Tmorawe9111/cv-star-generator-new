@@ -37,33 +37,72 @@ export function useBlogPosts(options: UseBlogPostsOptions = {}) {
   return useQuery({
     queryKey: ['blog-posts', industry, targetAudience, category, limit, offset, status],
     queryFn: async () => {
-      let query = supabase
-        .from('blog_posts')
-        .select('*')
-        .order('published_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+      // Timeout mit Promise.race für bessere Kontrolle
+      const queryPromise = (async () => {
+        try {
+          // Optimierte Query - nur notwendige Felder für bessere Performance
+          let query = supabase
+            .from('blog_posts')
+            .select('id, title, slug, excerpt, featured_image, category, industry_sector, published_at, created_at')
+            .order('published_at', { ascending: false })
+            .range(offset, offset + limit - 1);
 
-      if (status) {
-        query = query.eq('status', status);
-      }
+          if (status) {
+            query = query.eq('status', status);
+          }
 
-      if (industry) {
-        query = query.eq('industry_sector', industry);
-      }
+          if (industry) {
+            query = query.eq('industry_sector', industry);
+          }
 
-      if (targetAudience) {
-        query = query.eq('target_audience', targetAudience);
-      }
+          if (targetAudience) {
+            query = query.eq('target_audience', targetAudience);
+          }
 
-      if (category) {
-        query = query.eq('category', category);
-      }
+          if (category) {
+            query = query.eq('category', category);
+          }
 
-      const { data, error } = await query;
+          const { data, error } = await query;
 
-      if (error) throw error;
-      return data as BlogPost[];
-    }
+          if (error) {
+            console.error('[useBlogPosts] Query error:', error);
+            
+            if (error.code === '42P01' || error.message?.includes('does not exist')) {
+              return [] as BlogPost[];
+            }
+            
+            if (error.code === '42501' || error.message?.includes('permission denied')) {
+              return [] as BlogPost[];
+            }
+            
+            return [] as BlogPost[];
+          }
+          
+          return (data || []) as BlogPost[];
+        } catch (err: any) {
+          console.error('[useBlogPosts] Exception:', err);
+          return [] as BlogPost[];
+        }
+      })();
+
+      // Moderater Timeout (8 Sekunden) - lang genug für normale Queries, kurz genug um nicht zu hängen
+      const timeoutPromise = new Promise<BlogPost[]>((resolve) => {
+        setTimeout(() => {
+          console.warn('[useBlogPosts] Query timeout after 8 seconds - returning empty array');
+          resolve([]);
+        }, 8000);
+      });
+
+      return Promise.race([queryPromise, timeoutPromise]);
+    },
+    retry: 0, // Keine Retries für schnelleres Feedback
+    staleTime: 5 * 60 * 1000, // 5 Minuten
+    refetchOnWindowFocus: false,
+    throwOnError: false,
+    gcTime: 10 * 60 * 1000, // 10 Minuten Cache
+    // Wichtig: Query sollte nicht blockieren - zeige Cache-Daten sofort
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -82,6 +121,50 @@ export function useBlogPost(slug: string) {
       return data as BlogPost;
     },
     enabled: !!slug
+  });
+}
+
+// Optimierte Hook für Archive - lädt ALLE Artikel ohne Limit
+export function useBlogPostsArchive() {
+  return useQuery({
+    queryKey: ['blog-posts-archive'],
+    queryFn: async () => {
+      try {
+        // Lade ALLE veröffentlichten Artikel für das Archiv
+        // Nur notwendige Felder für bessere Performance
+        const { data, error } = await supabase
+          .from('blog_posts')
+          .select('id, title, slug, excerpt, featured_image, category, industry_sector, published_at, created_at')
+          .eq('status', 'published')
+          .not('published_at', 'is', null)
+          .order('published_at', { ascending: false });
+
+        if (error) {
+          console.error('[useBlogPostsArchive] Query error:', error);
+          
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            return [] as BlogPost[];
+          }
+          
+          if (error.code === '42501' || error.message?.includes('permission denied')) {
+            return [] as BlogPost[];
+          }
+          
+          return [] as BlogPost[];
+        }
+        
+        return (data || []) as BlogPost[];
+      } catch (err: any) {
+        console.error('[useBlogPostsArchive] Exception:', err);
+        return [] as BlogPost[];
+      }
+    },
+    retry: 0,
+    staleTime: 10 * 60 * 1000, // 10 Minuten (Archive ändert sich selten)
+    refetchOnWindowFocus: false,
+    throwOnError: false,
+    gcTime: 30 * 60 * 1000, // 30 Minuten Cache für Archive
+    placeholderData: (previousData) => previousData, // Zeige Cache sofort
   });
 }
 

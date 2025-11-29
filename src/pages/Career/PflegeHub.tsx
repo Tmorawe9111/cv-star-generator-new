@@ -1,7 +1,7 @@
 import { useSEO } from '@/hooks/useSEO';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { OrganizationStructuredData } from '@/components/seo/StructuredData';
-import CareerHubHeader from '@/components/career/CareerHubHeader';
+import { CareerHubHeader } from '@/components/career/CareerHubHeader';
 import CareerHubHero from '@/components/career/CareerHubHero';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';

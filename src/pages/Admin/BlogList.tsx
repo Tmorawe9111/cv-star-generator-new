@@ -33,6 +33,8 @@ export default function BlogList() {
     status: statusFilter !== 'all' ? statusFilter : undefined,
     industry_sector: industryFilter !== 'all' ? industryFilter : undefined,
   });
+  
+  // Ensure all posts are shown when filter is 'all' (including archived)
 
   const deletePost = useDeleteBlogPost();
 

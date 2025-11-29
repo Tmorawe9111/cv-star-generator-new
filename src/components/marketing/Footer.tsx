@@ -41,6 +41,7 @@ export default function Footer() {
           <ul className="mt-3 space-y-2">
             <li><Link to="/features" className="hover:text-white">Features</Link></li>
             <li><Link to="/produkt" className="hover:text-white">Produkt</Link></li>
+            <li><Link to="/blog" className="hover:text-white">Newsroom</Link></li>
             <li><Link to="/kontakt" className="hover:text-white">Kontakt</Link></li>
           </ul>
         </div>

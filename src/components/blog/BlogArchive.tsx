@@ -5,7 +5,46 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Filter } from 'lucide-react';
+import { Filter, Loader2 } from 'lucide-react';
+
+// Optimierte Bildkomponente mit Lazy Loading und Error Handling
+function BlogImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  // Optimiere Supabase Storage URLs für bessere Performance
+  const optimizedSrc = src?.includes('supabase.co/storage') 
+    ? `${src}?width=800&quality=80` 
+    : src;
+
+  return (
+    <div className="relative w-full h-full">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+        </div>
+      )}
+      {error ? (
+        <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+          <span className="text-gray-400 text-xs">Bild konnte nicht geladen werden</span>
+        </div>
+      ) : (
+        <img
+          src={optimizedSrc}
+          alt={alt}
+          className={`${className || ''} ${loading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoading(false)}
+          onError={() => {
+            setLoading(false);
+            setError(true);
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 interface BlogArchiveProps {
   articles: Array<{
@@ -56,10 +95,16 @@ export function BlogArchive({ articles }: BlogArchiveProps) {
     return filtered;
   }, [articles, selectedTopic, selectedYear, selectedMonth]);
 
-  // Gruppiere Artikel nach Monat (wie im Screenshot)
+  // Gruppiere Artikel nach Monat (wie im Screenshot) - Optimiert für Performance
   const groupedArticles = useMemo(() => {
-    const groups: Record<string, Array<typeof articles[0]>> = {};
+    if (filteredArticles.length === 0) {
+      return { groups: {}, sortedKeys: [] };
+    }
 
+    const groups: Record<string, Array<typeof articles[0]>> = {};
+    const monthNames = ['januar', 'februar', 'märz', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'dezember'];
+
+    // Effizientere Gruppierung mit direkter Datum-Sortierung
     filteredArticles.forEach((article) => {
       if (!article.published_at) return;
 
@@ -72,14 +117,12 @@ export function BlogArchive({ articles }: BlogArchiveProps) {
       groups[displayKey].push(article);
     });
 
-    // Sortiere die Keys (neueste zuerst) - Parse "November 2025" zu Date
+    // Sortiere die Keys (neueste zuerst) - Optimierte Parsing-Funktion
     const sortedKeys = Object.keys(groups).sort((a, b) => {
-      // Versuche "MMMM yyyy" zu parsen
       const parseMonthYear = (str: string) => {
         const parts = str.split(' ');
-        const monthNames = ['januar', 'februar', 'märz', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'dezember'];
         const monthIndex = monthNames.findIndex(m => m === parts[0].toLowerCase());
-        const year = parseInt(parts[1]);
+        const year = parseInt(parts[1], 10);
         return new Date(year, monthIndex, 1);
       };
       
@@ -115,8 +158,21 @@ export function BlogArchive({ articles }: BlogArchiveProps) {
     return 'KARRIERE';
   };
 
+  // Leerer State wenn keine Artikel
+  if (articles.length === 0) {
+    return (
+      <div className="min-h-screen pt-20">
+        <div className="max-w-[1200px] mx-auto px-6 lg:px-8 py-12">
+          <div className="text-center py-20">
+            <p className="text-gray-500">Keine Artikel gefunden.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white min-h-screen">
+    <div className="min-h-screen pt-20">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8 py-12">
         {/* Header mit Filtern - Apple Style */}
         <div className="mb-12">
@@ -201,7 +257,7 @@ export function BlogArchive({ articles }: BlogArchiveProps) {
                         {/* Bild */}
                         {article.featured_image && (
                           <div className="relative aspect-[3/2] w-full overflow-hidden rounded-xl bg-gray-100">
-                            <img
+                            <BlogImage
                               src={article.featured_image}
                               alt={article.title}
                               className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"

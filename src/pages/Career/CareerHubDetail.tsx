@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useSEO } from '@/hooks/useSEO';
 import { SEOHead } from '@/components/seo/SEOHead';
-import CareerHubHeader from '@/components/career/CareerHubHeader';
+import { CareerHubHeader } from '@/components/career/CareerHubHeader';
 import { useContentHub } from '@/hooks/useContentHub';
 import { useBlogPosts } from '@/hooks/useBlogPosts';
 import { Link } from 'react-router-dom';

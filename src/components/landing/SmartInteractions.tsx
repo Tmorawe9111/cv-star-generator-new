@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
-import lebenslaufFeature from '@/assets/lebenslauf-feature.png';
-import jobsFeature from '@/assets/jobs-feature.png';
-import communityFeature from '@/assets/community-feature.png';
+import datenbankFeature from '@/assets/Datenbank-Feature.png';
+import vollstaendigeProfileFeature from '@/assets/vollständigeProfile-features.png';
+import employeeBrandingFeature from '@/assets/EmployeeBranding-feature.png';
 
 type InteractionCard = {
   title: string;
@@ -20,7 +20,7 @@ const CARDS: InteractionCard[] = [
     subtitle: 'Profile freischalten',
     description:
       'Nutzen Sie Ihre Tokens, um vollständige Profile aus unserer Datenbank freizuschalten und qualifizierte Kandidaten direkt zu kontaktieren. Gewinnen Sie die besten Talente für Ihr Team.',
-    image: lebenslaufFeature,
+    image: datenbankFeature,
     link: '/database',
     cta: 'Datenbank durchsuchen'
   },
@@ -29,7 +29,7 @@ const CARDS: InteractionCard[] = [
     subtitle: 'Immer verifiziert',
     description:
       'Alle Profile auf BeVisiblle sind vollständig und verifiziert. Durch unseren strukturierten Lebenslauf-Generator im Anmeldeprozess garantieren wir Ihnen nur hochwertige Kandidatenprofile.',
-    image: jobsFeature,
+    image: vollstaendigeProfileFeature,
     link: '/profiles',
     cta: 'Profile ansehen'
   },
@@ -38,7 +38,7 @@ const CARDS: InteractionCard[] = [
     subtitle: 'Mitarbeiter als Markenbotschafter',
     description:
       'Ihre Mitarbeiter machen Marketing in der Community, indem sie Beiträge teilen und aktiv teilnehmen. Jeder Post lenkt organisch Aufmerksamkeit auf Ihr Unternehmen und stärkt Ihre Arbeitgebermarke.',
-    image: communityFeature,
+    image: employeeBrandingFeature,
     link: '/employee-branding',
     cta: 'Mehr erfahren'
   }
@@ -119,8 +119,13 @@ export default function SmartInteractions({
         </div>
 
         {/* Visual */}
-        <div className="relative overflow-hidden rounded-[32px] bg-card shadow-[0_24px_50px_rgba(81,112,255,0.15)] max-h-[430px]">
-          <img src={activeCard.image} alt={activeCard.title} className="h-full w-full object-cover object-top" />
+        <div className="relative overflow-hidden rounded-[32px] bg-card shadow-[0_24px_50px_rgba(81,112,255,0.15)] h-[430px] w-full">
+          <img 
+            src={activeCard.image} 
+            alt={activeCard.title} 
+            className="h-full w-full object-cover object-center" 
+            style={{ minHeight: '430px', minWidth: '100%' }}
+          />
           <div className="absolute inset-0 bg-gradient-to-br from-black/25 via-transparent to-transparent" />
           <div className="absolute bottom-4 right-4">
             <Link

@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import SmartInteractions from '@/components/landing/SmartInteractions';
-import lebenslaufFeature from '@/assets/lebenslauf-feature.png';
-import jobsFeature from '@/assets/jobs-feature.png';
-import communityFeature from '@/assets/community-feature.png';
 import { trackCalendlyClick, trackPageView } from '@/lib/telemetry';
 import { motion } from 'framer-motion';
 
@@ -274,32 +271,130 @@ export default function BeVisiblleLandingPage() {
         </div>
       </section>
 
-      {/* Feature Cards */}
-      <section id="community" className="mt-16">
-        <div className="mx-auto max-w-6xl px-6 grid gap-8 md:grid-cols-3">
-          {[{
-            title: "Community",
-            img: communityFeature,
-            link: "/auth"
-          }, {
-            title: "CV",
-            img: lebenslaufFeature,
-            link: "/cv-generator"
-          }, {
-            title: "Jobs",
-            img: jobsFeature,
-            link: "/jobs"
-          }].map((card, idx) => (
-            <Link
-              key={card.title}
-              to={card.link}
-              className="group relative block rounded-[32px] overflow-hidden shadow-[0_18px_45px_rgba(81,112,255,0.28)] transition hover:-translate-y-1"
-            >
-              <img src={card.img} alt={card.title} className="w-full h-60 object-cover transition duration-300 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition" />
-              <span className="absolute bottom-4 left-5 text-white text-2xl font-semibold tracking-tight">{card.title}</span>
-            </Link>
-          ))}
+      {/* App Screenshots Section */}
+      <section className="mt-20 py-16">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              So funktioniert BeVisiblle
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Entdecke die Features, die deine Karriere voranbringen
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Bild 2: Feed-Ansicht (Community) */}
+            <div className="relative group cursor-pointer">
+              <div className="relative overflow-hidden rounded-2xl bg-white shadow-xl border border-gray-200 transition-all duration-500 hover:shadow-2xl">
+                <div className="aspect-[9/16] relative">
+                  <img 
+                    src="/assets/screenshot-feed.png" 
+                    alt="Community Feed - Vernetze dich mit Kolleg:innen" 
+                    className="w-full h-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:opacity-20 group-hover:blur-sm"
+                    loading="eager"
+                    fetchPriority="high"
+                  />
+                  {/* Text Overlay - erscheint bei Hover */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-8 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-gradient-to-br from-blue-600/95 to-blue-700/95">
+                    <h3 className="text-2xl md:text-3xl font-bold text-white mb-4 text-center">Community Feed</h3>
+                    <p className="text-base md:text-lg text-white/95 text-center leading-relaxed max-w-sm">
+                      Vernetze dich mit Kolleg:innen aus deiner Branche, teile deine Erfahrungen und lerne von anderen. 
+                      Entdecke relevante Posts, kommentiere und baue dein berufliches Netzwerk auf.
+                    </p>
+                    <ul className="mt-6 space-y-2 text-sm text-white/90">
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Posts von Unternehmen und Kolleg:innen
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Direkte Interaktionen und Kommentare
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Personalisierter Feed basierend auf deinen Interessen
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bild 3: Profil-Ansicht mit Lebenslauf */}
+            <div className="relative group cursor-pointer">
+              <div className="relative overflow-hidden rounded-2xl bg-white shadow-xl border border-gray-200 transition-all duration-500 hover:shadow-2xl">
+                <div className="aspect-[9/16] relative">
+                  <img 
+                    src="/assets/screenshot-profile.png" 
+                    alt="Profil mit Lebenslauf - Zeige deine Fähigkeiten" 
+                    className="w-full h-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:opacity-20 group-hover:blur-sm"
+                    loading="eager"
+                    fetchPriority="high"
+                  />
+                  {/* Text Overlay - erscheint bei Hover */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-8 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-gradient-to-br from-blue-600/95 to-blue-700/95">
+                    <h3 className="text-2xl md:text-3xl font-bold text-white mb-4 text-center">Dein Profil</h3>
+                    <p className="text-base md:text-lg text-white/95 text-center leading-relaxed max-w-sm">
+                      Zeige deine gesamte berufliche Laufbahn auf einen Blick. Dein Lebenslauf wird automatisch 
+                      zu einem interaktiven Profil, das Unternehmen und Kolleg:innen sehen können.
+                    </p>
+                    <ul className="mt-6 space-y-2 text-sm text-white/90">
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Automatisch generierter Lebenslauf
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Fähigkeiten und Sprachen übersichtlich dargestellt
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Verlinkung zu Unternehmen und Schulen
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bild 1: Bewerbungsübersicht */}
+            <div className="relative group cursor-pointer">
+              <div className="relative overflow-hidden rounded-2xl bg-white shadow-xl border border-gray-200 transition-all duration-500 hover:shadow-2xl">
+                <div className="aspect-[9/16] relative">
+                  <img 
+                    src="/assets/screenshot-applications.png" 
+                    alt="Meine Bewerbungen - Verwalte deine Jobanfragen" 
+                    className="w-full h-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:opacity-20 group-hover:blur-sm"
+                    loading="eager"
+                    fetchPriority="high"
+                  />
+                  {/* Text Overlay - erscheint bei Hover */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-8 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-gradient-to-br from-blue-600/95 to-blue-700/95">
+                    <h3 className="text-2xl md:text-3xl font-bold text-white mb-4 text-center">Meine Bewerbungen</h3>
+                    <p className="text-base md:text-lg text-white/95 text-center leading-relaxed max-w-sm">
+                      Verwalte alle deine Jobanfragen und Bewerbungen an einem zentralen Ort. 
+                      Sieh auf einen Blick, welche Unternehmen sich für dich interessieren.
+                    </p>
+                    <ul className="mt-6 space-y-2 text-sm text-white/90">
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Übersicht aller Bewerbungen und Anfragen
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Status-Tracking (Beworben, Gespräch, Entscheidung)
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Direkte Kommunikation mit Unternehmen
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -1,8 +1,48 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { Loader2 } from 'lucide-react';
+
+// Optimierte Bildkomponente mit Lazy Loading und Error Handling
+function BlogImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  // Optimiere Supabase Storage URLs für bessere Performance
+  const optimizedSrc = src?.includes('supabase.co/storage') 
+    ? `${src}?width=1200&quality=80` 
+    : src;
+
+  return (
+    <div className="relative w-full h-full">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+        </div>
+      )}
+      {error ? (
+        <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+          <span className="text-gray-400 text-xs">Bild konnte nicht geladen werden</span>
+        </div>
+      ) : (
+        <img
+          src={optimizedSrc}
+          alt={alt}
+          className={`${className || ''} ${loading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoading(false)}
+          onError={() => {
+            setLoading(false);
+            setError(true);
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 interface NewsroomCardProps {
   article: {
@@ -53,7 +93,7 @@ export function NewsroomCard({ article, variant = 'standard' }: NewsroomCardProp
         }`}
       >
         {article.featured_image ? (
-          <img
+          <BlogImage
             src={article.featured_image}
             alt={article.title}
             className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"

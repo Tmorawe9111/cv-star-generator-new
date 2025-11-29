@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
 import slugify from 'slugify';
 import { useBlogPost, useCreateBlogPost, useUpdateBlogPost, BlogPostInput } from '@/hooks/useBlogManagement';
 import { Button } from '@/components/ui/button';
@@ -11,9 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, Eye } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { ArrowLeft, Save, Eye, Search, Facebook, Twitter, Linkedin, Share2, Plus, X, Image as ImageIcon, Video, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { ImageUploader } from '@/components/blog/ImageUploader';
+import { VideoEmbedder } from '@/components/blog/VideoEmbedder';
+import { QuillEditor } from '@/components/blog/QuillEditor';
 
 const toSlug = (s: string) => slugify(s, { lower: true, strict: true, trim: true });
 
@@ -43,6 +46,27 @@ export default function BlogEditor() {
     tags: [],
     status: 'draft',
     published_at: undefined,
+    // Social Media
+    og_title: '',
+    og_description: '',
+    og_image: '',
+    og_type: 'article',
+    og_url: '',
+    twitter_card: 'summary_large_image',
+    twitter_title: '',
+    twitter_description: '',
+    twitter_image: '',
+    twitter_site: '@bevisiblle',
+    twitter_creator: '',
+    // Video
+    video_url: '',
+    video_embed_code: '',
+    // Additional Media
+    gallery_images: [],
+    external_links: [],
+    // Social Sharing
+    enable_social_sharing: true,
+    canonical_url: '',
   });
 
   // Load existing post
@@ -63,6 +87,27 @@ export default function BlogEditor() {
         tags: existingPost.tags || [],
         status: existingPost.status || 'draft',
         published_at: existingPost.published_at || undefined,
+        // Social Media
+        og_title: existingPost.og_title || '',
+        og_description: existingPost.og_description || '',
+        og_image: existingPost.og_image || '',
+        og_type: existingPost.og_type || 'article',
+        og_url: existingPost.og_url || '',
+        twitter_card: existingPost.twitter_card || 'summary_large_image',
+        twitter_title: existingPost.twitter_title || '',
+        twitter_description: existingPost.twitter_description || '',
+        twitter_image: existingPost.twitter_image || '',
+        twitter_site: existingPost.twitter_site || '@bevisiblle',
+        twitter_creator: existingPost.twitter_creator || '',
+        // Video
+        video_url: existingPost.video_url || '',
+        video_embed_code: existingPost.video_embed_code || '',
+        // Additional Media
+        gallery_images: existingPost.gallery_images || [],
+        external_links: existingPost.external_links || [],
+        // Social Sharing
+        enable_social_sharing: existingPost.enable_social_sharing ?? true,
+        canonical_url: existingPost.canonical_url || '',
       });
     }
   }, [existingPost]);
@@ -86,6 +131,50 @@ export default function BlogEditor() {
       setForm((f) => ({ ...f, seo_description: f.excerpt || '' }));
     }
   }, [form.excerpt]);
+
+  // Auto-generate OG and Twitter from SEO if empty
+  useEffect(() => {
+    if (!form.og_title && form.seo_title) {
+      setForm((f) => ({ ...f, og_title: f.seo_title }));
+    }
+  }, [form.seo_title]);
+
+  useEffect(() => {
+    if (!form.og_description && form.seo_description) {
+      setForm((f) => ({ ...f, og_description: f.seo_description }));
+    }
+  }, [form.seo_description]);
+
+  useEffect(() => {
+    if (!form.og_image && form.featured_image) {
+      setForm((f) => ({ ...f, og_image: f.featured_image }));
+    }
+  }, [form.featured_image]);
+
+  useEffect(() => {
+    if (!form.twitter_title && form.seo_title) {
+      setForm((f) => ({ ...f, twitter_title: f.seo_title }));
+    }
+  }, [form.seo_title]);
+
+  useEffect(() => {
+    if (!form.twitter_description && form.seo_description) {
+      setForm((f) => ({ ...f, twitter_description: f.seo_description }));
+    }
+  }, [form.seo_description]);
+
+  useEffect(() => {
+    if (!form.twitter_image && form.featured_image) {
+      setForm((f) => ({ ...f, twitter_image: f.featured_image }));
+    }
+  }, [form.featured_image]);
+
+  // Auto-generate canonical URL
+  useEffect(() => {
+    if (!form.canonical_url && form.slug) {
+      setForm((f) => ({ ...f, canonical_url: `${window.location.origin}/blog/${f.slug}` }));
+    }
+  }, [form.slug]);
 
   const seo = useMemo(() => {
     const titleOk = form.seo_title.length > 0 && form.seo_title.length <= 60;
@@ -201,22 +290,11 @@ export default function BlogEditor() {
               <CardTitle>Inhalt *</CardTitle>
             </CardHeader>
             <CardContent>
-              <ReactQuill
-                theme="snow"
+              <QuillEditor
                 value={form.content}
                 onChange={(value) => setForm((f) => ({ ...f, content: value }))}
                 placeholder="Schreibe deinen Artikel..."
-                style={{ minHeight: '400px' }}
-                modules={{
-                  toolbar: [
-                    [{ header: [1, 2, 3, false] }],
-                    ['bold', 'italic', 'underline', 'strike'],
-                    [{ list: 'ordered' }, { list: 'bullet' }],
-                    [{ align: [] }],
-                    ['link', 'image'],
-                    ['clean'],
-                  ],
-                }}
+                minHeight="400px"
               />
             </CardContent>
           </Card>
@@ -225,55 +303,203 @@ export default function BlogEditor() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                SEO-Einstellungen
+                SEO & Social Media
                 <Badge variant={seo.score === 100 ? 'default' : 'secondary'}>
                   Score: {seo.score}%
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="seo_title">SEO-Titel</Label>
-                <Input
-                  id="seo_title"
-                  value={form.seo_title}
-                  onChange={(e) => setForm((f) => ({ ...f, seo_title: e.target.value }))}
-                  placeholder="Max. 60 Zeichen"
-                  maxLength={60}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {form.seo_title.length}/60 {seo.titleOk ? '✓' : '✗'}
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="seo_description">SEO-Beschreibung</Label>
-                <Textarea
-                  id="seo_description"
-                  value={form.seo_description}
-                  onChange={(e) => setForm((f) => ({ ...f, seo_description: e.target.value }))}
-                  placeholder="Max. 160 Zeichen"
-                  maxLength={160}
-                  rows={3}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {form.seo_description.length}/160 {seo.descOk ? '✓' : '✗'}
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="seo_keywords">Keywords (kommagetrennt)</Label>
-                <Input
-                  id="seo_keywords"
-                  value={form.seo_keywords?.join(', ') || ''}
-                  onChange={(e) => {
-                    const keywords = e.target.value
-                      .split(',')
-                      .map((k) => k.trim())
-                      .filter(Boolean);
-                    setForm((f) => ({ ...f, seo_keywords: keywords }));
-                  }}
-                  placeholder="Pflegeausbildung, Generalistik, Gesundheitswesen"
-                />
-              </div>
+            <CardContent>
+              <Tabs defaultValue="basic" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="basic">Grundlagen</TabsTrigger>
+                  <TabsTrigger value="og">Open Graph</TabsTrigger>
+                  <TabsTrigger value="twitter">Twitter</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="basic" className="space-y-4 mt-4">
+                  <div>
+                    <Label htmlFor="seo_title">SEO-Titel</Label>
+                    <Input
+                      id="seo_title"
+                      value={form.seo_title}
+                      onChange={(e) => setForm((f) => ({ ...f, seo_title: e.target.value }))}
+                      placeholder="Max. 60 Zeichen"
+                      maxLength={60}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {form.seo_title.length}/60 {seo.titleOk ? '✓' : '✗'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="seo_description">SEO-Beschreibung</Label>
+                    <Textarea
+                      id="seo_description"
+                      value={form.seo_description}
+                      onChange={(e) => setForm((f) => ({ ...f, seo_description: e.target.value }))}
+                      placeholder="Max. 160 Zeichen"
+                      maxLength={160}
+                      rows={3}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {form.seo_description.length}/160 {seo.descOk ? '✓' : '✗'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="seo_keywords">Keywords (kommagetrennt)</Label>
+                    <Input
+                      id="seo_keywords"
+                      value={form.seo_keywords?.join(', ') || ''}
+                      onChange={(e) => {
+                        const keywords = e.target.value
+                          .split(',')
+                          .map((k) => k.trim())
+                          .filter(Boolean);
+                        setForm((f) => ({ ...f, seo_keywords: keywords }));
+                      }}
+                      placeholder="Pflegeausbildung, Generalistik, Gesundheitswesen"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="canonical_url">Canonical URL</Label>
+                    <Input
+                      id="canonical_url"
+                      value={form.canonical_url || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, canonical_url: e.target.value }))}
+                      placeholder="https://bevisiblle.de/blog/..."
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="og" className="space-y-4 mt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Facebook className="h-5 w-5 text-blue-600" />
+                    <Label className="text-base font-semibold">Open Graph (Facebook, LinkedIn)</Label>
+                  </div>
+                  <div>
+                    <Label htmlFor="og_title">OG Titel</Label>
+                    <Input
+                      id="og_title"
+                      value={form.og_title || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, og_title: e.target.value }))}
+                      placeholder="Falls abweichend von SEO-Titel"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="og_description">OG Beschreibung</Label>
+                    <Textarea
+                      id="og_description"
+                      value={form.og_description || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, og_description: e.target.value }))}
+                      placeholder="Falls abweichend von SEO-Beschreibung"
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="og_image">OG Bild</Label>
+                    <ImageUploader
+                      value={form.og_image || ''}
+                      onChange={(url) => setForm((f) => ({ ...f, og_image: url }))}
+                      label="Empfohlen: 1200x630px"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="og_type">OG Type</Label>
+                    <Select
+                      value={form.og_type || 'article'}
+                      onValueChange={(value) => setForm((f) => ({ ...f, og_type: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="article">Article</SelectItem>
+                        <SelectItem value="website">Website</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="og_url">OG URL</Label>
+                    <Input
+                      id="og_url"
+                      value={form.og_url || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, og_url: e.target.value }))}
+                      placeholder="https://bevisiblle.de/blog/..."
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="twitter" className="space-y-4 mt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Twitter className="h-5 w-5 text-blue-400" />
+                    <Label className="text-base font-semibold">Twitter Cards</Label>
+                  </div>
+                  <div>
+                    <Label htmlFor="twitter_card">Card Type</Label>
+                    <Select
+                      value={form.twitter_card || 'summary_large_image'}
+                      onValueChange={(value: 'summary' | 'summary_large_image' | 'app' | 'player') =>
+                        setForm((f) => ({ ...f, twitter_card: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="summary">Summary</SelectItem>
+                        <SelectItem value="summary_large_image">Summary Large Image</SelectItem>
+                        <SelectItem value="app">App</SelectItem>
+                        <SelectItem value="player">Player</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="twitter_title">Twitter Titel</Label>
+                    <Input
+                      id="twitter_title"
+                      value={form.twitter_title || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, twitter_title: e.target.value }))}
+                      placeholder="Falls abweichend von SEO-Titel"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="twitter_description">Twitter Beschreibung</Label>
+                    <Textarea
+                      id="twitter_description"
+                      value={form.twitter_description || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, twitter_description: e.target.value }))}
+                      placeholder="Falls abweichend von SEO-Beschreibung"
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="twitter_image">Twitter Bild</Label>
+                    <ImageUploader
+                      value={form.twitter_image || ''}
+                      onChange={(url) => setForm((f) => ({ ...f, twitter_image: url }))}
+                      label="Empfohlen: 1200x675px"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="twitter_site">Twitter Site (@username)</Label>
+                    <Input
+                      id="twitter_site"
+                      value={form.twitter_site || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, twitter_site: e.target.value }))}
+                      placeholder="@bevisiblle"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="twitter_creator">Twitter Creator (@username)</Label>
+                    <Input
+                      id="twitter_creator"
+                      value={form.twitter_creator || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, twitter_creator: e.target.value }))}
+                      placeholder="@author"
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </div>
@@ -328,6 +554,14 @@ export default function BlogEditor() {
                   Bitte fülle alle Pflichtfelder aus und verbessere den SEO-Score
                 </p>
               )}
+              <div className="flex items-center justify-between pt-4 border-t">
+                <Label htmlFor="enable_social_sharing">Social Sharing aktivieren</Label>
+                <Switch
+                  id="enable_social_sharing"
+                  checked={form.enable_social_sharing ?? true}
+                  onCheckedChange={(checked) => setForm((f) => ({ ...f, enable_social_sharing: checked }))}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -415,26 +649,136 @@ export default function BlogEditor() {
             <CardHeader>
               <CardTitle>Featured Image</CardTitle>
             </CardHeader>
+            <CardContent>
+              <ImageUploader
+                value={form.featured_image || ''}
+                onChange={(url) => setForm((f) => ({ ...f, featured_image: url }))}
+                label="Hauptbild des Artikels"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Video */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Video className="h-5 w-5" />
+                Video
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VideoEmbedder
+                videoUrl={form.video_url}
+                embedCode={form.video_embed_code}
+                onVideoUrlChange={(url) => setForm((f) => ({ ...f, video_url: url }))}
+                onEmbedCodeChange={(code) => setForm((f) => ({ ...f, video_embed_code: code }))}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Gallery Images */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="h-5 w-5" />
+                Galerie
+              </CardTitle>
+            </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="featured_image">Bild-URL</Label>
-                <Input
-                  id="featured_image"
-                  value={form.featured_image || ''}
-                  onChange={(e) => setForm((f) => ({ ...f, featured_image: e.target.value }))}
-                  placeholder="https://..."
-                />
-                {form.featured_image && (
-                  <img
-                    src={form.featured_image}
-                    alt="Featured"
-                    className="mt-2 rounded-lg w-full h-32 object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                )}
+              <div className="grid grid-cols-2 gap-4">
+                {form.gallery_images?.map((img, idx) => (
+                  <div key={idx} className="relative group">
+                    <img src={img} alt={`Gallery ${idx + 1}`} className="w-full h-32 object-cover rounded-lg" />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        const newImages = form.gallery_images?.filter((_, i) => i !== idx) || [];
+                        setForm((f) => ({ ...f, gallery_images: newImages }));
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
+              <ImageUploader
+                value=""
+                onChange={(url) => {
+                  setForm((f) => ({ ...f, gallery_images: [...(f.gallery_images || []), url] }));
+                }}
+                label="Bild zur Galerie hinzufügen"
+              />
+            </CardContent>
+          </Card>
+
+          {/* External Links */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LinkIcon className="h-5 w-5" />
+                Externe Links
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {form.external_links?.map((link, idx) => (
+                <div key={idx} className="p-4 border rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Link {idx + 1}</Label>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const newLinks = form.external_links?.filter((_, i) => i !== idx) || [];
+                        setForm((f) => ({ ...f, external_links: newLinks }));
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    value={link.url}
+                    onChange={(e) => {
+                      const newLinks = [...(form.external_links || [])];
+                      newLinks[idx] = { ...link, url: e.target.value };
+                      setForm((f) => ({ ...f, external_links: newLinks }));
+                    }}
+                    placeholder="https://..."
+                  />
+                  <Input
+                    value={link.title}
+                    onChange={(e) => {
+                      const newLinks = [...(form.external_links || [])];
+                      newLinks[idx] = { ...link, title: e.target.value };
+                      setForm((f) => ({ ...f, external_links: newLinks }));
+                    }}
+                    placeholder="Link-Titel"
+                  />
+                  <Textarea
+                    value={link.description || ''}
+                    onChange={(e) => {
+                      const newLinks = [...(form.external_links || [])];
+                      newLinks[idx] = { ...link, description: e.target.value };
+                      setForm((f) => ({ ...f, external_links: newLinks }));
+                    }}
+                    placeholder="Beschreibung (optional)"
+                    rows={2}
+                  />
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setForm((f) => ({
+                    ...f,
+                    external_links: [...(f.external_links || []), { url: '', title: '', description: '' }],
+                  }));
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Link hinzufügen
+              </Button>
             </CardContent>
           </Card>
         </div>

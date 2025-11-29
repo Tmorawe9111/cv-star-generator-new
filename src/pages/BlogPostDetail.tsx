@@ -9,6 +9,7 @@ import { ArticleHero } from '@/components/blog/ArticleHero';
 import { MoreFromSection } from '@/components/blog/MoreFromSection';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { CareerHubHeader } from '@/components/career/CareerHubHeader';
 
 export default function BlogPostDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -61,32 +62,39 @@ export default function BlogPostDetail() {
 
   if (isLoading) {
     return (
-      <BaseLayout>
-        <div className="min-h-screen flex items-center justify-center bg-white">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      </BaseLayout>
+      <>
+        <CareerHubHeader />
+        <BaseLayout>
+          <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        </BaseLayout>
+      </>
     );
   }
 
   if (!post) {
     return (
-      <BaseLayout>
-        <div className="min-h-screen flex items-center justify-center bg-white">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Artikel nicht gefunden</h1>
-            <Button onClick={() => navigate('/blog')}>Zurück zum Blog</Button>
+      <>
+        <CareerHubHeader />
+        <BaseLayout>
+          <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold mb-4">Artikel nicht gefunden</h1>
+              <Button onClick={() => navigate('/blog')}>Zurück zum Blog</Button>
+            </div>
           </div>
-        </div>
-      </BaseLayout>
+        </BaseLayout>
+      </>
     );
   }
 
   return (
     <>
       <SEOHead {...seoData} />
+      <CareerHubHeader />
       <BaseLayout>
-        <main className="bg-white min-h-screen pb-24">
+        <main className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen pb-24">
           <article className="pt-20 lg:pt-32">
             {/* Header (Zentriert, schmal) */}
             <div className="max-w-[720px] mx-auto px-6">
