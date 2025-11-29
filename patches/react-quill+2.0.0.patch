@@ -1,23 +1,64 @@
 diff --git a/node_modules/react-quill/lib/index.js b/node_modules/react-quill/lib/index.js
-index b77e914..2fc4d09 100644
+index b77e914..b00b343 100644
 --- a/node_modules/react-quill/lib/index.js
 +++ b/node_modules/react-quill/lib/index.js
-@@ -320,7 +320,17 @@ var ReactQuill = /** @class */ (function (_super) {
+@@ -320,14 +320,44 @@ var ReactQuill = /** @class */ (function (_super) {
          if (!this.editingArea) {
              throw new Error('Instantiating on missing editing area');
          }
 -        var element = react_dom_1.default.findDOMNode(this.editingArea);
+-        if (!element) {
+-            throw new Error('Cannot find element for editing area');
 +        // Fix: Replace deprecated findDOMNode with direct ref access
-+        // In React 18+, refs can directly point to DOM elements
++        // In React 18+, callback refs directly point to DOM elements
 +        var element = this.editingArea;
-+        // If it's a React component instance, try to get the DOM node
-+        if (element && typeof element === 'object' && 'current' in element) {
-+            element = element.current;
-+        }
-+        // Fallback to findDOMNode only if element is still not a DOM node
-+        if (!element || !(element instanceof Element || element instanceof HTMLElement)) {
-+            element = react_dom_1.default.findDOMNode(this.editingArea);
-+        }
-         if (!element) {
-             throw new Error('Cannot find element for editing area');
++        
++        // Check if it's already a DOM element (React 18+ callback ref behavior)
++        // This is the most common case in React 18+
++        if (element && typeof element === 'object') {
++            // Check if it's a DOM element
++            if (element.nodeType && (element.nodeType === 1 || element.nodeType === 11)) {
++                // nodeType 1 = ELEMENT_NODE, nodeType 11 = DOCUMENT_FRAGMENT_NODE
++                if (element.nodeType === 3) {
++                    throw new Error('Editing area cannot be a text node');
++                }
++                return element;
++            }
++            
++            // Check if it's a RefObject (has 'current' property)
++            if ('current' in element && element.current) {
++                var currentElement = element.current;
++                if (currentElement && currentElement.nodeType && currentElement.nodeType !== 3) {
++                    return currentElement;
++                }
++            }
          }
+-        if (element.nodeType === 3) {
+-            throw new Error('Editing area cannot be a text node');
++        
++        // Fallback: Try to get element directly if it's a valid object
++        // This handles edge cases without using findDOMNode
++        if (element && typeof element === 'object' && 'nodeType' in element) {
++            if (element.nodeType === 3) {
++                throw new Error('Editing area cannot be a text node');
++            }
++            return element;
+         }
+-        return element;
++        
++        // In React 18+, callback refs should always provide the DOM element directly
++        // If we reach here, something is wrong with the ref setup
++        // Throw an error instead of using deprecated findDOMNode
++        throw new Error('Cannot find element for editing area - ref callback may not be working correctly. This should not happen in React 18+.');
+     };
+     /*
+     Renders an editor area, unless it has been provided one to clone.
+@@ -339,6 +369,8 @@ var ReactQuill = /** @class */ (function (_super) {
+         var properties = {
+             key: generation,
+             ref: function (instance) {
++                // In React 18+, callback refs receive the DOM element directly
++                // Store it directly to avoid findDOMNode
+                 _this.editingArea = instance;
+             },
+         };
