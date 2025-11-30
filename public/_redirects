@@ -1,11 +1,4 @@
-# Redirect all routes to index.html for SPA routing
-# This ensures that all client-side routes work correctly
+# SPA Fallback - Alle Routen zu index.html
+# Vercel prüft automatisch, ob eine Datei existiert, bevor die Rewrite-Regel greift
 /*    /index.html   200
-
-# Exclude static assets and API routes
-/assets/*    200
-/favicon.ico    200
-/robots.txt    200
-/sitemap.xml    200
-/api/*    200
 
