@@ -2,7 +2,8 @@
   "rewrites": [
     {
       "source": "/((?!api|_next|assets|favicon.ico|robots.txt|sitemap.xml|.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot|json|map|xml)).*)",
-      "destination": "/index.html"
+      "destination": "/index.html",
+      "statusCode": 200
     }
   ],
   "headers": [
