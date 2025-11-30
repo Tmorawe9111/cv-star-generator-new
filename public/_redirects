@@ -2,9 +2,10 @@
 # This ensures that all client-side routes work correctly
 /*    /index.html   200
 
-# Exclude static assets
+# Exclude static assets and API routes
 /assets/*    200
 /favicon.ico    200
 /robots.txt    200
 /sitemap.xml    200
+/api/*    200
 
