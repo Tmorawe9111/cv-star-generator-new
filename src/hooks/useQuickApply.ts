@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "./useAuth";
 import { useTrackInteraction } from "./useTrackInteraction";
+import { trackJobApplication } from "@/lib/telemetry";
 
 export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; berufsfeld?: string; region?: string; company?: string }) {
   const { user } = useAuth();
@@ -197,6 +198,9 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
       
       // Track application for personalization (strongest signal!)
       track('apply', 'job', jobId, jobMetadata || {});
+      
+      // Track for analytics
+      trackJobApplication(jobId, job.company_id, user.id, jobMetadata || {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["application-status", jobId, user?.id] });

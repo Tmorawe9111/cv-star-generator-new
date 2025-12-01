@@ -150,7 +150,7 @@ export default function NewPostComposer() {
           }))
         : [];
       
-      const { error } = await supabase.from("posts").insert({
+      const { data: newPost, error } = await supabase.from("posts").insert({
         content: capitalizeFirst(content.trim()),
         user_id: user!.id,
         author_id: user!.id,
@@ -163,6 +163,16 @@ export default function NewPostComposer() {
       });
 
       if (error) throw error;
+
+      // Track post creation for analytics
+      if (newPost && newPost[0]?.id) {
+        const { trackPostCreate } = await import('@/lib/telemetry');
+        trackPostCreate(newPost[0].id, user!.id, {
+          hasMedia: media.length > 0,
+          hasDocuments: documents.length > 0,
+          visibility,
+        });
+      }
 
       toast({
         title: "Beitrag erstellt",

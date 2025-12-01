@@ -325,6 +325,18 @@ export default function CompanyNewPostComposer({
         throw error;
       }
 
+      // Track post creation for analytics
+      if (data?.id) {
+        const { trackPostCreate } = await import('@/lib/telemetry');
+        trackPostCreate(data.id, user.id, {
+          isCompanyPost: true,
+          companyId: company.id,
+          postType: isJobVariant ? 'job' : isEventVariant ? 'event' : 'text',
+          hasMedia: media.length > 0,
+          hasDocuments: documents.length > 0,
+        });
+      }
+
       toast({
         title: "Beitrag veröffentlicht",
         description: "Ihr Unternehmensbeitrag wurde erfolgreich erstellt.",

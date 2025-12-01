@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackInteraction, extractCompanyMetadata } from '@/hooks/useTrackInteraction';
+import { trackCompanyFollow, trackCompanyUnfollow } from '@/lib/telemetry';
 
 export function useFollowCompany(companyId?: string, companyData?: { branche?: string; city?: string; name?: string }) {
   const { user } = useAuth();
@@ -43,7 +44,10 @@ export function useFollowCompany(companyId?: string, companyData?: { branche?: s
           .eq('followee_id', companyId)
           .eq('follower_type', 'profile')
           .eq('followee_type', 'company');
-        if (!error) setIsFollowing(false);
+        if (!error) {
+          setIsFollowing(false);
+          trackCompanyUnfollow(companyId, user.id, companyData);
+        }
       } else {
         // Check if company already follows this user (pending or accepted)
         const { data: companyFollowsUser } = await supabase
@@ -71,6 +75,9 @@ export function useFollowCompany(companyId?: string, companyData?: { branche?: s
         // Track follow interaction for personalization
         const metadata = companyData ? extractCompanyMetadata(companyData) : {};
         track('follow', 'company', companyId, metadata);
+        
+        // Track for analytics
+        trackCompanyFollow(companyId, user.id, companyData);
         
         // If company already follows user (mutual follow), accept the company's follow request
         if (companyFollowsUser && companyFollowsUser.status === 'pending') {

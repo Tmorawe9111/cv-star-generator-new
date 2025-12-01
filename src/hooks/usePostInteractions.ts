@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useTrackInteraction } from "@/hooks/useTrackInteraction";
+import { trackPostLike, trackPostComment, trackPostCreate } from "@/lib/telemetry";
 
 export interface PostComment {
   id: string;
@@ -110,6 +111,9 @@ export const usePostLikes = (postId: string, postMetadata?: { branche?: string; 
         
         // Track like interaction for personalization
         track('like', 'post', postId, postMetadata || {});
+        
+        // Track for analytics
+        trackPostLike(postId, user.id, postMetadata);
       }
       return { changed: true };
     },
@@ -255,6 +259,9 @@ export const usePostComments = (postId: string) => {
       console.log('Comment created:', { data, error });
       
       if (error) throw error;
+      
+      // Track comment for analytics
+      trackPostComment(postId, user.id, { parentId: payload.parentId });
       
       return data;
     },

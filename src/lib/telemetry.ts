@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 const SESSION_ID = crypto.randomUUID();
 
 interface AnalyticsEvent {
-  event_type: 'button_click' | 'page_view' | 'cv_step' | 'cv_error' | 'cv_completion' | 'cv_abandonment';
+  event_type: 'button_click' | 'page_view' | 'cv_step' | 'cv_error' | 'cv_completion' | 'cv_abandonment' | 'user_action';
   event_name: string;
   page_url?: string;
   page_path?: string;
@@ -15,6 +15,7 @@ interface AnalyticsEvent {
   user_agent?: string;
   referrer?: string;
   metadata?: Record<string, any>;
+  user_id?: string; // For user-specific tracking
 }
 
 async function saveEvent(event: AnalyticsEvent) {
@@ -152,4 +153,64 @@ export function trackCVDownloadError(errorMessage: string, metadata?: Record<str
     ...metadata,
     context: 'download',
   });
+}
+
+// Track User Actions (for detailed user analytics)
+export function trackUserAction(
+  actionType: 'job_application' | 'job_view' | 'company_follow' | 'company_unfollow' | 'follow_request' | 'post_create' | 'post_like' | 'post_comment' | 'profile_view' | 'company_view',
+  targetId: string,
+  userId?: string,
+  metadata?: Record<string, any>
+) {
+  saveEvent({
+    event_type: 'user_action',
+    event_name: `User Action: ${actionType}`,
+    user_id: userId,
+    metadata: {
+      actionType,
+      targetId,
+      ...metadata,
+    },
+  });
+}
+
+// Convenience functions for specific actions
+export function trackJobApplication(jobId: string, companyId: string, userId?: string, metadata?: Record<string, any>) {
+  trackUserAction('job_application', jobId, userId, { companyId, ...metadata });
+}
+
+export function trackJobView(jobId: string, userId?: string, metadata?: Record<string, any>) {
+  trackUserAction('job_view', jobId, userId, metadata);
+}
+
+export function trackCompanyFollow(companyId: string, userId?: string, metadata?: Record<string, any>) {
+  trackUserAction('company_follow', companyId, userId, metadata);
+}
+
+export function trackCompanyUnfollow(companyId: string, userId?: string, metadata?: Record<string, any>) {
+  trackUserAction('company_unfollow', companyId, userId, metadata);
+}
+
+export function trackFollowRequest(companyId: string, userId?: string, metadata?: Record<string, any>) {
+  trackUserAction('follow_request', companyId, userId, metadata);
+}
+
+export function trackPostCreate(postId: string, userId?: string, metadata?: Record<string, any>) {
+  trackUserAction('post_create', postId, userId, metadata);
+}
+
+export function trackPostLike(postId: string, userId?: string, metadata?: Record<string, any>) {
+  trackUserAction('post_like', postId, userId, metadata);
+}
+
+export function trackPostComment(postId: string, userId?: string, metadata?: Record<string, any>) {
+  trackUserAction('post_comment', postId, userId, metadata);
+}
+
+export function trackProfileView(profileId: string, userId?: string, metadata?: Record<string, any>) {
+  trackUserAction('profile_view', profileId, userId, metadata);
+}
+
+export function trackCompanyView(companyId: string, userId?: string, metadata?: Record<string, any>) {
+  trackUserAction('company_view', companyId, userId, metadata);
 }
