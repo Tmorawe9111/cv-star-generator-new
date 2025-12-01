@@ -46,35 +46,35 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="px-3 sm:px-6 py-6 max-w-[1600px] mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Benutzer</h1>
-        <p className="text-muted-foreground mt-1">Übersicht aller registrierten Benutzer</p>
+    <div className="px-3 sm:px-6 py-6 max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
+      <div className="space-y-1">
+        <h1 className="text-4xl font-semibold tracking-tight">Benutzer</h1>
+        <p className="text-muted-foreground text-base">Übersicht aller registrierten Benutzer mit vollständigen Profilen</p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Apple Style */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Gesamt Benutzer</CardDescription>
-              <UsersIcon className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-white to-gray-50/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between mb-2">
+              <CardDescription className="text-sm font-medium text-gray-600">Gesamt Benutzer</CardDescription>
+              <UsersIcon className="h-5 w-5 text-gray-400" />
             </div>
-            <CardTitle className="text-3xl font-bold">{total}</CardTitle>
+            <CardTitle className="text-4xl font-semibold tracking-tight">{total.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">Alle registrierten Benutzer</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Veröffentlicht</CardDescription>
-              <Eye className="h-4 w-4 text-green-500" />
+        <Card className="border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-green-50/50 to-white">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between mb-2">
+              <CardDescription className="text-sm font-medium text-gray-600">Veröffentlicht</CardDescription>
+              <Eye className="h-5 w-5 text-green-500" />
             </div>
-            <CardTitle className="text-3xl font-bold text-green-600 dark:text-green-400">
-              {published}
+            <CardTitle className="text-4xl font-semibold tracking-tight text-green-600 dark:text-green-500">
+              {published.toLocaleString()}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -84,14 +84,14 @@ export default function UsersPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Vollständig</CardDescription>
-              <CheckCircle className="h-4 w-4 text-blue-500" />
+        <Card className="border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-blue-50/50 to-white">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between mb-2">
+              <CardDescription className="text-sm font-medium text-gray-600">Vollständig</CardDescription>
+              <CheckCircle className="h-5 w-5 text-blue-500" />
             </div>
-            <CardTitle className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-              {complete}
+            <CardTitle className="text-4xl font-semibold tracking-tight text-blue-600 dark:text-blue-500">
+              {complete.toLocaleString()}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -101,14 +101,14 @@ export default function UsersPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-orange-500">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Unvollständig</CardDescription>
-              <XCircle className="h-4 w-4 text-orange-500" />
+        <Card className="border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-orange-50/50 to-white">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between mb-2">
+              <CardDescription className="text-sm font-medium text-gray-600">Unvollständig</CardDescription>
+              <XCircle className="h-5 w-5 text-orange-500" />
             </div>
-            <CardTitle className="text-3xl font-bold text-orange-600 dark:text-orange-400">
-              {total - complete}
+            <CardTitle className="text-4xl font-semibold tracking-tight text-orange-600 dark:text-orange-500">
+              {(total - complete).toLocaleString()}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -117,25 +117,25 @@ export default function UsersPage() {
         </Card>
       </div>
 
-      {/* Filters and Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Alle Benutzer</CardTitle>
-          <CardDescription>Detaillierte Übersicht mit Profil-Status und Informationen</CardDescription>
+      {/* Filters and Table - Apple Style */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-2xl font-semibold tracking-tight">Alle Benutzer</CardTitle>
+          <CardDescription className="text-base">Detaillierte Übersicht mit Profil-Status und Informationen</CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Filters */}
+          {/* Filters - Apple Style */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
             <input 
               value={search} 
               onChange={(e) => { setSearch(e.target.value); setPage(1); }} 
               placeholder="Suche nach Email..." 
-              className="h-10 w-full rounded-md border px-3 focus:outline-none focus:ring-2 focus:ring-primary" 
+              className="h-11 w-full rounded-lg border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" 
             />
             <select 
               value={status} 
               onChange={(e) => { setStatus(e.target.value as any); setPage(1); }} 
-              className="h-10 rounded-md border px-3"
+              className="h-11 rounded-lg border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             >
               <option value="all">Alle Status</option>
               <option value="published">Veröffentlicht</option>
@@ -146,20 +146,20 @@ export default function UsersPage() {
               value={region} 
               onChange={(e) => { setRegion(e.target.value); setPage(1); }} 
               placeholder="Bundesland" 
-              className="h-10 w-full rounded-md border px-3 focus:outline-none focus:ring-2 focus:ring-primary" 
+              className="h-11 w-full rounded-lg border border-gray-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" 
             />
             <div className="flex gap-2">
               <input 
                 type="date" 
                 value={dateStart ?? ""} 
                 onChange={(e) => { setDateStart(e.target.value || undefined); setPage(1); }} 
-                className="h-10 flex-1 rounded-md border px-2" 
+                className="h-11 flex-1 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" 
               />
               <input 
                 type="date" 
                 value={dateEnd ?? ""} 
                 onChange={(e) => { setDateEnd(e.target.value || undefined); setPage(1); }} 
-                className="h-10 flex-1 rounded-md border px-2" 
+                className="h-11 flex-1 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" 
               />
             </div>
           </div>
@@ -208,8 +208,8 @@ export default function UsersPage() {
                 )}
                 
                 {!isLoading && !error && data && data.users.map((u) => (
-                  <TableRow key={u.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{u.email ?? "—"}</TableCell>
+                  <TableRow key={u.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer">
+                    <TableCell className="font-medium text-sm">{u.email ?? "—"}</TableCell>
                     <TableCell>{getUserTypeBadge(u.status)}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{u.branche || "—"}</Badge>
@@ -270,7 +270,7 @@ export default function UsersPage() {
                       <TableCell>
                         <div className="flex gap-2">
                           <button 
-                            className="text-primary hover:underline text-sm font-medium" 
+                            className="text-primary hover:text-primary/80 text-sm font-medium transition-colors px-3 py-1.5 rounded-md hover:bg-primary/10" 
                             onClick={() => setSelected(u)}
                           >
                             Details
@@ -291,14 +291,14 @@ export default function UsersPage() {
             </span>
             <div className="flex gap-2">
               <button 
-                className="px-4 py-2 rounded-md border bg-card hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                className="px-5 py-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm hover:shadow" 
                 disabled={page <= 1} 
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
                 Zurück
               </button>
               <button 
-                className="px-4 py-2 rounded-md border bg-card hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                className="px-5 py-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm hover:shadow" 
                 disabled={page >= totalPages} 
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >

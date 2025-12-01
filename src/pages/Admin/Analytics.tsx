@@ -2,15 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Activity, MousePointerClick, Eye, Calendar } from 'lucide-react';
+import { Activity, MousePointerClick, Eye, Calendar, FileText, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 
 interface AnalyticsSummary {
   totalEvents: number;
   buttonClicks: number;
   pageViews: number;
   calendlyClicks: number;
+  cvSteps: number;
+  cvErrors: number;
+  cvCompletions: number;
+  cvAbandonments: number;
   pageViewsByPage: Record<string, number>;
   buttonClicksByLabel: Record<string, number>;
+  cvStepCompletions: Record<number, number>;
+  cvErrorsByType: Record<string, number>;
 }
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))'];
@@ -41,8 +47,14 @@ export default function AnalyticsPage() {
           buttonClicks: eventsData?.filter(e => e.event_type === 'button_click').length || 0,
           pageViews: eventsData?.filter(e => e.event_type === 'page_view').length || 0,
           calendlyClicks: eventsData?.filter(e => e.button_type === 'calendly').length || 0,
+          cvSteps: eventsData?.filter(e => e.event_type === 'cv_step').length || 0,
+          cvErrors: eventsData?.filter(e => e.event_type === 'cv_error').length || 0,
+          cvCompletions: eventsData?.filter(e => e.event_type === 'cv_completion').length || 0,
+          cvAbandonments: eventsData?.filter(e => e.event_type === 'cv_abandonment').length || 0,
           pageViewsByPage: {},
           buttonClicksByLabel: {},
+          cvStepCompletions: {},
+          cvErrorsByType: {},
         };
 
         eventsData?.forEach(event => {
@@ -51,6 +63,14 @@ export default function AnalyticsPage() {
           }
           if (event.event_type === 'button_click' && event.button_label) {
             summary.buttonClicksByLabel[event.button_label] = (summary.buttonClicksByLabel[event.button_label] || 0) + 1;
+          }
+          if (event.event_type === 'cv_step' && event.metadata?.step) {
+            const step = event.metadata.step;
+            summary.cvStepCompletions[step] = (summary.cvStepCompletions[step] || 0) + 1;
+          }
+          if (event.event_type === 'cv_error' && event.metadata?.errorType) {
+            const errorType = event.metadata.errorType;
+            summary.cvErrorsByType[errorType] = (summary.cvErrorsByType[errorType] || 0) + 1;
           }
         });
 
@@ -165,6 +185,120 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* CV Generator Metrics */}
+      <div className="grid gap-4 md:grid-cols-4 mt-6">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardDescription>CV Steps</CardDescription>
+              <FileText className="h-4 w-4 text-blue-500" />
+            </div>
+            <CardTitle className="text-4xl font-bold text-blue-600 dark:text-blue-400">
+              {summary.cvSteps.toLocaleString()}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Getrackte CV Steps</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-green-500">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardDescription>CV Completions</CardDescription>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+            </div>
+            <CardTitle className="text-4xl font-bold text-green-600 dark:text-green-400">
+              {summary.cvCompletions.toLocaleString()}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Erfolgreich abgeschlossen</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-red-500">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardDescription>CV Errors</CardDescription>
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            </div>
+            <CardTitle className="text-4xl font-bold text-red-600 dark:text-red-400">
+              {summary.cvErrors.toLocaleString()}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Fehlermeldungen</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardDescription>CV Abbrüche</CardDescription>
+              <XCircle className="h-4 w-4 text-orange-500" />
+            </div>
+            <CardTitle className="text-4xl font-bold text-orange-600 dark:text-orange-400">
+              {summary.cvAbandonments.toLocaleString()}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Nicht abgeschlossen</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* CV Step Completion Chart */}
+      {Object.keys(summary.cvStepCompletions).length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>CV Step Completion Funnel</CardTitle>
+            <CardDescription>Anzahl der Completions pro Step</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={Object.entries(summary.cvStepCompletions)
+                .map(([step, count]) => ({ step: `Step ${step}`, count }))
+                .sort((a, b) => Number(a.step.split(' ')[1]) - Number(b.step.split(' ')[1]))}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="step" tick={{ fontSize: 12 }} />
+                <YAxis />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* CV Errors by Type */}
+      {Object.keys(summary.cvErrorsByType).length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>CV Errors nach Typ</CardTitle>
+            <CardDescription>Häufigkeit der Fehlertypen</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {Object.entries(summary.cvErrorsByType)
+                .sort(([, a], [, b]) => b - a)
+                .map(([errorType, count]) => (
+                  <div key={errorType} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                    <span className="font-medium text-sm">{errorType}</span>
+                    <span className="text-2xl font-bold text-red-600">{count}</span>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Page Views Chart */}

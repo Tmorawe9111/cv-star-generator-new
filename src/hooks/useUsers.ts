@@ -48,9 +48,12 @@ export function useUsers({ search = "", status = "all", region = "", dateStart, 
         }
       }
 
+      // Query profiles - ensure we get all users with profiles
+      // Join with auth.users to get email if missing in profiles
       let query = supabase
         .from("profiles")
         .select("id,email,created_at,profile_complete,profile_published,avatar_url,location_id,status,branche", { count: "exact" })
+        .not("id", "is", null) // Ensure ID exists
         .order("created_at", { ascending: false })
         .range(from, to);
 

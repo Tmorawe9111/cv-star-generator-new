@@ -10,6 +10,7 @@ import { Download, UserPlus, Loader2, Mail, CreditCard, CheckCircle2, Sparkles }
 import { toast } from 'sonner';
 import { generatePDF, generateCVFilename } from '@/lib/pdf-generator';
 import { ProfileCreationModal } from '@/components/shared/ProfileCreationModal';
+import { trackCVDownloadError, trackCVCompletion } from '@/lib/telemetry';
 import BerlinLayout from '@/components/cv-layouts/BerlinLayout';
 import MuenchenLayout from '@/components/cv-layouts/MuenchenLayout';
 import HamburgLayout from '@/components/cv-layouts/HamburgLayout';
@@ -130,8 +131,20 @@ const CVStep7 = () => {
       document.body.removeChild(tempContainer);
       
       toast.success(`Dein Lebenslauf wurde als ${filename} heruntergeladen.`);
-    } catch (error) {
+      // Track successful completion
+      trackCVCompletion('classic', 7, undefined, {
+        action: 'download_success',
+        layout: formData.layout || 1,
+      });
+    } catch (error: any) {
       console.error('PDF generation error:', error);
+      const errorMessage = error?.message || 'Unknown PDF generation error';
+      trackCVDownloadError(errorMessage, {
+        step: 7,
+        layout: formData.layout || 1,
+        hasVorname: !!formData.vorname,
+        hasNachname: !!formData.nachname,
+      });
       toast.error("Es gab ein Problem beim Erstellen deines Lebenslaufs. Bitte versuche es erneut.");
     } finally {
       setIsGeneratingPDF(false);
@@ -144,6 +157,12 @@ const CVStep7 = () => {
   };
 
   const handleDownloadWithoutProfile = () => {
+    // Track the error when user tries to download without profile
+    trackCVDownloadError('Download attempted without profile', {
+      step: 7,
+      layout: formData.layout || 1,
+      context: 'no_profile',
+    });
     toast.error(
       "Bitte registriere dich, um deinen Lebenslauf herunterzuladen. Wir haben gerade ein technisches Problem, dass du den CV direkt herunterladen kannst.",
       { duration: 5000 }

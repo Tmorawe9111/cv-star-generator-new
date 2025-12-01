@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCVForm } from '@/contexts/CVFormContext';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { trackCVStep, trackCVCompletion, trackCVAbandonment, trackButtonClick } from '@/lib/telemetry';
 import CVStep0 from './cv-steps/CVStep0';
 import CVStep1 from './cv-steps/CVStep1';
 import CVStep2 from './cv-steps/CVStep2';
@@ -24,12 +25,37 @@ const CVGeneratorContent = () => {
   } = useCVForm();
   const navigate = useNavigate();
   const location = useLocation();
+  const startTimeRef = useRef<number>(Date.now());
+  const stepNames: Record<number, string> = {
+    0: 'Willkommen',
+    1: 'Persönliche Daten',
+    2: 'Kontakt',
+    3: 'Beruflicher Werdegang',
+    4: 'Kenntnisse & Motivation',
+    5: 'Layout Auswahl',
+    6: 'Vorschau',
+    7: 'Fertig',
+  };
+
   useEffect(() => {
     if (location.pathname === '/cv-generator') {
       setLayoutEditMode(false);
       localStorage.removeItem('cvLayoutEditMode');
+      startTimeRef.current = Date.now();
+      // Track CV Generator start
+      trackButtonClick('CV Generator Start', 'cv_generator');
     }
   }, [location.pathname, setLayoutEditMode]);
+
+  // Track step changes
+  useEffect(() => {
+    if (currentStep > 0 && !isLayoutEditMode) {
+      const stepName = stepNames[currentStep] || `Step ${currentStep}`;
+      trackCVStep(currentStep, stepName, 'classic', {
+        isLayoutEditMode: false,
+      });
+    }
+  }, [currentStep, isLayoutEditMode]);
   const renderStep = () => {
     // In layout edit mode, only show steps 5 and 6
     if (isLayoutEditMode) {
@@ -75,9 +101,32 @@ const CVGeneratorContent = () => {
       // Normal mode - validate current step before proceeding
       // Step 0 doesn't need validation
       if (currentStep === 0) {
+        trackButtonClick('CV Generator: Start', 'cv_generator');
         setCurrentStep(1);
       } else if (currentStep < 7 && validateStep(currentStep)) {
+        // Track step completion
+        const stepName = stepNames[currentStep] || `Step ${currentStep}`;
+        trackCVStep(currentStep, stepName, 'classic', {
+          action: 'step_completed',
+          validated: true,
+        });
+        
+        // If moving to final step, track completion
+        if (currentStep === 6) {
+          const timeToComplete = Math.round((Date.now() - startTimeRef.current) / 1000);
+          trackCVCompletion('classic', 7, timeToComplete, {
+            isLayoutEditMode: false,
+          });
+        }
+        
         setCurrentStep(currentStep + 1);
+      } else {
+        // Track validation error
+        const stepName = stepNames[currentStep] || `Step ${currentStep}`;
+        trackCVStep(currentStep, stepName, 'classic', {
+          action: 'validation_failed',
+          errors: Object.keys(validationErrors).length,
+        });
       }
     }
   };
@@ -95,6 +144,14 @@ const CVGeneratorContent = () => {
     }
   };
   const handleBackToHome = () => {
+    // Track abandonment if not on first step
+    if (currentStep > 0 && currentStep < 7) {
+      const stepName = stepNames[currentStep] || `Step ${currentStep}`;
+      trackCVAbandonment(currentStep, stepName, 'classic', {
+        action: 'back_to_home',
+      });
+    }
+    
     if (isLayoutEditMode) {
       navigate('/profile');
     } else {

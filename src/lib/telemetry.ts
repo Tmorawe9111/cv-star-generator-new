@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 const SESSION_ID = crypto.randomUUID();
 
 interface AnalyticsEvent {
-  event_type: 'button_click' | 'page_view';
+  event_type: 'button_click' | 'page_view' | 'cv_step' | 'cv_error' | 'cv_completion' | 'cv_abandonment';
   event_name: string;
   page_url?: string;
   page_path?: string;
@@ -88,4 +88,68 @@ export function trackCompanyMatchingEvent(event: string, data: Record<string, an
 
 export function trackJobCardEvent(event: string, data: Record<string, any> = {}) {
   console.log(`[Telemetry] Job Card - ${event}:`, data);
+}
+
+// Track CV Generator Steps
+export function trackCVStep(step: number, stepName: string, flowType: 'classic' | 'voice' | 'chat' = 'classic', metadata?: Record<string, any>) {
+  saveEvent({
+    event_type: 'cv_step',
+    event_name: `CV Step ${step}: ${stepName}`,
+    metadata: {
+      step,
+      stepName,
+      flowType,
+      ...metadata,
+    },
+  });
+}
+
+// Track CV Generator Errors
+export function trackCVError(errorType: string, errorMessage: string, step?: number, metadata?: Record<string, any>) {
+  saveEvent({
+    event_type: 'cv_error',
+    event_name: `CV Error: ${errorType}`,
+    metadata: {
+      errorType,
+      errorMessage,
+      step,
+      ...metadata,
+    },
+  });
+}
+
+// Track CV Generator Completion
+export function trackCVCompletion(flowType: 'classic' | 'voice' | 'chat', totalSteps: number, timeToComplete?: number, metadata?: Record<string, any>) {
+  saveEvent({
+    event_type: 'cv_completion',
+    event_name: 'CV Generator Completed',
+    metadata: {
+      flowType,
+      totalSteps,
+      timeToComplete,
+      ...metadata,
+    },
+  });
+}
+
+// Track CV Generator Abandonment
+export function trackCVAbandonment(step: number, stepName: string, flowType: 'classic' | 'voice' | 'chat' = 'classic', metadata?: Record<string, any>) {
+  saveEvent({
+    event_type: 'cv_abandonment',
+    event_name: `CV Generator Abandoned at Step ${step}`,
+    metadata: {
+      step,
+      stepName,
+      flowType,
+      ...metadata,
+    },
+  });
+}
+
+// Track CV Download Error
+export function trackCVDownloadError(errorMessage: string, metadata?: Record<string, any>) {
+  trackCVError('download_error', errorMessage, undefined, {
+    ...metadata,
+    context: 'download',
+  });
 }
