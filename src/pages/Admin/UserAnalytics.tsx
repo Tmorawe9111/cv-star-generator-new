@@ -424,9 +424,15 @@ export default function UserAnalytics() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    statsArray.map((stats) => (
-                      <TableRow key={stats.userId} className="hover:bg-gray-50/50 transition-colors cursor-pointer">
-                        <TableCell className="font-medium text-sm">{stats.email}</TableCell>
+                    statsArray.map((stats) => {
+                      const user = usersData?.users.find(u => u.id === stats.userId);
+                      return (
+                        <TableRow 
+                          key={stats.userId} 
+                          className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                          onClick={() => user && setSelectedUser(user)}
+                        >
+                          <TableCell className="font-medium text-sm">{stats.email}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Briefcase className="h-4 w-4 text-blue-500" />
@@ -480,16 +486,17 @@ export default function UserAnalytics() {
                         <TableCell>
                           <button 
                             className="text-primary hover:text-primary/80 text-sm font-medium transition-colors px-3 py-1.5 rounded-md hover:bg-primary/10" 
-                            onClick={() => {
-                              const user = usersData?.users.find(u => u.id === stats.userId);
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (user) setSelectedUser(user);
                             }}
                           >
-                            Details
+                            Profil öffnen
                           </button>
                         </TableCell>
                       </TableRow>
-                    ))
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
