@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Edit, Trash2, Eye, Calendar } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, Calendar, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useDeleteBlogPost } from '@/hooks/useBlogManagement';
@@ -111,12 +111,20 @@ export default function BlogList() {
           <h1 className="text-2xl font-semibold mb-2">Blog-Artikel</h1>
           <p className="text-muted-foreground">Verwalte deine Blog-Artikel für SEO-Content</p>
         </div>
-        <Button asChild>
-          <Link to="/admin/blog/new">
-            <Plus className="h-4 w-4 mr-2" />
-            Neuer Artikel
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/admin/blog/bulk-upload">
+              <Upload className="h-4 w-4 mr-2" />
+              Bulk Upload
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link to="/admin/blog/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Neuer Artikel
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

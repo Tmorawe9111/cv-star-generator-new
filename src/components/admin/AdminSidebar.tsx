@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Building2, BadgePercent, Briefcase, HeartHandshake, BarChart3, FileText, LifeBuoy, Settings, Wrench, Target, ShieldCheck, TrendingUp, Activity } from "lucide-react";
+import { LayoutDashboard, Users, Building2, BadgePercent, Briefcase, HeartHandshake, BarChart3, FileText, LifeBuoy, Settings, Wrench, Target, ShieldCheck, TrendingUp, Activity, Upload } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -33,6 +33,7 @@ const navItems: ReadonlyArray<NavItem> = [
   { title: "Company Analytics", url: "/admin/company-analytics", icon: TrendingUp, roles: ["SuperAdmin", "SupportAgent"] },
   { title: "Content", url: "/admin/content", icon: FileText, roles: ["SuperAdmin", "ContentEditor", "SupportAgent"] },
   { title: "Blog", url: "/admin/blog", icon: FileText, roles: ["SuperAdmin", "ContentEditor", "SupportAgent"] },
+  { title: "Blog Bulk Upload", url: "/admin/blog/bulk-upload", icon: Upload, roles: ["SuperAdmin", "ContentEditor"] },
   { title: "Support", url: "/admin/support", icon: LifeBuoy },
   { title: "Tools", url: "/admin/tools", icon: Wrench, roles: ["SuperAdmin", "ContentEditor", "SupportAgent"] },
   { title: "Admin Settings", url: "/admin/settings", icon: Settings, roles: ["SuperAdmin"] },
