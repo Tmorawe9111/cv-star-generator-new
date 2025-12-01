@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useUsers } from '@/hooks/useUsers';
-import { UserDrawer } from '@/components/admin/UserDrawer';
+import { UserProfileDetailView } from '@/components/admin/user/UserProfileDetailView';
 import { Badge } from '@/components/ui/badge';
 import { Users, Briefcase, Building2, Heart, MessageSquare, ThumbsUp, FileText, Eye, Calendar } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -498,7 +498,7 @@ export default function UserAnalytics() {
         </CardContent>
       </Card>
 
-      <UserDrawer user={selectedUser} open={!!selectedUser} onOpenChange={(v) => !v && setSelectedUser(null)} />
+      <UserProfileDetailView user={selectedUser} open={!!selectedUser} onOpenChange={(v) => !v && setSelectedUser(null)} />
     </div>
   );
 }
