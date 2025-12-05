@@ -14,6 +14,7 @@ import { LinkedInProfileExperience } from "@/components/linkedin/LinkedInProfile
 import { LinkedInProfileEducation } from "@/components/linkedin/LinkedInProfileEducation";
 import { LinkedInProfileActivity } from "@/components/linkedin/LinkedInProfileActivity";
 import { LinkedInProfileSidebar } from "@/components/linkedin/LinkedInProfileSidebar";
+import { ValuesAndInterviewSection } from "@/components/recruiter/ValuesAndInterviewSection";
 import { WeitereDokumenteSection } from "@/components/linkedin/right-rail/WeitereDokumenteSection";
 import { ContactInfoCard } from "@/components/linkedin/right-rail/ContactInfoCard";
 import { AdCard } from "@/components/linkedin/right-rail/AdCard";
@@ -1146,6 +1147,16 @@ export default function ProfileView() {
               onProfileUpdate={() => {}}
               readOnly={true}
             />
+
+            {/* Weitere Dokumente - only when unlocked, directly after CV */}
+            {isUnlocked && (
+              <WeitereDokumenteSection
+                userId={id || ''}
+                readOnly={true}
+                openWidget={() => {}}
+                refreshTrigger={0}
+              />
+            )}
             
             <LinkedInProfileExperience
               experiences={displayProfile?.berufserfahrung || []}
@@ -1239,17 +1250,9 @@ export default function ProfileView() {
                 showCVSection={isUnlocked}
                 showLanguagesAndSkills={true}
                 showLicenseAndStats={true}
+                showValuesAndInterview={isUnlocked}
+                profileId={id || ''}
               />
-
-              {/* Weitere Dokumente - only when unlocked */}
-              {isUnlocked && (
-                <WeitereDokumenteSection
-                  userId={id || ''}
-                  readOnly={true}
-                  openWidget={() => {}}
-                  refreshTrigger={0}
-                />
-              )}
 
               {/* Werbung */}
               <AdCard />

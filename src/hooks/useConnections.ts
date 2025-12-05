@@ -51,34 +51,72 @@ export const useConnections = () => {
   const requestConnection = useCallback(async (targetId: string, profileMetadata?: { branche?: string; region?: string; berufsfeld?: string }) => {
     if (!user) throw new Error("not-authenticated");
     
-    // Check if connection already exists
-    const { data: existing } = await supabase
+    // Check if connection already exists in EITHER direction (due to unique constraint)
+    // The unique constraint uniq_connections_pair prevents both (A,B) and (B,A) from existing
+    // Use a query that checks both directions
+    const { data: existingConnections } = await supabase
       .from("connections")
-      .select("id, status")
-      .eq("requester_id", user.id)
-      .eq("addressee_id", targetId)
+      .select("requester_id, addressee_id, status")
+      .or(`and(requester_id.eq.${user.id},addressee_id.eq.${targetId}),and(requester_id.eq.${targetId},addressee_id.eq.${user.id})`)
       .maybeSingle();
     
-    if (existing) {
-      // If declined, update to pending (resend request)
-      if (existing.status === "declined") {
+    if (existingConnections) {
+      const isOutgoing = existingConnections.requester_id === user.id;
+      const isIncoming = existingConnections.addressee_id === user.id;
+      
+      // If already accepted, nothing to do
+      if (existingConnections.status === "accepted") {
+        return; // Already connected, no error
+      }
+      
+      // If already pending in outgoing direction, nothing to do
+      if (existingConnections.status === "pending" && isOutgoing) {
+        return; // Already pending, no error
+      }
+      
+      // If incoming pending request exists, accept it instead of creating new
+      if (existingConnections.status === "pending" && isIncoming) {
+        // Accept the incoming request
         const { error } = await supabase
           .from("connections")
-          .update({ status: "pending" })
-          .eq("id", existing.id);
+          .update({ status: "accepted" })
+          .eq("requester_id", targetId)
+          .eq("addressee_id", user.id);
         if (error) throw error;
         return;
       }
-      // If already pending or accepted, don't create duplicate
-      if (existing.status === "pending") {
-        return; // Already pending, no error
-      }
-      if (existing.status === "accepted") {
-        return; // Already connected, no error
+      
+      // If declined, update to pending (resend request)
+      if (existingConnections.status === "declined") {
+        // If it was in reverse direction, we need to swap requester/addressee
+        if (isIncoming) {
+          // Delete old connection and create new one in correct direction
+          const { error: deleteError } = await supabase
+            .from("connections")
+            .delete()
+            .eq("requester_id", targetId)
+            .eq("addressee_id", user.id);
+          if (deleteError) throw deleteError;
+          
+          // Create new connection in correct direction
+          const { error: insertError } = await supabase
+            .from("connections")
+            .insert({ requester_id: user.id, addressee_id: targetId, status: "pending" });
+          if (insertError) throw insertError;
+        } else {
+          // Update existing declined connection to pending
+          const { error } = await supabase
+            .from("connections")
+            .update({ status: "pending" })
+            .eq("requester_id", user.id)
+            .eq("addressee_id", targetId);
+          if (error) throw error;
+        }
+        return;
       }
     }
     
-    // Create new connection
+    // No existing connection - create new one
     const { error } = await supabase
       .from("connections")
       .insert({ requester_id: user.id, addressee_id: targetId, status: "pending" });
@@ -87,29 +125,34 @@ export const useConnections = () => {
     track('connect', 'profile', targetId, profileMetadata || {});
     
     if (error) {
-      // If duplicate key error, connection might exist in reverse direction
+      // If duplicate key error, connection might exist in reverse direction (race condition)
       if (error.code === '23505') {
-        // Check reverse direction
-        const { data: reverse } = await supabase
+        // Check again for existing connection
+        const { data: checkAgain } = await supabase
           .from("connections")
-          .select("id, status")
-          .eq("requester_id", targetId)
-          .eq("addressee_id", user.id)
+          .select("requester_id, addressee_id, status")
+          .or(`and(requester_id.eq.${user.id},addressee_id.eq.${targetId}),and(requester_id.eq.${targetId},addressee_id.eq.${user.id})`)
           .maybeSingle();
         
-        if (reverse && reverse.status === "declined") {
-          // Update reverse connection to pending
-          const { error: updateError } = await supabase
-            .from("connections")
-            .update({ status: "pending" })
-            .eq("id", reverse.id);
-          if (updateError) throw updateError;
+        if (checkAgain) {
+          // Connection exists now - handle based on status
+          if (checkAgain.status === "pending" && checkAgain.addressee_id === user.id) {
+            // Incoming request - accept it
+            const { error: acceptError } = await supabase
+              .from("connections")
+              .update({ status: "accepted" })
+              .eq("requester_id", targetId)
+              .eq("addressee_id", user.id);
+            if (acceptError) throw acceptError;
+            return;
+          }
+          // Otherwise, connection already exists in desired state
           return;
         }
       }
       throw error;
     }
-  }, [user]);
+  }, [user, track]);
 
   const acceptRequest = useCallback(async (fromUserId: string) => {
     if (!user) throw new Error("not-authenticated");

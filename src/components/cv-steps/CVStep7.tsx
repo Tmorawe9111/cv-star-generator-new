@@ -1,69 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCVForm } from '@/contexts/CVFormContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Download, UserPlus, Loader2, Mail, CreditCard, CheckCircle2, Sparkles } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Download, UserPlus, CheckCircle2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { generatePDF, generateCVFilename } from '@/lib/pdf-generator';
 import { ProfileCreationModal } from '@/components/shared/ProfileCreationModal';
-import { trackCVDownloadError, trackCVCompletion } from '@/lib/telemetry';
-import BerlinLayout from '@/components/cv-layouts/BerlinLayout';
-import MuenchenLayout from '@/components/cv-layouts/MuenchenLayout';
-import HamburgLayout from '@/components/cv-layouts/HamburgLayout';
-import KoelnLayout from '@/components/cv-layouts/KoelnLayout';
-import FrankfurtLayout from '@/components/cv-layouts/FrankfurtLayout';
-import DuesseldorfLayout from '@/components/cv-layouts/DuesseldorfLayout';
-import StuttgartLayout from '@/components/cv-layouts/StuttgartLayout';
-import DresdenLayout from '@/components/cv-layouts/DresdenLayout';
-import LeipzigLayout from '@/components/cv-layouts/LeipzigLayout';
-import { mapFormDataToCVData } from '@/components/cv-layouts/mapFormDataToCVData';
+import { trackCVDownloadError } from '@/lib/telemetry';
 import { cn } from '@/lib/utils';
+import confetti from 'canvas-confetti';
 
 const CVStep7 = () => {
-  const { formData, updateFormData, setCurrentStep } = useCVForm();
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const { formData } = useCVForm();
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(true);
 
-  const getBrancheTitle = () => {
-    switch (formData.branche) {
-      case 'handwerk': return 'Handwerk';
-      case 'it': return 'IT';
-      case 'gesundheit': return 'Gesundheit';
-      case 'buero': return 'Büro & Verwaltung';
-      case 'verkauf': return 'Verkauf & Handel';
-      case 'gastronomie': return 'Gastronomie';
-      case 'bau': return 'Bau & Architektur';
-      default: return '';
-    }
-  };
+  // Trigger confetti animation when popup opens
+  useEffect(() => {
+    if (showSuccessPopup) {
+      // Trigger confetti
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
 
-  const getStatusTitle = () => {
-    switch (formData.status) {
-      case 'schueler': return 'Schüler:in';
-      case 'azubi': return 'Azubi';
-      case 'fachkraft': return 'Fachkraft';
-      default: return '';
-    }
-  };
+      // Additional bursts
+      setTimeout(() => {
+        confetti({
+          particleCount: 50,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 }
+        });
+      }, 250);
 
-  const getLayoutName = () => {
-    switch (formData.layout) {
-      case 1: return 'Berlin';
-      case 2: return 'München';
-      case 3: return 'Hamburg';
-      case 4: return 'Köln';
-      case 5: return 'Frankfurt';
-      case 6: return 'Düsseldorf';
-      case 7: return 'Stuttgart';
-      case 8: return 'Dresden';
-      case 9: return 'Leipzig';
-      default: return 'Berlin';
+      setTimeout(() => {
+        confetti({
+          particleCount: 50,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 }
+        });
+      }, 400);
+
+      // Auto-close popup after 3 seconds
+      const timer = setTimeout(() => {
+        setShowSuccessPopup(false);
+      }, 3000);
+
+      return () => clearTimeout(timer);
     }
-  };
+  }, [showSuccessPopup]);
+
 
   const handleDownloadPDF = async () => {
     if (!formData.vorname || !formData.nachname) {
@@ -170,153 +160,107 @@ const CVStep7 = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Glückwunsch Header */}
-      <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
-        <CardHeader className="text-center pb-4">
-          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <Sparkles className="h-8 w-8 text-primary" />
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Success Popup with Confetti */}
+      <Dialog open={showSuccessPopup} onOpenChange={() => {}}>
+        <DialogContent 
+          className="sm:max-w-md p-6 md:p-8 text-center [&>button]:hidden" 
+          onInteractOutside={(e) => e.preventDefault()} 
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <div className="mx-auto w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mb-4 md:mb-6 animate-in zoom-in duration-500">
+            <Sparkles className="h-10 w-10 md:h-12 md:w-12 text-primary animate-pulse" />
           </div>
-          <CardTitle className="text-2xl">🎉 Glückwunsch!</CardTitle>
-          <CardDescription className="text-base">
-            Dein Lebenslauf ist fertig und sieht professionell aus!
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
-      {/* Zusammenfassung */}
-      <Card>
-        <CardHeader>
-          <CardTitle>📋 Zusammenfassung</CardTitle>
-          <CardDescription>Eine Übersicht deiner Angaben</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Branche:</span>
-            <span className="font-medium">{getBrancheTitle()}</span>
-          </div>
-          
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Status:</span>
-            <span className="font-medium">{getStatusTitle()}</span>
-          </div>
-          
-          <Separator />
-          
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Name:</span>
-            <span className="font-medium">{formData.vorname} {formData.nachname}</span>
-          </div>
-          
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Wohnort:</span>
-            <span className="font-medium">{formData.ort}</span>
-          </div>
-          
-          {formData.status === 'schueler' && (
-            <>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Schule:</span>
-                <span className="font-medium">{formData.schule}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Abschluss:</span>
-                <span className="font-medium">{formData.geplanter_abschluss} ({formData.abschlussjahr})</span>
-              </div>
-            </>
-          )}
-          
-          {formData.status === 'azubi' && (
-            <>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Ausbildung:</span>
-                <span className="font-medium">{formData.ausbildungsberuf}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Betrieb:</span>
-                <span className="font-medium">{formData.ausbildungsbetrieb}</span>
-              </div>
-            </>
-          )}
-          
-          {formData.status === 'fachkraft' && (
-            <>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Ausbildung:</span>
-                <span className="font-medium">{formData.ausbildungsberuf} ({formData.abschlussjahr_fachkraft})</span>
-              </div>
-              {formData.aktueller_beruf && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Aktueller Beruf:</span>
-                  <span className="font-medium">{formData.aktueller_beruf}</span>
-                </div>
-              )}
-            </>
-          )}
-          
-          <Separator />
-          
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Layout:</span>
-            <span className="font-medium">{getLayoutName()}</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Optionen */}
-      <Card>
-        <CardHeader>
-          <CardTitle>🎯 Was möchtest du tun?</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          
-          {/* Option 1: Profil erstellen (Empfohlen) */}
-          <div className="border-2 border-primary rounded-lg p-5 bg-primary/5 space-y-4">
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-6 w-6 text-primary mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <h4 className="font-semibold text-lg mb-1">Profil erstellen (Empfohlen)</h4>
-                <ul className="text-sm text-muted-foreground space-y-1 mb-4">
-                  <li>✓ Von Arbeitgebern gefunden werden</li>
-                  <li>✓ CV jederzeit kostenlos herunterladen</li>
-                  <li>✓ Daten später bearbeiten</li>
-                </ul>
-                
-                <Button
-                  onClick={handleCreateProfile}
-                  className="w-full h-11"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Jetzt Profil erstellen
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Oder</span>
-            </div>
-          </div>
-
-          {/* Option 2: Download (nur mit Profil möglich) */}
-          <Button
-            onClick={handleDownloadWithoutProfile}
-            variant="outline"
-            className="w-full h-11"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Lebenslauf als PDF downloaden
-          </Button>
-
-          <p className="text-xs text-center text-muted-foreground">
-            Ohne Profil ist aktuell leider kein Download möglich. Bitte erstelle ein kostenloses Profil.
+          <h2 className="text-2xl md:text-3xl font-bold mb-3 md:mb-4">
+            🎉 Glückwunsch!
+          </h2>
+          <p className="text-base md:text-lg text-muted-foreground mb-2">
+            Dein Lebenslauf ist fertig!
           </p>
-        </CardContent>
-      </Card>
+          <p className="text-sm md:text-base font-medium text-foreground">
+            Erstelle dir jetzt dein Profil
+          </p>
+        </DialogContent>
+      </Dialog>
+
+      {/* Centered Content - No Scrolling */}
+      <div className="flex-1 min-h-0 flex items-center justify-center p-4 md:p-6">
+        <div className="w-full max-w-lg mx-auto">
+          {/* Options Card */}
+          <Card className={cn(
+            "transition-all duration-500 shadow-lg",
+            showSuccessPopup ? "opacity-0 translate-y-4" : "opacity-100 translate-y-0"
+          )}>
+            <CardContent className="p-5 md:p-6">
+              <h3 className="text-lg md:text-xl font-semibold mb-5 md:mb-6 text-center">
+                Erstelle jetzt dein Profil
+              </h3>
+              
+              <div className="space-y-4">
+                {/* Option 1: Profil erstellen (Empfohlen) */}
+                <div className="border-2 border-primary/30 rounded-xl p-4 md:p-5 bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/50 transition-all">
+                  <div className="space-y-3 md:space-y-4">
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <CheckCircle2 className="h-5 w-5 md:h-6 md:w-6 text-primary flex-shrink-0" />
+                      <h4 className="font-semibold text-base md:text-lg">
+                        Profil erstellen
+                        <span className="ml-2 text-xs md:text-sm font-normal text-primary">(Empfohlen)</span>
+                      </h4>
+                    </div>
+                    <ul className="text-xs md:text-sm text-muted-foreground space-y-1.5 md:space-y-2 ml-7 md:ml-9">
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">✓</span>
+                        <span>Von Arbeitgebern gefunden werden</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">✓</span>
+                        <span>CV jederzeit kostenlos herunterladen</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">✓</span>
+                        <span>Daten später bearbeiten</span>
+                      </li>
+                    </ul>
+                    
+                    <Button
+                      onClick={handleCreateProfile}
+                      className="w-full h-10 md:h-11 text-sm md:text-base font-medium"
+                      size="lg"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Jetzt Profil erstellen
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="relative py-3">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-background px-3 text-xs text-muted-foreground uppercase">Oder</span>
+                  </div>
+                </div>
+
+                {/* Option 2: Download (nur mit Profil möglich) */}
+                <Button
+                  onClick={handleDownloadWithoutProfile}
+                  variant="outline"
+                  className="w-full h-10 md:h-11 text-sm md:text-base font-medium"
+                  size="lg"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Lebenslauf als PDF downloaden
+                </Button>
+
+                <p className="text-xs md:text-sm text-center text-muted-foreground pt-1">
+                  Ohne Profil ist aktuell leider kein Download möglich. Bitte erstelle ein kostenloses Profil.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       <ProfileCreationModal
         isOpen={showProfileModal}

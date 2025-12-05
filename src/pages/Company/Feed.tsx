@@ -4,6 +4,7 @@ import CompanyFeedLeft from '@/components/Company/feed/CompanyFeedLeft';
 import CompanyFeedRight from '@/components/Company/feed/CompanyFeedRight';
 import FeedSortBar from '@/components/community/FeedSortBar';
 import CompanyComposerTeaser from '@/components/dashboard/CompanyComposerTeaser';
+import { CompanyValuesReminderBanner } from '@/components/reminders/CompanyValuesReminderBanner';
 
 const CompanyFeed: React.FC = () => {
   return (
@@ -20,6 +21,11 @@ const CompanyFeed: React.FC = () => {
 
         {/* Mitte */}
         <section className="relative flex min-h-screen flex-col">
+          {/* Reminder Banner */}
+          <div className="mb-4">
+            <CompanyValuesReminderBanner />
+          </div>
+          
           <div className="sticky top-0 z-10 -mx-3 mb-4 bg-background/95 px-3 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl">
             <CompanyComposerTeaser />
             <div className="mt-3">

@@ -43,23 +43,133 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
     return branche.charAt(0).toUpperCase() + branche.slice(1);
   };
 
+  // Parse date string (format: "YYYY-MM" or "YYYY" or empty)
+  const parseDate = (dateStr: string): { year: number; month: number } | null => {
+    if (!dateStr || dateStr === 'heute' || dateStr === '0000') return null;
+    
+    const parts = dateStr.split('-');
+    const year = parseInt(parts[0] || '0');
+    const month = parts[1] ? parseInt(parts[1]) : 1;
+    
+    if (isNaN(year) || year === 0) return null;
+    return { year, month: isNaN(month) ? 1 : month };
+  };
+
+  // Check if a date is in the future (current/ongoing)
+  const isFutureOrCurrent = (dateStr: string): boolean => {
+    if (!dateStr || dateStr === 'heute' || dateStr === '') return true;
+    const date = parseDate(dateStr);
+    if (!date) return false;
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    // If year is in the future, it's current
+    if (date.year > currentYear) return true;
+    // If same year and month is in the future or current, it's current
+    if (date.year === currentYear && date.month >= currentMonth) return true;
+    
+    return false;
+  };
+
+  // Get sort value for a job/education
+  const getSortValue = (item: {
+    zeitraum_von: string;
+    zeitraum_bis: string;
+  }): { isCurrent: boolean; value: number } => {
+    const isCurrent = !item.zeitraum_bis || item.zeitraum_bis === 'heute' || item.zeitraum_bis === '' || isFutureOrCurrent(item.zeitraum_bis);
+    const vonDate = parseDate(item.zeitraum_von);
+    const bisDate = parseDate(item.zeitraum_bis);
+
+    if (isCurrent) {
+      // Current items: sort by start date (most recent first)
+      if (vonDate) {
+        return { 
+          isCurrent: true, 
+          value: vonDate.year * 10000 + vonDate.month * 100
+        };
+      }
+      return { isCurrent: true, value: 0 };
+    }
+
+    // Past items: sort by end date (most recent first)
+    if (bisDate) {
+      return { 
+        isCurrent: false, 
+        value: bisDate.year * 10000 + bisDate.month * 100 
+      };
+    }
+
+    // If no end date, sort by start date
+    if (vonDate) {
+      return { 
+        isCurrent: false, 
+        value: vonDate.year * 10000 + vonDate.month * 100 
+      };
+    }
+
+    return { isCurrent: false, value: 0 };
+  };
+
+  // Get the latest experience and education
+  const getLatestExperience = (experiences: any[]) => {
+    if (!experiences || experiences.length === 0) return null;
+    
+    const sorted = [...experiences]
+      .map((item) => ({ item, sort: getSortValue(item) }))
+      .sort((a, b) => {
+        // Current items always come first
+        if (a.sort.isCurrent && !b.sort.isCurrent) return -1;
+        if (!a.sort.isCurrent && b.sort.isCurrent) return 1;
+        
+        // Both current: sort descending (most recent start first)
+        if (a.sort.isCurrent && b.sort.isCurrent) {
+          return b.sort.value - a.sort.value;
+        }
+        
+        // Both past: sort descending (most recent first)
+        return b.sort.value - a.sort.value;
+      });
+    
+    return sorted.length > 0 ? sorted[0].item : null;
+  };
+
+  const getLatestEducation = (education: any[]) => {
+    if (!education || education.length === 0) return null;
+    
+    const sorted = [...education]
+      .map((item) => ({ item, sort: getSortValue(item) }))
+      .sort((a, b) => {
+        // Current items always come first
+        if (a.sort.isCurrent && !b.sort.isCurrent) return -1;
+        if (!a.sort.isCurrent && b.sort.isCurrent) return 1;
+        
+        // Both current: sort descending (most recent start first)
+        if (a.sort.isCurrent && b.sort.isCurrent) {
+          return b.sort.value - a.sort.value;
+        }
+        
+        // Both past: sort descending (most recent first)
+        return b.sort.value - a.sort.value;
+      });
+    
+    return sorted.length > 0 ? sorted[0].item : null;
+  };
+
   // Get the status label and info line based on user status
   const getProfileInfo = (p: any) => {
-    if (!p) return { statusLine: '', location: '' };
+    if (!p) return { statusLine: '', location: '', latestExperience: null, latestEducation: null };
     
     const branche = p.branche || '';
     const ort = p.ort || '';
     
-    // Get current/latest job from berufserfahrung
-    const currentJob = p.berufserfahrung?.find((job: any) => {
-      if (!job.zeitraum_bis || job.zeitraum_bis === 'heute' || job.zeitraum_bis === '') return true;
-      try {
-        const bisDate = new Date(job.zeitraum_bis);
-        return bisDate > new Date();
-      } catch {
-        return false;
-      }
-    }) || p.berufserfahrung?.[0]; // Fallback to first entry
+    // Get latest experience and education using sorting logic
+    const latestExperience = getLatestExperience(p.berufserfahrung || []);
+    const latestEducation = getLatestEducation(p.schulbildung || []);
+    
+    // Get current/latest job from berufserfahrung (for status line)
+    const currentJob = latestExperience || p.berufserfahrung?.[0]; // Fallback to first entry
     
     switch (p.status) {
       case 'schueler':
@@ -67,7 +177,9 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
         const schuelerBranche = formatBranche(branche);
         return {
           statusLine: schuelerBranche ? `Schüler • Interessiert an ${schuelerBranche}` : 'Schüler',
-          location: ort
+          location: ort,
+          latestExperience,
+          latestEducation
         };
         
       case 'azubi':
@@ -77,22 +189,30 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
         if (azubiFirma && azubiBranche) {
           return {
             statusLine: `Ausbildung bei ${azubiFirma} • ${azubiBranche}`,
-            location: ort
+            location: ort,
+            latestExperience,
+            latestEducation
           };
         } else if (azubiFirma) {
           return {
             statusLine: `Ausbildung bei ${azubiFirma}`,
-            location: ort
+            location: ort,
+            latestExperience,
+            latestEducation
           };
         } else if (azubiBranche) {
           return {
             statusLine: `Ausbildung • ${azubiBranche}`,
-            location: ort
+            location: ort,
+            latestExperience,
+            latestEducation
           };
         }
         return {
           statusLine: 'In Ausbildung',
-          location: ort
+          location: ort,
+          latestExperience,
+          latestEducation
         };
         
       case 'ausgelernt':
@@ -104,43 +224,59 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
         if (position && firma && fachkraftBranche) {
           return {
             statusLine: `${position} bei ${firma} • ${fachkraftBranche}`,
-            location: ort
+            location: ort,
+            latestExperience,
+            latestEducation
           };
         } else if (position && firma) {
           return {
             statusLine: `${position} bei ${firma}`,
-            location: ort
+            location: ort,
+            latestExperience,
+            latestEducation
           };
         } else if (position && fachkraftBranche) {
           return {
             statusLine: `${position} • ${fachkraftBranche}`,
-            location: ort
+            location: ort,
+            latestExperience,
+            latestEducation
           };
         } else if (firma && fachkraftBranche) {
           return {
             statusLine: `${firma} • ${fachkraftBranche}`,
-            location: ort
+            location: ort,
+            latestExperience,
+            latestEducation
           };
         } else if (position) {
           return {
             statusLine: position,
-            location: ort
+            location: ort,
+            latestExperience,
+            latestEducation
           };
         } else if (fachkraftBranche) {
           return {
             statusLine: fachkraftBranche,
-            location: ort
+            location: ort,
+            latestExperience,
+            latestEducation
           };
         }
         return {
           statusLine: 'Fachkraft',
-          location: ort
+          location: ort,
+          latestExperience,
+          latestEducation
         };
         
       default:
         return {
           statusLine: formatBranche(branche) || '',
-          location: ort
+          location: ort,
+          latestExperience,
+          latestEducation
         };
     }
   };
@@ -240,8 +376,92 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
     }
   };
 
-  const { statusLine, location } = getProfileInfo(profile);
+  const { statusLine, location, latestExperience, latestEducation } = getProfileInfo(profile);
   const coverUrl = profile?.cover_image_url || profile?.cover_url || profile?.titelbild_url;
+
+  // Format date as MM.YYYY (German format)
+  const formatMonthYear = (date: Date | string | undefined) => {
+    if (!date) return '';
+    
+    // Handle string formats: "YYYY-MM" or "YYYY"
+    if (typeof date === 'string') {
+      if (date === 'heute' || date === '') return '';
+      
+      const parts = date.split('-');
+      const year = parseInt(parts[0] || '0');
+      
+      if (isNaN(year) || year === 0) return '';
+      
+      // If only year provided (format: "YYYY")
+      if (parts.length === 1) {
+        return year.toString();
+      }
+      
+      // If month and year provided (format: "YYYY-MM")
+      const month = parseInt(parts[1] || '1');
+      if (isNaN(month) || month < 1 || month > 12) return year.toString();
+      
+      return `${String(month).padStart(2, '0')}.${year}`;
+    }
+    
+    // Handle Date object
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${month}.${year}`;
+  };
+
+  // Format experience/education display text
+  const formatExperienceText = (exp: any) => {
+    if (!exp) return null;
+    const position = exp.titel || exp.position || '';
+    const company = exp.unternehmen || exp.firma || '';
+    const abschluss = exp.abschluss || '';
+    const from = formatMonthYear(exp.zeitraum_von);
+    const to = exp.zeitraum_bis && exp.zeitraum_bis !== 'heute' && exp.zeitraum_bis !== '' 
+      ? formatMonthYear(exp.zeitraum_bis) 
+      : 'Heute';
+    
+    let baseText = '';
+    if (position && company) {
+      baseText = `${position} bei ${company}`;
+    } else if (position) {
+      baseText = position;
+    } else if (company) {
+      baseText = company;
+    } else {
+      return null;
+    }
+    
+    // Add Abschluss if available
+    if (abschluss) {
+      baseText += ` • ${abschluss}`;
+    }
+    
+    return `${baseText} (${from} - ${to})`;
+  };
+
+  const formatEducationText = (edu: any) => {
+    if (!edu) return null;
+    // Schulbildung uses 'name' for school name and 'schulform' for degree/type
+    const school = edu.name || edu.schule || edu.schulname || '';
+    const degree = edu.schulform || edu.abschluss || edu.abschlussart || '';
+    const from = formatMonthYear(edu.zeitraum_von);
+    const to = edu.zeitraum_bis && edu.zeitraum_bis !== 'heute' && edu.zeitraum_bis !== '' 
+      ? formatMonthYear(edu.zeitraum_bis) 
+      : 'Heute';
+    
+    if (school && degree) {
+      return `${degree} an ${school} (${from} - ${to})`;
+    } else if (school) {
+      return `${school} (${from} - ${to})`;
+    } else if (degree) {
+      return `${degree} (${from} - ${to})`;
+    }
+    return null;
+  };
 
   return (
     <div className="relative bg-background rounded-xl shadow-sm border overflow-visible">
@@ -334,9 +554,29 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
             </p>
           )}
           
+          {/* Latest Experience - Under branche */}
+          {latestExperience && (() => {
+            const expText = formatExperienceText(latestExperience);
+            return expText ? (
+              <p className="text-sm text-muted-foreground mt-1">
+                {expText}
+              </p>
+            ) : null;
+          })()}
+          
+          {/* Latest Education - Always shown if available */}
+          {latestEducation && (() => {
+            const eduText = formatEducationText(latestEducation);
+            return eduText ? (
+              <p className="text-sm text-muted-foreground mt-1">
+                {eduText}
+              </p>
+            ) : null;
+          })()}
+          
           {/* Location - Subtle */}
           {location && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1.5 pt-0.5">
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5 pt-1">
               <MapPin className="h-3.5 w-3.5" />
               {location}
             </p>

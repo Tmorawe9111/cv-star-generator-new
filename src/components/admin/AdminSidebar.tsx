@@ -26,6 +26,7 @@ const navItems: ReadonlyArray<NavItem> = [
   { title: "Users", url: "/admin/users", icon: Users, roles: ["SuperAdmin", "SupportAgent", "ContentEditor"] },
   { title: "Companies", url: "/admin/companies", icon: Building2, roles: ["SuperAdmin", "SupportAgent", "CompanyAdmin", "ContentEditor"] },
   { title: "Plans & Seats", url: "/admin/plans", icon: BadgePercent, roles: ["SuperAdmin", "CompanyAdmin", "SupportAgent"] },
+  { title: "Plan Management", url: "/admin/plans/manage", icon: BadgePercent, roles: ["SuperAdmin"] },
   { title: "Jobs", url: "/admin/jobs", icon: Briefcase, roles: ["SuperAdmin", "SupportAgent"] },
   { title: "Matches", url: "/admin/matches", icon: HeartHandshake, roles: ["SuperAdmin", "SupportAgent"] },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },

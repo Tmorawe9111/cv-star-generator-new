@@ -1,5 +1,5 @@
 import React from 'react';
-import { CVData, CVLayoutProps, formatDate, ProfileImage } from './CVLayoutBase';
+import { CVData, CVLayoutProps, formatDate, formatMonthYear, ProfileImage } from './CVLayoutBase';
 
 const FrankfurtLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
   const fullName = `${data.vorname || ''} ${data.nachname || ''}`.trim();
@@ -83,7 +83,7 @@ const FrankfurtLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                       {schule.name}
                     </div>
                     <div className="text-[10px]" style={{ color: 'hsl(0, 0%, 50%)' }}>
-                      {schule.zeitraum_von} - {schule.zeitraum_bis}
+                      {formatMonthYear(schule.zeitraum_von)} - {formatMonthYear(schule.zeitraum_bis)}
                     </div>
                   </div>
                 ))}
@@ -190,7 +190,7 @@ const FrankfurtLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                           {arbeit.ort && ` • ${arbeit.ort}`}
                         </p>
                         <span className="text-xs font-semibold whitespace-nowrap" style={{ color: 'hsl(0, 0%, 50%)' }}>
-                          {arbeit.zeitraum_von} - {arbeit.zeitraum_bis || 'heute'}
+                          {formatMonthYear(arbeit.zeitraum_von)} - {arbeit.zeitraum_bis ? formatMonthYear(arbeit.zeitraum_bis) : 'heute'}
                         </span>
                       </div>
                     </div>
@@ -226,8 +226,8 @@ const FrankfurtLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                     </div>
                     <div style={{ color: 'hsl(0, 0%, 45%)' }}>
                       {wb.anbieter}
-                      {wb.zeitraum_von && ` • ${wb.zeitraum_von}`}
-                      {wb.zeitraum_bis && ` - ${wb.zeitraum_bis}`}
+                      {wb.zeitraum_von && ` • ${formatMonthYear(wb.zeitraum_von)}`}
+                      {wb.zeitraum_bis && ` - ${formatMonthYear(wb.zeitraum_bis)}`}
                     </div>
                   </div>
                 ))}

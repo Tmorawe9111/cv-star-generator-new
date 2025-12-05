@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CompanyAutocomplete } from '@/components/shared/CompanyAutocomplete';
 
 interface Experience {
@@ -17,6 +18,7 @@ interface Experience {
   zeitraum_von: string;
   zeitraum_bis: string;
   beschreibung?: string;
+  abschluss?: string; // Abschluss bei Ausbildungen
   linked_company_id?: string | null;
   linked_company_logo?: string | null;
 }
@@ -85,6 +87,58 @@ const ExperienceForm: React.FC<ExperienceFormProps> = React.memo(({ formData, se
           )}
         </div>
       </div>
+
+      {/* Abschluss field for apprenticeships */}
+      {(() => {
+        const titelLower = formData.titel?.toLowerCase() || '';
+        const isAusbildung = titelLower.includes('ausbildung') || 
+                            titelLower.includes('azubi') || 
+                            titelLower.includes('lehrling');
+        
+        if (isAusbildung) {
+          const abschlussOptions = [
+            'Gesellenbrief',
+            'Facharbeiterbrief',
+            'Kaufmännische Abschlussprüfung',
+            'Berufsabschluss',
+            'IHK-Abschluss',
+            'HWK-Abschluss',
+            'Ausbildung',
+            'Andere'
+          ];
+          
+          return (
+            <div>
+              <Label htmlFor="abschluss">Abschluss (optional)</Label>
+              <Select 
+                value={formData.abschluss || ''} 
+                onValueChange={(value) => {
+                  if (value === 'Andere') {
+                    const input = prompt('Bitte geben Sie den Abschluss ein:');
+                    if (input) {
+                      setFormData({ ...formData, abschluss: input });
+                    }
+                  } else {
+                    setFormData({ ...formData, abschluss: value });
+                  }
+                }}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Abschluss wählen" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  {abschlussOptions.map((option) => (
+                    <SelectItem key={option} value={option} className="hover:bg-muted">
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -191,21 +245,34 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
       setIsAddingNew(false);
     }
     resetForm();
+    // Ensure all editing states are closed
+    setIsAddingNew(false);
+    setEditingIndex(null);
+    // Exit editing mode after save
+    if (onEditingChange) {
+      onEditingChange(false);
+    }
   };
 
   const handleEdit = (index: number) => {
     // Close any open form first
-    if (isAddingNew || editingIndex !== null) {
-      return; // Don't allow opening another while one is open
+    if (isAddingNew) {
+      setIsAddingNew(false);
+      resetForm();
+    }
+    if (editingIndex !== null && editingIndex !== index) {
+      setEditingIndex(null);
+      resetForm();
     }
     setFormData(experiences[index]);
     setEditingIndex(index);
   };
 
   const handleAddNew = () => {
-    // Don't allow if already editing
-    if (isAddingNew || editingIndex !== null) {
-      return;
+    // Close any open edit form first
+    if (editingIndex !== null) {
+      setEditingIndex(null);
+      resetForm();
     }
     setIsAddingNew(true);
     resetForm();
@@ -222,18 +289,63 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
     resetForm();
   };
 
+  // Format date as MM.YYYY (German format)
+  const formatMonthYear = (date: Date | string | undefined) => {
+    if (!date) return '';
+    
+    // Handle string formats: "YYYY-MM" or "YYYY"
+    if (typeof date === 'string') {
+      if (date === 'heute' || date === '') return '';
+      
+      const parts = date.split('-');
+      const year = parseInt(parts[0] || '0');
+      
+      if (isNaN(year) || year === 0) return '';
+      
+      // If only year provided (format: "YYYY")
+      if (parts.length === 1) {
+        return year.toString();
+      }
+      
+      // If month and year provided (format: "YYYY-MM")
+      const month = parseInt(parts[1] || '1');
+      if (isNaN(month) || month < 1 || month > 12) return year.toString();
+      
+      return `${String(month).padStart(2, '0')}.${year}`;
+    }
+    
+    // Handle Date object
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${month}.${year}`;
+  };
+
   const formatDateRange = (from: string, to: string) => {
     if (!from) return '';
-    const fromDate = new Date(from);
-    const toDate = to === 'present' || !to ? null : new Date(to);
+    const fromFormatted = formatMonthYear(from);
+    const toFormatted = to && to !== 'heute' && to !== 'present' ? formatMonthYear(to) : 'Heute';
     
-    const fromMonth = fromDate.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' });
-    const toMonth = toDate ? toDate.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : 'Heute';
-    
-    return `${fromMonth} - ${toMonth}`;
+    return `${fromFormatted} - ${toFormatted}`;
   };
 
   const handleSaveWithValidation = () => {
+    // Validate required fields
+    if (!formData.titel || !formData.titel.trim()) {
+      alert('Bitte geben Sie eine Position ein.');
+      return;
+    }
+    if (!formData.unternehmen || !formData.unternehmen.trim()) {
+      alert('Bitte geben Sie ein Unternehmen ein.');
+      return;
+    }
+    if (!formData.zeitraum_von || !formData.zeitraum_von.trim()) {
+      alert('Bitte geben Sie ein Startdatum ein.');
+      return;
+    }
+    
     // Validate date range
     if (formData.zeitraum_von && formData.zeitraum_bis) {
       const fromDate = new Date(formData.zeitraum_von);
@@ -247,6 +359,20 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
   };
 
   const handleSaveAndNewWithValidation = () => {
+    // Validate required fields
+    if (!formData.titel || !formData.titel.trim()) {
+      alert('Bitte geben Sie eine Position ein.');
+      return;
+    }
+    if (!formData.unternehmen || !formData.unternehmen.trim()) {
+      alert('Bitte geben Sie ein Unternehmen ein.');
+      return;
+    }
+    if (!formData.zeitraum_von || !formData.zeitraum_von.trim()) {
+      alert('Bitte geben Sie ein Startdatum ein.');
+      return;
+    }
+    
     // Validate date range
     if (formData.zeitraum_von && formData.zeitraum_bis) {
       const fromDate = new Date(formData.zeitraum_von);
@@ -268,30 +394,108 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
     setIsAddingNew(true);
     setEditingIndex(null);
   };
+  // Parse date string (format: "YYYY-MM" or "YYYY" or empty)
+  const parseDate = (dateStr: string): { year: number; month: number } | null => {
+    if (!dateStr || dateStr === 'heute' || dateStr === '0000') return null;
+    
+    const parts = dateStr.split('-');
+    const year = parseInt(parts[0] || '0');
+    const month = parts[1] ? parseInt(parts[1]) : 1;
+    
+    if (isNaN(year) || year === 0) return null;
+    return { year, month: isNaN(month) ? 1 : month };
+  };
+
+  // Check if a date is in the future (current/ongoing)
+  const isFutureOrCurrent = (dateStr: string): boolean => {
+    if (!dateStr || dateStr === 'heute' || dateStr === '') return true;
+    const date = parseDate(dateStr);
+    if (!date) return false;
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    // If year is in the future, it's current
+    if (date.year > currentYear) return true;
+    // If same year and month is in the future or current, it's current
+    if (date.year === currentYear && date.month >= currentMonth) return true;
+    
+    return false;
+  };
+
+  // Get sort value for a job
+  // For current jobs: lower value = earlier start (will be sorted ascending)
+  // For past jobs: higher value = more recent end (will be sorted descending)
+  const getSortValue = (job: {
+    zeitraum_von: string;
+    zeitraum_bis: string;
+  }): { isCurrent: boolean; value: number } => {
+    const isCurrent = !job.zeitraum_bis || job.zeitraum_bis === 'heute' || job.zeitraum_bis === '' || isFutureOrCurrent(job.zeitraum_bis);
+    const vonDate = parseDate(job.zeitraum_von);
+    const bisDate = parseDate(job.zeitraum_bis);
+
+    if (isCurrent) {
+      // Current jobs: sort by start date (earlier start = lower value, will be sorted ascending)
+      // Add large offset to ensure they come first
+      if (vonDate) {
+        return { 
+          isCurrent: true, 
+          value: vonDate.year * 10000 + vonDate.month * 100 // Direct value for ascending sort
+        };
+      }
+      return { isCurrent: true, value: 0 }; // If no start date, still prioritize but at end
+    }
+
+    // Past jobs: sort by end date (most recent first)
+    if (bisDate) {
+      return { 
+        isCurrent: false, 
+        value: bisDate.year * 10000 + bisDate.month * 100 
+      };
+    }
+
+    // If no end date, sort by start date
+    if (vonDate) {
+      return { 
+        isCurrent: false, 
+        value: vonDate.year * 10000 + vonDate.month * 100 
+      };
+    }
+
+    return { isCurrent: false, value: 0 }; // No date info
+  };
+
   const sortedExperiences = useMemo(() => {
     return safeExperiences
-      .map((item, i) => ({ item, i }))
+      .map((item, originalIndex) => ({ item, originalIndex }))
       .sort((a, b) => {
-        // "Heute" (kein zeitraum_bis) immer ganz oben
-        const aIsCurrent = !a.item.zeitraum_bis;
-        const bIsCurrent = !b.item.zeitraum_bis;
+        const aSort = getSortValue(a.item);
+        const bSort = getSortValue(b.item);
         
-        if (aIsCurrent && !bIsCurrent) return -1;
-        if (!aIsCurrent && bIsCurrent) return 1;
+        // Current jobs always come first
+        if (aSort.isCurrent && !bSort.isCurrent) return -1;
+        if (!aSort.isCurrent && bSort.isCurrent) return 1;
         
-        // Beide "Heute": nach Startdatum sortieren (neuestes zuerst)
-        if (aIsCurrent && bIsCurrent) {
-          const aStart = new Date(a.item.zeitraum_von);
-          const bStart = new Date(b.item.zeitraum_von);
-          return bStart.getTime() - aStart.getTime();
+        // Both current: sort descending (most recent start first)
+        if (aSort.isCurrent && bSort.isCurrent) {
+          // Higher value = more recent start, so descending sort puts most recent first
+          return bSort.value - aSort.value; // Descending: 01.2026 (20260100) comes before 02.2025 (20250200)
         }
         
-        // Beide haben Enddatum: nach Enddatum sortieren (neuestes zuerst)
-        const aEnd = new Date(a.item.zeitraum_bis!);
-        const bEnd = new Date(b.item.zeitraum_bis!);
-        if (bEnd.getTime() !== aEnd.getTime()) return bEnd.getTime() - aEnd.getTime();
+        // Both past: sort descending (most recent first)
+        // If same end date, sort by start date (earlier start first)
+        if (aSort.value === bSort.value) {
+          const aVon = parseDate(a.item.zeitraum_von);
+          const bVon = parseDate(b.item.zeitraum_von);
+          if (aVon && bVon) {
+            const aStartValue = aVon.year * 10000 + aVon.month * 100;
+            const bStartValue = bVon.year * 10000 + bVon.month * 100;
+            return bStartValue - aStartValue; // Descending (more recent start first)
+          }
+        }
         
-        return a.i - b.i; // stable tie-breaker
+        return bSort.value - aSort.value; // Descending
       });
   }, [safeExperiences]);
 
@@ -350,8 +554,8 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
           </div>
         ) : (
           <div className="space-y-4 md:space-y-6">
-            {sortedExperiences.map(({ item: exp, i }, idx) => (
-              <div key={i} className="relative group">
+            {sortedExperiences.map(({ item: exp, originalIndex }, idx) => (
+              <div key={originalIndex} className="relative group">
                 <div className="flex items-start gap-3 md:gap-4">
                   {exp.linked_company_logo ? (
                     <Link 
@@ -384,6 +588,11 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
                         ) : (
                           <p className="text-primary font-medium text-sm md:text-base truncate">{exp.unternehmen}</p>
                         )}
+                        {exp.abschluss && (
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            Abschluss: {exp.abschluss}
+                          </p>
+                        )}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs md:text-sm text-muted-foreground mt-1">
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
@@ -396,12 +605,12 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
                         </div>
                       </div>
                       
-                      {isEditing && editingIndex !== i && !isAddingNew && (
+                      {isEditing && editingIndex !== originalIndex && !isAddingNew && (
                         <div className="flex gap-1 ml-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleEdit(i)}
+                            onClick={() => handleEdit(originalIndex)}
                             className="h-8 w-8 p-0"
                           >
                             <Edit3 className="h-4 w-4" />
@@ -409,7 +618,7 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(i)}
+                            onClick={() => handleDelete(originalIndex)}
                             className="text-destructive hover:text-destructive h-8 w-8 p-0"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -423,7 +632,7 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
                         {exp.beschreibung}
                       </p>
                     )}
-                    {editingIndex === i && (
+                    {editingIndex === originalIndex && (
                       <div className="mt-3 md:mt-4">
                         <ExperienceForm formData={formData} setFormData={setFormData} />
                       </div>
@@ -440,15 +649,13 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
         )}
       </CardContent>
       {isEditing && (isAddingNew || editingIndex !== null) && (
-        <div className="fixed bottom-20 md:bottom-4 left-0 right-0 z-[100]">
-          <div className="mx-auto max-w-screen-sm px-4">
-            <div className="bg-background border rounded-lg shadow-lg p-3 flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={handleCancel}>Abbrechen</Button>
-              <Button size="sm" onClick={handleSaveWithValidation}>Speichern</Button>
-              {isAddingNew && (
-                <Button size="sm" onClick={handleSaveAndNewWithValidation}>Speichern & neu</Button>
-              )}
-            </div>
+        <div className="fixed bottom-0 left-0 right-0 z-[9999] bg-background border-t shadow-lg md:relative md:border-t md:shadow-none md:mt-4 md:pt-3">
+          <div className="flex flex-wrap gap-2 justify-end px-4 py-3 md:px-0">
+            <Button variant="outline" size="sm" onClick={handleCancel} className="min-w-[80px]">Abbrechen</Button>
+            <Button size="sm" onClick={handleSaveWithValidation} className="min-w-[80px]">Speichern</Button>
+            {isAddingNew && (
+              <Button size="sm" onClick={handleSaveAndNewWithValidation} className="min-w-[120px] text-xs">Speichern & neu</Button>
+            )}
           </div>
         </div>
       )}

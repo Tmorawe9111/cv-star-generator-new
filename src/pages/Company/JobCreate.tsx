@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { JobLimitUpgradeModal } from "@/components/Company/jobs/JobLimitUpgradeModal";
 import { PlanKey } from "@/lib/billing-v2/plans";
+import { AddInterviewQuestionsModal } from "@/components/jobs/AddInterviewQuestionsModal";
+import { CompanyInterviewEditModal } from "@/components/modals/CompanyInterviewEditModal";
 
 function JobCreateContent() {
   const navigate = useNavigate();
@@ -20,6 +22,9 @@ function JobCreateContent() {
   const { formData } = useJobForm();
   const { data: jobLimits, isLoading: limitsLoading } = useJobLimits();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showInterviewQuestionsPrompt, setShowInterviewQuestionsPrompt] = useState(false);
+  const [showInterviewQuestionsModal, setShowInterviewQuestionsModal] = useState(false);
+  const [createdJobId, setCreatedJobId] = useState<string | null>(null);
 
   // Check limits before allowing form submission
   const handleSubmit = async () => {
@@ -34,22 +39,41 @@ function JobCreateContent() {
       return;
     }
     
-    await createJob.mutateAsync(formData);
-    
-    // After successful job creation, mark onboarding as complete if not already
-    if (!company.onboarding_completed) {
-      try {
-        await supabase
-          .from('companies')
-          .update({ onboarding_completed: true })
-          .eq('id', company.id);
-      } catch (error) {
-        console.error('Error completing onboarding:', error);
-        // Don't block navigation if this fails
+    try {
+      const result = await createJob.mutateAsync(formData);
+      
+      // Only proceed if job was created successfully
+      if (!result) {
+        console.error('Job creation returned no result');
+        return;
       }
+      
+      // After successful job creation, mark onboarding as complete if not already
+      if (!company.onboarding_completed) {
+        try {
+          await supabase
+            .from('companies')
+            .update({ onboarding_completed: true })
+            .eq('id', company.id);
+        } catch (error) {
+          console.error('Error completing onboarding:', error);
+          // Don't block navigation if this fails
+        }
+      }
+      
+      // Store created job ID and show interview questions prompt
+      setCreatedJobId(result.id || null);
+      setShowInterviewQuestionsPrompt(true);
+    } catch (error: any) {
+      // Error is already handled by useCreateJob's onError callback
+      // But we should not navigate if there was an error
+      console.error('Error creating job:', error);
+      // Show detailed error message
+      if (error?.message) {
+        toast.error(`Fehler: ${error.message}`);
+      }
+      // Don't navigate on error - let user fix the issue
     }
-    
-    navigate('/unternehmen/stellenanzeigen');
   };
 
   // Show upgrade modal if limits are reached
@@ -118,6 +142,39 @@ function JobCreateContent() {
         maxAllowed={jobLimits?.maxAllowed || 0}
         reason={jobLimits?.reason || "free"}
       />
+
+      {/* Interview Questions Prompt */}
+      {createdJobId && (
+        <AddInterviewQuestionsModal
+          open={showInterviewQuestionsPrompt}
+          onOpenChange={setShowInterviewQuestionsPrompt}
+          jobId={createdJobId}
+          jobTitle={formData.title}
+          onAddNow={() => {
+            setShowInterviewQuestionsModal(true);
+          }}
+          onLater={() => {
+            navigate('/unternehmen/stellenanzeigen');
+          }}
+        />
+      )}
+
+      {/* Interview Questions Modal */}
+      {createdJobId && (
+        <CompanyInterviewEditModal
+          open={showInterviewQuestionsModal}
+          onOpenChange={(open) => {
+            setShowInterviewQuestionsModal(open);
+            if (!open) {
+              navigate('/unternehmen/stellenanzeigen');
+            }
+          }}
+          roleId={createdJobId}
+          onComplete={() => {
+            navigate('/unternehmen/stellenanzeigen');
+          }}
+        />
+      )}
     </>
   );
 }

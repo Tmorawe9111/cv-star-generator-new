@@ -276,10 +276,46 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
     resetForm();
   };
 
+  // Format date as MM.YYYY (German format)
+  const formatMonthYear = (date: Date | string | undefined) => {
+    if (!date) return '';
+    
+    // Handle string formats: "YYYY-MM" or "YYYY"
+    if (typeof date === 'string') {
+      if (date === 'heute' || date === '') return '';
+      
+      const parts = date.split('-');
+      const year = parseInt(parts[0] || '0');
+      
+      if (isNaN(year) || year === 0) return '';
+      
+      // If only year provided (format: "YYYY")
+      if (parts.length === 1) {
+        return year.toString();
+      }
+      
+      // If month and year provided (format: "YYYY-MM")
+      const month = parseInt(parts[1] || '1');
+      if (isNaN(month) || month < 1 || month > 12) return year.toString();
+      
+      return `${String(month).padStart(2, '0')}.${year}`;
+    }
+    
+    // Handle Date object
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${month}.${year}`;
+  };
+
   const formatDateRange = (from: string, to: string) => {
     if (!from) return '';
-    const toDisplay = to || 'Heute';
-    return `${from} - ${toDisplay}`;
+    const fromFormatted = formatMonthYear(from);
+    const toFormatted = to && to !== 'heute' && to !== 'present' ? formatMonthYear(to) : 'Heute';
+    
+    return `${fromFormatted} - ${toFormatted}`;
   };
 
   const handleSaveWithValidation = () => {
@@ -316,14 +352,108 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
     setIsAddingNew(true);
     setEditingIndex(null);
   };
+  // Parse date string (format: "YYYY-MM" or "YYYY" or empty)
+  const parseDate = (dateStr: string): { year: number; month: number } | null => {
+    if (!dateStr || dateStr === 'heute' || dateStr === '0000') return null;
+    
+    const parts = dateStr.split('-');
+    const year = parseInt(parts[0] || '0');
+    const month = parts[1] ? parseInt(parts[1]) : 1;
+    
+    if (isNaN(year) || year === 0) return null;
+    return { year, month: isNaN(month) ? 1 : month };
+  };
+
+  // Check if a date is in the future (current/ongoing)
+  const isFutureOrCurrent = (dateStr: string): boolean => {
+    if (!dateStr || dateStr === 'heute' || dateStr === '') return true;
+    const date = parseDate(dateStr);
+    if (!date) return false;
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    // If year is in the future, it's current
+    if (date.year > currentYear) return true;
+    // If same year and month is in the future or current, it's current
+    if (date.year === currentYear && date.month >= currentMonth) return true;
+    
+    return false;
+  };
+
+  // Get sort value for education
+  // For current education: lower value = earlier start (will be sorted ascending)
+  // For past education: higher value = more recent end (will be sorted descending)
+  const getSortValue = (edu: {
+    zeitraum_von: string;
+    zeitraum_bis: string;
+  }): { isCurrent: boolean; value: number } => {
+    const isCurrent = !edu.zeitraum_bis || edu.zeitraum_bis === 'heute' || edu.zeitraum_bis === '' || isFutureOrCurrent(edu.zeitraum_bis);
+    const vonDate = parseDate(edu.zeitraum_von);
+    const bisDate = parseDate(edu.zeitraum_bis);
+
+    if (isCurrent) {
+      // Current education: sort by start date (earlier start = lower value, will be sorted ascending)
+      // Add large offset to ensure they come first
+      if (vonDate) {
+        return { 
+          isCurrent: true, 
+          value: vonDate.year * 10000 + vonDate.month * 100 // Direct value for ascending sort
+        };
+      }
+      return { isCurrent: true, value: 0 }; // If no start date, still prioritize but at end
+    }
+
+    // Past education: sort by end date (most recent first)
+    if (bisDate) {
+      return { 
+        isCurrent: false, 
+        value: bisDate.year * 10000 + bisDate.month * 100 
+      };
+    }
+
+    // If no end date, sort by start date
+    if (vonDate) {
+      return { 
+        isCurrent: false, 
+        value: vonDate.year * 10000 + vonDate.month * 100 
+      };
+    }
+
+    return { isCurrent: false, value: 0 }; // No date info
+  };
+
   const sortedEducation = useMemo(() => {
     return safeEducation
-      .map((item, i) => ({ item, i }))
+      .map((item, originalIndex) => ({ item, originalIndex }))
       .sort((a, b) => {
-        const aEnd = parseInt(a.item.zeitraum_bis) || parseInt(a.item.zeitraum_von) || 0;
-        const bEnd = parseInt(b.item.zeitraum_bis) || parseInt(b.item.zeitraum_von) || 0;
-        if (bEnd !== aEnd) return bEnd - aEnd;
-        return a.i - b.i; // tie-breaker to keep original order stable
+        const aSort = getSortValue(a.item);
+        const bSort = getSortValue(b.item);
+        
+        // Current education always comes first
+        if (aSort.isCurrent && !bSort.isCurrent) return -1;
+        if (!aSort.isCurrent && bSort.isCurrent) return 1;
+        
+        // Both current: sort descending (most recent start first)
+        if (aSort.isCurrent && bSort.isCurrent) {
+          // Higher value = more recent start, so descending sort puts most recent first
+          return bSort.value - aSort.value; // Descending: 01.2026 (20260100) comes before 02.2025 (20250200)
+        }
+        
+        // Both past: sort descending (most recent first)
+        // If same end date, sort by start date (earlier start first)
+        if (aSort.value === bSort.value) {
+          const aVon = parseDate(a.item.zeitraum_von);
+          const bVon = parseDate(b.item.zeitraum_von);
+          if (aVon && bVon) {
+            const aStartValue = aVon.year * 10000 + aVon.month * 100;
+            const bStartValue = bVon.year * 10000 + bVon.month * 100;
+            return bStartValue - aStartValue; // Descending (more recent start first)
+          }
+        }
+        
+        return bSort.value - aSort.value; // Descending
       });
   }, [safeEducation]);
 
@@ -377,8 +507,8 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
           </div>
         ) : (
           <div className="space-y-6">
-            {sortedEducation.map(({ item: edu, i }, idx) => (
-              <div key={i} className="relative group">
+            {sortedEducation.map(({ item: edu, originalIndex }, idx) => (
+              <div key={originalIndex} className="relative group">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <GraduationCap className="h-6 w-6 text-accent-foreground" />
@@ -400,12 +530,12 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
                           </span>
                         </div>
                       </div>
-                      {isEditing && editingIndex !== i && !isAddingNew && (
+                      {isEditing && editingIndex !== originalIndex && !isAddingNew && (
                         <div className="flex gap-2">
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => handleEdit(i)}
+                            onClick={() => handleEdit(originalIndex)}
                             className="h-8 w-8 p-0"
                           >
                             <Edit3 className="h-4 w-4" />
@@ -413,7 +543,7 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => handleDelete(i)}
+                            onClick={() => handleDelete(originalIndex)}
                             className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -427,7 +557,7 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
                         {edu.beschreibung}
                       </p>
                     )}
-                    {editingIndex === i && (
+                    {editingIndex === originalIndex && (
                       <div className="mt-4">
                         <EducationForm formData={formData} setFormData={setFormData} years={years} currentYear={currentYear} />
                       </div>

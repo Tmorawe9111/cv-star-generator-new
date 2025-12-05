@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { CompanyValuesSection } from "@/components/Company/profile/CompanyValuesSection";
 
 // Component to display company locations
 function CompanyLocationsCard({ companyId, fallbackLocation }: { companyId: string; fallbackLocation?: string | null }) {
@@ -233,6 +234,9 @@ export function CompanyAboutTab({ company, isOwner, onSave }: CompanyAboutTabPro
         {/* Standorte */}
         <CompanyLocationsCard companyId={company.id} fallbackLocation={company.main_location} />
       </div>
+      
+      {/* Company Values Section */}
+      <CompanyValuesSection companyId={company.id} />
       
       {/* Contact Person Card */}
       {(company.contact_person || company.contact_email) && (

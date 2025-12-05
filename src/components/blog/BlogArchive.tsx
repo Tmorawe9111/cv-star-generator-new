@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Filter, Loader2 } from 'lucide-react';
+import { Filter, Loader2, Search, X } from 'lucide-react';
 
 // Optimierte Bildkomponente mit Lazy Loading und Error Handling
 function BlogImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
@@ -62,10 +62,20 @@ export function BlogArchive({ articles }: BlogArchiveProps) {
   const [selectedTopic, setSelectedTopic] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Filtere Artikel
   const filteredArticles = useMemo(() => {
     let filtered = articles;
+
+    // Search filter
+    if (searchQuery && searchQuery.trim().length > 0) {
+      const queryLower = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((a) => {
+        const titleMatch = a.title?.toLowerCase().includes(queryLower);
+        return titleMatch;
+      });
+    }
 
     if (selectedTopic !== 'all') {
       filtered = filtered.filter((a) => {
@@ -93,7 +103,7 @@ export function BlogArchive({ articles }: BlogArchiveProps) {
     }
 
     return filtered;
-  }, [articles, selectedTopic, selectedYear, selectedMonth]);
+  }, [articles, searchQuery, selectedTopic, selectedYear, selectedMonth]);
 
   // Gruppiere Artikel nach Monat (wie im Screenshot) - Optimiert für Performance
   const groupedArticles = useMemo(() => {
@@ -182,52 +192,75 @@ export function BlogArchive({ articles }: BlogArchiveProps) {
             </h1>
           </div>
 
-          {/* Filter Bar - Genau wie im Screenshot */}
-          <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
-            <Button variant="outline" size="sm" className="gap-2">
-              <Filter className="h-4 w-4" />
-              Filter
-            </Button>
-            <Select value={selectedTopic} onValueChange={setSelectedTopic}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Topics" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Topics</SelectItem>
-                <SelectItem value="pflege">Pflege</SelectItem>
-                <SelectItem value="handwerk">Handwerk</SelectItem>
-                <SelectItem value="industrie">Industrie</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="All Years" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Years</SelectItem>
-                {availableYears.map((year) => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="All Months" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Months</SelectItem>
-                {Array.from({ length: 12 }, (_, i) => {
-                  const date = new Date(2025, i, 1);
-                  return (
-                    <SelectItem key={i} value={i.toString()}>
-                      {format(date, 'MMMM', { locale: de })}
+          {/* Search & Filter Bar - Im selben Stil */}
+          <div className="flex flex-col gap-4 pb-6 border-b border-gray-100">
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Artikel durchsuchen..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5170ff] focus:border-transparent transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            
+            {/* Filter Bar */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="h-4 w-4" />
+                Filter
+              </Button>
+              <Select value={selectedTopic} onValueChange={setSelectedTopic}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All Topics" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Topics</SelectItem>
+                  <SelectItem value="pflege">Pflege</SelectItem>
+                  <SelectItem value="handwerk">Handwerk</SelectItem>
+                  <SelectItem value="industrie">Industrie</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All Years" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {availableYears.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
                     </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All Months" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Months</SelectItem>
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const date = new Date(2025, i, 1);
+                    return (
+                      <SelectItem key={i} value={i.toString()}>
+                        {format(date, 'MMMM', { locale: de })}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 const Auth = () => {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -26,6 +28,13 @@ const Auth = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (user && !isLoading) {
+      // Check if there's a returnTo parameter
+      if (returnTo) {
+        const decodedReturnTo = decodeURIComponent(returnTo);
+        navigate(decodedReturnTo);
+        return;
+      }
+      
       // Check if user is a company user and redirect accordingly
       const checkUserTypeAndRedirect = async () => {
         try {
@@ -61,7 +70,7 @@ const Auth = () => {
 
       checkUserTypeAndRedirect();
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, navigate, returnTo]);
 
   // Auth state cleanup utility
   const cleanupAuthState = () => {
@@ -171,6 +180,14 @@ const Auth = () => {
             description: "Bitte vervollständigen Sie Ihre Unternehmensregistrierung.",
           });
           navigate('/unternehmensregistrierung?mode=complete');
+          return;
+        }
+        
+        // Check if there's a returnTo parameter (e.g., from job application)
+        if (returnTo) {
+          // Decode and navigate back to the original page
+          const decodedReturnTo = decodeURIComponent(returnTo);
+          navigate(decodedReturnTo);
           return;
         }
         

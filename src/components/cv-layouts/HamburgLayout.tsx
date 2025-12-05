@@ -1,5 +1,5 @@
 import React from 'react';
-import { CVData, CVLayoutProps, formatDate, ProfileImage } from './CVLayoutBase';
+import { CVData, CVLayoutProps, formatDate, formatMonthYear, ProfileImage } from './CVLayoutBase';
 
 const HamburgLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
   const fullName = `${data.vorname || ''} ${data.nachname || ''}`.trim();
@@ -146,7 +146,7 @@ const HamburgLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                       <div className="text-[10px]">{wb.anbieter}</div>
                       {wb.zeitraum_von && (
                         <div className="text-[10px] font-medium" style={{ color: 'hsl(0, 0%, 45%)' }}>
-                          {wb.zeitraum_von}{wb.zeitraum_bis && ` - ${wb.zeitraum_bis}`}
+                          {formatMonthYear(wb.zeitraum_von)}{wb.zeitraum_bis && ` - ${formatMonthYear(wb.zeitraum_bis)}`}
                         </div>
                       )}
                     </div>
@@ -234,7 +234,7 @@ const HamburgLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                           {arbeit.titel}
                         </h3>
                         <span className="text-xs font-semibold whitespace-nowrap ml-4" style={{ color: 'hsl(0, 0%, 45%)' }}>
-                          {arbeit.zeitraum_von} - {arbeit.zeitraum_bis || 'heute'}
+                          {formatMonthYear(arbeit.zeitraum_von)} - {arbeit.zeitraum_bis ? formatMonthYear(arbeit.zeitraum_bis) : 'heute'}
                         </span>
                       </div>
                       <p className="text-xs font-medium mb-1" style={{ color: 'hsl(0, 0%, 40%)' }}>
@@ -273,7 +273,7 @@ const HamburgLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                           {schule.schulform}
                         </h3>
                         <span className="text-xs font-semibold whitespace-nowrap ml-4" style={{ color: 'hsl(0, 0%, 45%)' }}>
-                          {schule.zeitraum_von} - {schule.zeitraum_bis}
+                          {formatMonthYear(schule.zeitraum_von)} - {formatMonthYear(schule.zeitraum_bis)}
                         </span>
                       </div>
                       <p className="text-xs font-medium mb-1" style={{ color: 'hsl(0, 0%, 40%)' }}>

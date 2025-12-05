@@ -8,9 +8,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, UserPlus, Eye, EyeOff, Clock } from 'lucide-react';
 import { toast as showToast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCVForm } from '@/contexts/CVFormContext';
 import { useAuth } from '@/hooks/useAuth';
+import { checkProfileUniqueness } from '@/lib/profile-validation';
 
 interface ProfileCreationModalProps {
   isOpen: boolean;
@@ -33,6 +34,8 @@ export const ProfileCreationModal = ({
   const [datenschutzAccepted, setDatenschutzAccepted] = useState(false);
   const [agbAccepted, setAgbAccepted] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const { setAutoSyncEnabled } = useCVForm();
   const { refetchProfile } = useAuth();
 
@@ -133,6 +136,12 @@ export const ProfileCreationModal = ({
       return;
     }
 
+    // Check if profile image exists
+    if (!effectiveFormData.profilbild && !effectiveFormData.avatar_url) {
+      showToast.error("Bitte lade zuerst ein Profilbild hoch (Schritt 2).");
+      return;
+    }
+
     // Client-side email validation
     const emailError = validateEmail(email);
     if (emailError) {
@@ -221,6 +230,23 @@ export const ProfileCreationModal = ({
         
         // Now we have an authenticated user, create/update profile
         console.log('Creating/updating profile for authenticated user:', user.id);
+        
+        // Check if email or phone number already exists (excluding current user)
+        const { emailExists, phoneExists } = await checkProfileUniqueness(
+          email,
+          effectiveFormData.telefon,
+          user.id
+        );
+        
+        if (emailExists) {
+          showToast.error('Diese E-Mail-Adresse wird bereits von einem anderen Benutzer verwendet.');
+          return;
+        }
+        
+        if (phoneExists) {
+          showToast.error('Diese Telefonnummer wird bereits von einem anderen Benutzer verwendet.');
+          return;
+        }
         
         // Check if profile exists
         const { data: existingProfile } = await supabase
@@ -324,7 +350,7 @@ export const ProfileCreationModal = ({
         
         // Prepare profile update data
         const profileData = {
-          email: email,
+          email: email.trim().toLowerCase(),
           vorname: effectiveFormData.vorname,
           nachname: effectiveFormData.nachname,
               geburtsdatum: effectiveFormData.geburtsdatum ? 
@@ -414,7 +440,14 @@ export const ProfileCreationModal = ({
             // Refresh the profile in auth context and navigate
             await refetchProfile();
             onClose();
-            navigate('/profile');
+            
+            // Navigate back to job page if returnTo is set, otherwise to profile
+            if (returnTo) {
+              const decodedReturnTo = decodeURIComponent(returnTo);
+              navigate(decodedReturnTo);
+            } else {
+              navigate('/profile');
+            }
             
           } catch (error) {
             retryCount++;
@@ -441,29 +474,30 @@ export const ProfileCreationModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose} modal={false}>
-      <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Profil erstellen</DialogTitle>
+      <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-[9999] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-6 border border-border/50 bg-background p-6 md:p-8 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-2xl sm:max-w-md">
+        <DialogHeader className="text-center">
+          <DialogTitle className="text-xl md:text-2xl font-bold">Profil erstellen</DialogTitle>
+          <p className="text-sm md:text-base text-muted-foreground mt-2">
+            Erstelle jetzt dein Profil und werde von Arbeitgebern gefunden
+          </p>
         </DialogHeader>
         
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Erstellen Sie jetzt Ihr Profil, um von Arbeitgebern gefunden zu werden.
-          </p>
+        <div className="space-y-5">
           
           <div className="space-y-2">
-            <Label htmlFor="email">E-Mail-Adresse</Label>
+            <Label htmlFor="email" className="text-sm font-medium">E-Mail-Adresse</Label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ihre@email.com"
+              className="h-11 text-base"
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="password">Passwort</Label>
+            <Label htmlFor="password" className="text-sm font-medium">Passwort</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -471,12 +505,13 @@ export const ProfileCreationModal = ({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Mindestens 8 Zeichen"
+                className="h-11 text-base pr-10"
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-muted-foreground hover:text-foreground"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
@@ -487,7 +522,7 @@ export const ProfileCreationModal = ({
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Passwort muss mindestens 8 Zeichen, einen Großbuchstaben und eine Zahl enthalten.
+              Mindestens 8 Zeichen, ein Großbuchstabe und eine Zahl
             </p>
           </div>
           
@@ -531,23 +566,36 @@ export const ProfileCreationModal = ({
             </div>
           </div>
           
-          <div className="flex gap-3 pt-4">
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              Abbrechen
-            </Button>
+          <div className="flex flex-col gap-3 pt-4">
             <Button 
               onClick={handleCreateProfile} 
               disabled={isCreating || !datenschutzAccepted || !agbAccepted || rateLimitSeconds > 0}
-              className="flex-1"
+              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              size="lg"
             >
               {isCreating ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Erstelle Profil...
+                </>
               ) : rateLimitSeconds > 0 ? (
-                <Clock className="h-4 w-4 mr-2" />
+                <>
+                  <Clock className="h-5 w-5 mr-2" />
+                  Bitte warten ({rateLimitSeconds}s)
+                </>
               ) : (
-                <UserPlus className="h-4 w-4 mr-2" />
+                <>
+                  <UserPlus className="h-5 w-5 mr-2" />
+                  Profil erstellen
+                </>
               )}
-              {isCreating ? 'Erstelle...' : rateLimitSeconds > 0 ? 'Warten...' : 'Profil erstellen'}
+            </Button>
+            <Button 
+              variant="ghost" 
+              onClick={onClose} 
+              className="w-full h-10 text-sm text-muted-foreground hover:text-foreground"
+            >
+              Abbrechen
             </Button>
           </div>
         </div>

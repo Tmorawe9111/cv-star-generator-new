@@ -70,7 +70,7 @@ function JobEdit() {
     title: job.title || '',
     industry: job.industry || '',
     city: job.city || '',
-    employment_type: job.employment_type || 'fulltime',
+    employment_type: job.employment_type || 'full-time',
     start_date: job.start_date || '',
     skills: job.skills || [],
     required_languages: job.required_languages || [],

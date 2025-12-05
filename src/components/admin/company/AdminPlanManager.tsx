@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Calendar, Coins } from "lucide-react";
+import { CreditCard, Calendar, Coins, MapPin, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface AdminPlanManagerProps {
@@ -22,6 +22,9 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
   const [customTokens, setCustomTokens] = useState<string>("");
   const [customJobs, setCustomJobs] = useState<string>("");
   const [customSeats, setCustomSeats] = useState<string>("");
+  const [customLocations, setCustomLocations] = useState<string>("");
+  const [customTokenPrice, setCustomTokenPrice] = useState<string>("");
+  const [customMaxAdditionalTokens, setCustomMaxAdditionalTokens] = useState<string>("");
   const [customPriceMonthly, setCustomPriceMonthly] = useState<string>("");
   const [customPriceYearly, setCustomPriceYearly] = useState<string>("");
   const [billingCycle, setBillingCycle] = useState<string>("monthly");
@@ -65,6 +68,9 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
         p_custom_tokens: customTokens ? parseInt(customTokens) : null,
         p_custom_jobs: customJobs ? parseInt(customJobs) : null,
         p_custom_seats: customSeats ? parseInt(customSeats) : null,
+        p_custom_locations: customLocations ? parseInt(customLocations) : null,
+        p_custom_token_price_cents: customTokenPrice ? parseInt(customTokenPrice) : null,
+        p_custom_max_additional_tokens_per_month: customMaxAdditionalTokens ? parseInt(customMaxAdditionalTokens) : null,
         p_billing_cycle: billingCycle,
         p_valid_from: new Date().toISOString(),
         p_valid_until: validUntil ? new Date(validUntil).toISOString() : null,
@@ -90,6 +96,9 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
     setCustomTokens("");
     setCustomJobs("");
     setCustomSeats("");
+    setCustomLocations("");
+    setCustomTokenPrice("");
+    setCustomMaxAdditionalTokens("");
     setCustomPriceMonthly("");
     setCustomPriceYearly("");
     setValidUntil("");
@@ -98,6 +107,11 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
 
   const formatCents = (cents: number) => {
     return `€${(cents / 100).toFixed(2)}`;
+  };
+
+  const formatUnlimited = (value: number | null) => {
+    if (value === null || value === -1) return "∞";
+    return value.toString();
   };
 
   return (
@@ -115,7 +129,7 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Plan</p>
-                  <p className="text-2xl font-bold">{activePlan.plan_name}</p>
+                  <p className="text-2xl font-bold">{activePlan.plan_name || "Kein Plan"}</p>
                 </div>
                 <Badge variant="default">Aktiv</Badge>
               </div>
@@ -126,20 +140,50 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
                     <Coins className="h-3 w-3" />
                     Tokens
                   </p>
-                  <p className="font-semibold">{activePlan.tokens}</p>
+                  <p className="font-semibold">{formatUnlimited(activePlan.tokens)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Jobs</p>
-                  <p className="font-semibold">{activePlan.jobs}</p>
+                  <p className="font-semibold">{formatUnlimited(activePlan.jobs)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Seats</p>
-                  <p className="font-semibold">{activePlan.seats}</p>
+                  <p className="font-semibold">{formatUnlimited(activePlan.seats)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    Standorte
+                  </p>
+                  <p className="font-semibold">{formatUnlimited(activePlan.locations)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Preis (monatlich)</p>
                   <p className="font-semibold">{formatCents(activePlan.price_monthly_cents)}</p>
                 </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Preis (jährlich)</p>
+                  <p className="font-semibold">{formatCents(activePlan.price_yearly_cents)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Token-Preis</p>
+                  <p className="font-semibold">{formatCents(activePlan.token_price_cents)}</p>
+                </div>
+                {activePlan.max_additional_tokens_per_month !== null && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Max. Zusatz-Tokens/Monat</p>
+                    <p className="font-semibold">{formatUnlimited(activePlan.max_additional_tokens_per_month)}</p>
+                  </div>
+                )}
+                {activePlan.ai_level && (
+                  <div>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      AI-Level
+                    </p>
+                    <Badge variant="outline">{activePlan.ai_level}</Badge>
+                  </div>
+                )}
               </div>
 
               {activePlan.valid_until && (
@@ -150,7 +194,12 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
               )}
             </div>
           ) : (
-            <p className="text-muted-foreground">Kein aktiver Plan</p>
+            <div className="space-y-2">
+              <p className="text-muted-foreground">Kein aktiver Plan zugewiesen</p>
+              <p className="text-sm text-muted-foreground">
+                Weisen Sie diesem Unternehmen einen Plan zu, um Features und Limits zu verwalten.
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -211,6 +260,36 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
                 value={customSeats}
                 onChange={(e) => setCustomSeats(e.target.value)}
                 placeholder="Standard verwenden"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customLocations">Custom Standorte (optional)</Label>
+              <Input
+                id="customLocations"
+                type="number"
+                value={customLocations}
+                onChange={(e) => setCustomLocations(e.target.value)}
+                placeholder="Standard verwenden"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customTokenPrice">Custom Token-Preis (Cents) (optional)</Label>
+              <Input
+                id="customTokenPrice"
+                type="number"
+                value={customTokenPrice}
+                onChange={(e) => setCustomTokenPrice(e.target.value)}
+                placeholder="Standard verwenden (z.B. 1800 = 18€)"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customMaxAdditionalTokens">Max. Zusatz-Tokens/Monat (optional)</Label>
+              <Input
+                id="customMaxAdditionalTokens"
+                type="number"
+                value={customMaxAdditionalTokens}
+                onChange={(e) => setCustomMaxAdditionalTokens(e.target.value)}
+                placeholder="Standard verwenden (leer = unbegrenzt)"
               />
             </div>
             <div className="space-y-2">

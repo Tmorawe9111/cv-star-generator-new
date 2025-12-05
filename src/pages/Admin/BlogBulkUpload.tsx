@@ -24,6 +24,7 @@ interface BlogPostInput {
   seo_description?: string;
   seo_keywords?: string[];
   featured_image?: string;
+  featured_image_base64?: string; // Base64-kodiertes Bild
   category?: string;
   tags?: string[];
   status?: 'draft' | 'published' | 'archived';
@@ -31,9 +32,13 @@ interface BlogPostInput {
   og_title?: string;
   og_description?: string;
   og_image?: string;
+  og_image_base64?: string; // Base64-kodiertes Bild
   twitter_title?: string;
   twitter_description?: string;
   twitter_image?: string;
+  twitter_image_base64?: string; // Base64-kodiertes Bild
+  gallery_images?: string[];
+  gallery_images_base64?: string[]; // Base64-kodierte Bilder
   enable_social_sharing?: boolean;
 }
 
@@ -52,9 +57,99 @@ export default function BlogBulkUpload() {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [imageUploadProgress, setImageUploadProgress] = useState<Record<number, number>>({});
 
   const generateSlug = (title: string): string => {
     return slugify(title, { lower: true, strict: true, trim: true });
+  };
+
+  // Konvertiert Base64-String zu File-Objekt
+  const base64ToFile = (base64String: string, filename: string): File => {
+    // Entferne Data-URL-Präfix falls vorhanden (z.B. "data:image/jpeg;base64,")
+    const base64Data = base64String.includes(',') 
+      ? base64String.split(',')[1] 
+      : base64String;
+    
+    // Erkenne MIME-Type aus Base64-Präfix oder filename
+    let mimeType = 'image/jpeg';
+    if (base64String.startsWith('data:image/png')) mimeType = 'image/png';
+    else if (base64String.startsWith('data:image/webp')) mimeType = 'image/webp';
+    else if (base64String.startsWith('data:image/gif')) mimeType = 'image/gif';
+    else if (filename.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+    else if (filename.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
+    else if (filename.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
+
+    // Konvertiere Base64 zu Binary
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mimeType });
+    
+    return new File([blob], filename, { type: mimeType });
+  };
+
+  // Lädt ein Bild zu Supabase Storage hoch
+  const uploadImageToStorage = async (
+    base64String: string | undefined,
+    existingUrl: string | undefined,
+    filename: string,
+    blogIndex: number
+  ): Promise<string | null> => {
+    // Wenn bereits eine URL vorhanden ist und kein Base64, verwende die URL
+    if (existingUrl && !base64String) {
+      return existingUrl;
+    }
+
+    // Wenn kein Base64 vorhanden ist, return null
+    if (!base64String) {
+      return existingUrl || null;
+    }
+
+    if (!user) {
+      throw new Error('Nicht authentifiziert');
+    }
+
+    try {
+      // Konvertiere Base64 zu File
+      const file = base64ToFile(base64String, filename);
+      
+      // Erstelle eindeutigen Dateinamen
+      const timestamp = Date.now();
+      const fileExt = filename.split('.').pop() || 'jpg';
+      const storagePath = `${user.id}/${timestamp}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      // Upload zu Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('blog-images')
+        .upload(storagePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type,
+        });
+
+      if (uploadError) {
+        console.error(`Upload error for ${filename}:`, uploadError);
+        throw uploadError;
+      }
+
+      // Hole Public URL
+      const { data: urlData } = supabase.storage
+        .from('blog-images')
+        .getPublicUrl(storagePath);
+
+      if (!urlData?.publicUrl) {
+        throw new Error('Konnte Public URL nicht abrufen');
+      }
+
+      console.log(`✅ Bild hochgeladen: ${filename} -> ${urlData.publicUrl}`);
+      return urlData.publicUrl;
+    } catch (error: any) {
+      console.error(`Fehler beim Upload von ${filename}:`, error);
+      throw error;
+    }
   };
 
   const validateBlogPost = (blog: any, index: number): ValidationError[] => {
@@ -264,47 +359,248 @@ export default function BlogBulkUpload() {
     setUploadProgress(0);
 
     try {
-      const blogsToUpload = parsedBlogs.map(blog => ({
-        ...blog,
-        author_id: user.id,
-        published_at: blog.status === 'published' ? (blog.published_at || new Date().toISOString()) : null,
-      }));
+      // Schritt 1: Bilder hochladen (wenn Base64 vorhanden)
+      const blogsWithImages = await Promise.all(
+        parsedBlogs.map(async (blog, index) => {
+          const imageUrls: {
+            featured_image?: string;
+            og_image?: string;
+            twitter_image?: string;
+            gallery_images?: string[];
+          } = {};
 
-      // Upload in batches to avoid timeout
+          // Upload featured_image
+          if (blog.featured_image_base64 || blog.featured_image) {
+            try {
+              setImageUploadProgress(prev => ({ ...prev, [index]: 10 }));
+              const featuredUrl = await uploadImageToStorage(
+                blog.featured_image_base64,
+                blog.featured_image,
+                `featured-${blog.slug || index}.jpg`,
+                index
+              );
+              if (featuredUrl) {
+                imageUrls.featured_image = featuredUrl;
+                imageUrls.og_image = featuredUrl; // Default OG image to featured
+              }
+            } catch (error: any) {
+              console.error(`Fehler beim Upload von featured_image für Blog ${index + 1}:`, error);
+              toast.warning(`Bild-Upload für "${blog.title}" fehlgeschlagen: ${error.message}`);
+            }
+          }
+
+          // Upload og_image (falls separat angegeben)
+          if (blog.og_image_base64 || blog.og_image) {
+            try {
+              setImageUploadProgress(prev => ({ ...prev, [index]: 30 }));
+              const ogUrl = await uploadImageToStorage(
+                blog.og_image_base64,
+                blog.og_image,
+                `og-${blog.slug || index}.jpg`,
+                index
+              );
+              if (ogUrl) imageUrls.og_image = ogUrl;
+            } catch (error: any) {
+              console.error(`Fehler beim Upload von og_image für Blog ${index + 1}:`, error);
+            }
+          }
+
+          // Upload twitter_image (falls separat angegeben)
+          if (blog.twitter_image_base64 || blog.twitter_image) {
+            try {
+              setImageUploadProgress(prev => ({ ...prev, [index]: 50 }));
+              const twitterUrl = await uploadImageToStorage(
+                blog.twitter_image_base64,
+                blog.twitter_image,
+                `twitter-${blog.slug || index}.jpg`,
+                index
+              );
+              if (twitterUrl) imageUrls.twitter_image = twitterUrl;
+            } catch (error: any) {
+              console.error(`Fehler beim Upload von twitter_image für Blog ${index + 1}:`, error);
+            }
+          }
+
+          // Upload gallery_images (falls Base64 vorhanden)
+          if (blog.gallery_images_base64 && blog.gallery_images_base64.length > 0) {
+            try {
+              setImageUploadProgress(prev => ({ ...prev, [index]: 70 }));
+              const galleryUrls = await Promise.all(
+                blog.gallery_images_base64.map((base64, imgIndex) =>
+                  uploadImageToStorage(
+                    base64,
+                    blog.gallery_images?.[imgIndex],
+                    `gallery-${blog.slug || index}-${imgIndex}.jpg`,
+                    index
+                  )
+                )
+              );
+              imageUrls.gallery_images = galleryUrls.filter((url): url is string => url !== null);
+            } catch (error: any) {
+              console.error(`Fehler beim Upload von gallery_images für Blog ${index + 1}:`, error);
+            }
+          }
+
+          setImageUploadProgress(prev => ({ ...prev, [index]: 100 }));
+
+          return {
+            ...blog,
+            ...imageUrls,
+          };
+        })
+      );
+
+      // Schritt 2: Blogs mit hochgeladenen Bildern vorbereiten
+      const blogsToUpload = blogsWithImages.map((blog, index) => {
+        // Ensure status is set correctly
+        const finalStatus = blog.status || 'published';
+        const isPublished = finalStatus === 'published';
+        
+        return {
+          ...blog,
+          author_id: user.id,
+          status: finalStatus,
+          published_at: isPublished ? (blog.published_at || new Date().toISOString()) : null,
+          // Ensure all required fields are present
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          // Ensure slug is unique by appending timestamp if needed
+          slug: blog.slug || generateSlug(blog.title),
+          // Remove base64 fields before upload
+          featured_image_base64: undefined,
+          og_image_base64: undefined,
+          twitter_image_base64: undefined,
+          gallery_images_base64: undefined,
+        };
+      });
+
+      // Upload in batches with fallback to individual uploads
       const batchSize = 5;
       let uploaded = 0;
       let failed = 0;
+      const failedBlogs: { index: number; title: string; error: string }[] = [];
 
+      // Process in batches
       for (let i = 0; i < blogsToUpload.length; i += batchSize) {
         const batch = blogsToUpload.slice(i, i + batchSize);
         
-        const { data, error } = await supabase
-          .from('blog_posts')
-          .insert(batch)
-          .select();
+        try {
+          // Try batch insert first (faster)
+          const { data, error } = await supabase
+            .from('blog_posts')
+            .insert(batch)
+            .select();
 
-        if (error) {
-          console.error('Upload error:', error);
-          failed += batch.length;
-          toast.error(`Fehler beim Upload von Batch ${Math.floor(i / batchSize) + 1}: ${error.message}`);
-        } else {
-          uploaded += data?.length || 0;
+          if (error) {
+            console.error(`Batch upload error (${i}-${i + batch.length - 1}):`, error);
+            console.error('Error details:', JSON.stringify(error, null, 2));
+            
+            // Fallback to individual uploads for this batch
+            for (let j = 0; j < batch.length; j++) {
+              const singleBlog = batch[j];
+              
+              try {
+                const { data: singleData, error: singleError } = await supabase
+                  .from('blog_posts')
+                  .insert(singleBlog)
+                  .select()
+                  .single();
+
+                if (singleError) {
+                  console.error(`Single upload error for "${singleBlog.title}":`, singleError);
+                  console.error('Single error details:', JSON.stringify(singleError, null, 2));
+                  failed++;
+                  failedBlogs.push({
+                    index: i + j,
+                    title: singleBlog.title,
+                    error: singleError.message || JSON.stringify(singleError)
+                  });
+                } else {
+                  uploaded++;
+                  console.log(`✅ Successfully uploaded: "${singleBlog.title}"`);
+                }
+              } catch (singleErr: any) {
+                console.error(`Exception for "${singleBlog.title}":`, singleErr);
+                failed++;
+                failedBlogs.push({
+                  index: i + j,
+                  title: singleBlog.title,
+                  error: singleErr.message || 'Unbekannter Fehler'
+                });
+              }
+              
+              setUploadProgress(Math.round(((i + j + 1) / blogsToUpload.length) * 100));
+            }
+          } else {
+            // Batch upload successful
+            uploaded += data?.length || 0;
+            console.log(`✅ Successfully uploaded batch ${Math.floor(i / batchSize) + 1} (${data?.length || 0} blogs)`);
+            setUploadProgress(Math.round(((i + batch.length) / blogsToUpload.length) * 100));
+          }
+        } catch (error: any) {
+          console.error(`Unexpected batch error:`, error);
+          // Fallback to individual uploads
+          for (let j = 0; j < batch.length; j++) {
+            const singleBlog = batch[j];
+            try {
+              const { data: singleData, error: singleError } = await supabase
+                .from('blog_posts')
+                .insert(singleBlog)
+                .select()
+                .single();
+
+              if (singleError) {
+                failed++;
+                failedBlogs.push({
+                  index: i + j,
+                  title: singleBlog.title,
+                  error: singleError.message
+                });
+              } else {
+                uploaded++;
+              }
+            } catch (singleErr: any) {
+              failed++;
+              failedBlogs.push({
+                index: i + j,
+                title: singleBlog.title,
+                error: singleErr.message || 'Unbekannter Fehler'
+              });
+            }
+            setUploadProgress(Math.round(((i + j + 1) / blogsToUpload.length) * 100));
+          }
         }
-
-        setUploadProgress(Math.round(((i + batch.length) / blogsToUpload.length) * 100));
       }
 
+      // Show results
       if (uploaded > 0) {
         toast.success(`${uploaded} Blog(s) erfolgreich hochgeladen!`);
+      }
+
+      if (failed > 0) {
+        console.error('Failed blogs:', failedBlogs);
+        toast.error(
+          `${failed} Blog(s) konnten nicht hochgeladen werden. Details in der Konsole.`,
+          {
+            duration: 10000,
+          }
+        );
+        
+        // Show detailed error message
+        const errorDetails = failedBlogs.map(f => `"${f.title}": ${f.error}`).join('\n');
+        console.error('Fehlerdetails:\n', errorDetails);
+      }
+
+      // Only clear and navigate if all succeeded
+      if (failed === 0 && uploaded > 0) {
         setParsedBlogs([]);
         setJsonInput('');
         setCsvInput('');
         setValidationErrors([]);
         navigate('/admin/blog');
-      }
-
-      if (failed > 0) {
-        toast.warning(`${failed} Blog(s) konnten nicht hochgeladen werden`);
+      } else if (uploaded > 0) {
+        // Some succeeded, some failed - keep the failed ones for retry
+        toast.info('Einige Blogs wurden hochgeladen. Fehlgeschlagene bleiben in der Vorschau für erneuten Versuch.');
       }
     } catch (error: any) {
       console.error('Upload error:', error);
@@ -327,15 +623,26 @@ export default function BlogBulkUpload() {
         seo_description: 'SEO-optimierte Beschreibung mit mindestens 120 Zeichen für bessere Sichtbarkeit in Suchmaschinen und Social Media Plattformen.',
         seo_keywords: ['Pflege', 'Ausbildung', 'Karriere'],
         featured_image: 'https://bevisiblle.de/images/blog-featured.jpg',
+        // ODER Base64-kodiertes Bild:
+        // featured_image_base64: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD...',
         category: 'Ausbildung',
         tags: ['Pflege', 'Karriere'],
         status: 'published',
         og_title: 'Open Graph Titel',
         og_description: 'Open Graph Beschreibung',
         og_image: 'https://bevisiblle.de/images/blog-og.jpg',
+        // ODER Base64:
+        // og_image_base64: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD...',
         twitter_title: 'Twitter Card Titel',
         twitter_description: 'Twitter Card Beschreibung',
         twitter_image: 'https://bevisiblle.de/images/blog-twitter.jpg',
+        // ODER Base64:
+        // twitter_image_base64: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD...',
+        // Galerie-Bilder (Base64-Array):
+        // gallery_images_base64: [
+        //   'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD...',
+        //   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...'
+        // ]
       },
     ];
 
@@ -522,6 +829,11 @@ export default function BlogBulkUpload() {
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Upload läuft... {uploadProgress}%
+                        {Object.keys(imageUploadProgress).length > 0 && (
+                          <span className="ml-2 text-xs">
+                            (Bilder: {Math.round(Object.values(imageUploadProgress).reduce((a, b) => a + b, 0) / Object.keys(imageUploadProgress).length)}%)
+                          </span>
+                        )}
                       </>
                     ) : (
                       <>
@@ -566,12 +878,24 @@ export default function BlogBulkUpload() {
             </ul>
           </div>
           <div>
+            <strong>Bild-Upload:</strong>
+            <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
+              <li><code>featured_image</code> - URL oder <code>featured_image_base64</code> - Base64-String</li>
+              <li><code>og_image</code> - URL oder <code>og_image_base64</code> - Base64-String</li>
+              <li><code>twitter_image</code> - URL oder <code>twitter_image_base64</code> - Base64-String</li>
+              <li><code>gallery_images_base64</code> - Array von Base64-Strings für Galerie-Bilder</li>
+              <li>Base64-Format: <code>data:image/jpeg;base64,/9j/4AAQSkZJRg...</code> oder nur <code>/9j/4AAQSkZJRg...</code></li>
+              <li>Bilder werden automatisch zu Supabase Storage hochgeladen</li>
+            </ul>
+          </div>
+          <div>
             <strong>Automatische Features:</strong>
             <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
               <li>Slug wird automatisch aus Titel generiert</li>
               <li>SEO-Felder werden automatisch gefüllt falls fehlend</li>
               <li>Open Graph & Twitter Cards werden automatisch generiert</li>
               <li>published_at wird automatisch gesetzt für published Status</li>
+              <li>Base64-Bilder werden automatisch zu Supabase hochgeladen</li>
             </ul>
           </div>
         </CardContent>

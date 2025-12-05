@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCVForm } from '@/contexts/CVFormContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,45 @@ const CVStep6 = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const isMobile = useIsMobile();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.5);
+
+  // Calculate optimal scale to fit CV in viewport - maximize size, minimize white space
+  useEffect(() => {
+    const calculateScale = () => {
+      if (!containerRef.current) return;
+      
+      const container = containerRef.current;
+      const containerHeight = container.clientHeight;
+      const containerWidth = container.clientWidth;
+      
+      // A4 dimensions: 210mm x 297mm
+      // At 96 DPI: ~794px x 1123px
+      const a4Width = 794;
+      const a4Height = 1123;
+      
+      // Calculate scale to fit both width and height
+      const scaleX = containerWidth / a4Width;
+      const scaleY = containerHeight / a4Height;
+      
+      // Use the smaller scale to ensure everything fits, maximize to 99.5% to minimize white space
+      const optimalScale = Math.min(scaleX, scaleY) * 0.995; // 99.5% to maximize CV size
+      
+      setScale(Math.max(0.25, Math.min(optimalScale, 1))); // Clamp between 0.25 and 1
+    };
+
+    calculateScale();
+    // Use ResizeObserver for more accurate measurements
+    const resizeObserver = new ResizeObserver(calculateScale);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    window.addEventListener('resize', calculateScale);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', calculateScale);
+    };
+  }, []);
   const getBrancheTitle = () => {
     switch (formData.branche) {
       case 'handwerk': return 'Handwerk';
@@ -103,10 +142,6 @@ const CVStep6 = () => {
     const data = mapFormDataToCVData(formData);
     const selected = formData.layout ?? 1;
 
-    console.log('🔵 CVStep6 (components/cv-steps) - formData.layout:', formData.layout);
-    console.log('🔵 CVStep6 (components/cv-steps) - selected:', selected);
-    console.log('🔵 CVStep6 (components/cv-steps) - Layout name:', getLayoutName());
-
     const LayoutComponent =
       selected === 2 ? MuenchenLayout :
       selected === 3 ? HamburgLayout :
@@ -118,16 +153,21 @@ const CVStep6 = () => {
       selected === 9 ? LeipzigLayout :
       BerlinLayout;
 
-    console.log('🔵 CVStep6 (components/cv-steps) - LayoutComponent:', LayoutComponent.name);
-
     return (
       <article
         data-cv-preview
         data-variant="a4"
         className={cn(
-          'cv-a4 mx-auto bg-card text-foreground rounded-md shadow-sm border border-border overflow-hidden',
-          'max-w-full'
+          'cv-a4-page bg-white text-foreground',
+          'w-[210mm] h-[297mm]'
         )}
+        style={{
+          width: '210mm',
+          height: '297mm',
+          margin: 0,
+          padding: 0,
+          boxShadow: 'none',
+        }}
         aria-label="Lebenslauf Vorschau – A4"
       >
         <LayoutComponent data={data} />
@@ -136,43 +176,58 @@ const CVStep6 = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>CV-Vorschau</CardTitle>
-          <CardDescription>
-            Hier siehst du eine Vorschau deines Lebenslaufs im {getLayoutName()}-Layout.
-          </CardDescription>
-          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          <Button
-            variant="outline"
-            onClick={handleBackToLayout}
-            className="w-full sm:w-fit"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Zurück zur Layout-Auswahl
-          </Button>
+    <div className="h-full flex flex-col overflow-hidden relative">
+      {/* Minimal Header - Absolute positioning to save space */}
+      <div className="absolute top-0 left-0 right-0 z-10 bg-background/95 backdrop-blur-sm border-b flex-shrink-0 py-0.5 px-2">
+        <div className="flex items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-[9px] font-semibold truncate">CV-Vorschau • {getLayoutName()}</h2>
+          </div>
+          <div className="flex gap-0.5 flex-shrink-0">
+            <Button
+              variant="outline"
+              onClick={handleBackToLayout}
+              size="sm"
+              className="h-5 text-[8px] px-1"
+            >
+              <ArrowLeft className="h-2 w-2 mr-0.5" />
+              Zurück
+            </Button>
             {isLayoutEditMode && (
               <Button
                 onClick={handleFinish}
-                className="w-full sm:w-fit"
+                size="sm"
+                className="h-5 text-[8px] px-1"
               >
-                Layout speichern
+                Speichern
               </Button>
             )}
           </div>
-        </CardHeader>
-        
-        <CardContent>
-          <div className="w-full flex justify-center">
-            <div className="origin-top scale-[0.74] sm:scale-90 md:scale-100 transition-transform">
-              {/* Render the selected layout component */}
-              {renderLayoutComponent()}
-            </div>
-          </div>
-
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+      
+      {/* CV Preview - Maximize space, dynamically scaled, zero padding/margin */}
+      <div 
+        ref={containerRef}
+        className="flex-1 min-h-0 flex items-center justify-center overflow-hidden"
+        style={{ 
+          padding: 0,
+          margin: 0,
+          paddingTop: '24px', // Just enough for header
+        }}
+      >
+        <div 
+          className="origin-center transition-transform duration-200"
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: 'center center',
+            margin: 0,
+            padding: 0,
+          }}
+        >
+          {renderLayoutComponent()}
+        </div>
+      </div>
     </div>
   );
 };

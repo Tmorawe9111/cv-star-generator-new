@@ -26,16 +26,17 @@ interface UseBlogPostsOptions {
   industry?: 'pflege' | 'handwerk' | 'industrie' | 'allgemein';
   targetAudience?: 'schueler' | 'azubi' | 'profi' | 'unternehmen';
   category?: string;
+  searchQuery?: string;
   limit?: number;
   offset?: number;
   status?: 'published' | 'draft' | 'archived';
 }
 
 export function useBlogPosts(options: UseBlogPostsOptions = {}) {
-  const { industry, targetAudience, category, limit = 10, offset = 0, status = 'published' } = options;
+  const { industry, targetAudience, category, searchQuery, limit = 10, offset = 0, status = 'published' } = options;
 
   return useQuery({
-    queryKey: ['blog-posts', industry, targetAudience, category, limit, offset, status],
+    queryKey: ['blog-posts', industry, targetAudience, category, searchQuery, limit, offset, status],
     queryFn: async () => {
       // Timeout mit Promise.race für bessere Kontrolle
       const queryPromise = (async () => {
@@ -43,13 +44,13 @@ export function useBlogPosts(options: UseBlogPostsOptions = {}) {
           // Optimierte Query - nur notwendige Felder für bessere Performance
           let query = supabase
             .from('blog_posts')
-            .select('id, title, slug, excerpt, featured_image, category, industry_sector, published_at, created_at')
+            .select('id, title, slug, excerpt, featured_image, category, industry_sector, published_at, created_at, status')
             .order('published_at', { ascending: false })
             .range(offset, offset + limit - 1);
 
-          if (status) {
-            query = query.eq('status', status);
-          }
+          // Always filter by status - default to published
+          const finalStatus = status || 'published';
+          query = query.eq('status', finalStatus);
 
           if (industry) {
             query = query.eq('industry_sector', industry);
@@ -62,6 +63,10 @@ export function useBlogPosts(options: UseBlogPostsOptions = {}) {
           if (category) {
             query = query.eq('category', category);
           }
+
+          // Search functionality - search in title and excerpt
+          // Note: Supabase doesn't support OR queries directly, so we filter client-side
+          // For better performance, we could use PostgreSQL full-text search in the future
 
           const { data, error } = await query;
 
@@ -79,7 +84,18 @@ export function useBlogPosts(options: UseBlogPostsOptions = {}) {
             return [] as BlogPost[];
           }
           
-          return (data || []) as BlogPost[];
+          // Filter by search query client-side if needed
+          let filteredData = data || [];
+          if (searchQuery && searchQuery.trim().length > 0) {
+            const queryLower = searchQuery.toLowerCase().trim();
+            filteredData = filteredData.filter((post: BlogPost) => {
+              const titleMatch = post.title?.toLowerCase().includes(queryLower);
+              const excerptMatch = post.excerpt?.toLowerCase().includes(queryLower);
+              return titleMatch || excerptMatch;
+            });
+          }
+          
+          return filteredData as BlogPost[];
         } catch (err: any) {
           console.error('[useBlogPosts] Exception:', err);
           return [] as BlogPost[];

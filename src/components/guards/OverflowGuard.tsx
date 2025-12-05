@@ -54,7 +54,10 @@ export const OverflowGuard: React.FC = () => {
         if (isDev) {
           const sel = getFirstOverflowingSelector();
           setOffender(sel);
-          if (sel) console.warn("OverflowGuard: first overflowing element:", sel);
+          // Only warn if it's not the root element (which is often a false positive)
+          if (sel && !sel.includes('#root')) {
+            console.warn("OverflowGuard: first overflowing element:", sel);
+          }
         }
       }
     });

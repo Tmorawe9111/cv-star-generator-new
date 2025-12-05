@@ -1,5 +1,5 @@
 import React from 'react';
-import { CVData, CVLayoutProps, formatDate } from './CVLayoutBase';
+import { CVData, CVLayoutProps, formatDate, formatMonthYear } from './CVLayoutBase';
 
 const DuesseldorfLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
   const fullName = `${data.vorname || ''} ${data.nachname || ''}`.trim();
@@ -69,7 +69,7 @@ const DuesseldorfLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) =>
                       )}
                     </div>
                     <span className="text-xs whitespace-nowrap ml-4" style={{ color: 'hsl(0, 0%, 45%)' }}>
-                      {arbeit.zeitraum_von} - {arbeit.zeitraum_bis || 'heute'}
+                      {formatMonthYear(arbeit.zeitraum_von)} - {arbeit.zeitraum_bis ? formatMonthYear(arbeit.zeitraum_bis) : 'heute'}
                     </span>
                   </div>
                   <p className="text-xs italic mb-2" style={{ color: 'hsl(0, 0%, 35%)' }}>
@@ -118,7 +118,7 @@ const DuesseldorfLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) =>
                       )}
                     </div>
                     <span className="text-xs whitespace-nowrap ml-4" style={{ color: 'hsl(0, 0%, 45%)' }}>
-                      {schule.zeitraum_von} - {schule.zeitraum_bis}
+                      {formatMonthYear(schule.zeitraum_von)} - {formatMonthYear(schule.zeitraum_bis)}
                     </span>
                   </div>
                   <p className="text-xs italic" style={{ color: 'hsl(0, 0%, 35%)' }}>
@@ -154,7 +154,7 @@ const DuesseldorfLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) =>
                   {' • '}
                   <span style={{ color: 'hsl(0, 0%, 40%)' }}>
                     {wb.anbieter}
-                    {wb.zeitraum_von && ` (${wb.zeitraum_von})`}
+                    {wb.zeitraum_von && ` (${formatMonthYear(wb.zeitraum_von)})`}
                   </span>
                 </div>
               ))}

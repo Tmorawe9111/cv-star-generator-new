@@ -66,7 +66,11 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
         return notif.payload?.job_id ? `/company/jobs/${notif.payload.job_id}` : null;
       
       case 'company_unlocked_you':
-        return notif.actor_id ? `/profile/${notif.actor_id}` : null;
+        // Link to job page if job_id is in payload, otherwise company profile
+        if (notif.payload?.job_id) {
+          return `/stelle/${notif.payload.job_id}${notif.payload.application_id ? `?application=${notif.payload.application_id}&showQuestions=true` : ''}`;
+        }
+        return notif.actor_id ? `/companies/${notif.actor_id}` : null;
       
       case 'follow_request_received':
         return notif.actor_id ? `/profile/${notif.actor_id}` : null;
@@ -241,7 +245,21 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
         return null; // Info-only notifications
       case 'company_unlocked_you':
         return (
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex gap-2 flex-wrap">
+            {n.payload?.job_id && (
+              <button
+                onClick={() => {
+                  const link = getNotificationLink(n);
+                  if (link) {
+                    window.location.href = link;
+                  }
+                }}
+                className="h-9 rounded-lg px-3 text-sm text-white"
+                style={{ backgroundColor: '#5CE1E6' }}
+              >
+                Zur Stelle & Fragen beantworten
+              </button>
+            )}
             <button
               onClick={() => onAction?.(n, 'allow_contact')}
               className="h-9 rounded-lg px-3 text-sm text-white"

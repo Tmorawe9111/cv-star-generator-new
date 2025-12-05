@@ -90,13 +90,42 @@ export class JobsService {
       label: doc.label
     })) || [];
 
+    // Map employment_type values to database-compatible values
+    // Handles both English and German values
+    const mapEmploymentType = (type: string | undefined): string => {
+      if (!type) return 'full-time';
+      const normalizedType = type.toLowerCase().trim();
+      const mapping: Record<string, string> = {
+        // English variations
+        'fulltime': 'full-time',
+        'parttime': 'part-time',
+        'temporary': 'contract',
+        'temp': 'contract',
+        'freelance': 'contract',
+        'freelancer': 'contract',
+        'apprenticeship': 'apprenticeship',
+        'internship': 'internship',
+        'full-time': 'full-time',
+        'part-time': 'part-time',
+        'contract': 'contract',
+        // German values
+        'vollzeit': 'full-time',
+        'teilzeit': 'part-time',
+        'ausbildung': 'apprenticeship',
+        'praktikum': 'internship',
+        'zeitarbeit': 'contract',
+        'befristet': 'contract',
+      };
+      return mapping[normalizedType] || 'full-time'; // Default fallback
+    };
+
     const insertData: any = {
       company_id: companyId,
       status: 'published',
       title: jobData.title || 'Neue Stelle',
       industry: jobData.industry || '',
       city: jobData.city || '',
-      employment_type: jobData.employment_type || 'apprenticeship',
+      employment_type: mapEmploymentType(jobData.employment_type),
       start_date: jobData.start_date || null,
       description_md: jobData.description_md || '',
       tasks_md: jobData.tasks_md || '',

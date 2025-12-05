@@ -1,6 +1,6 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useJobSave } from "@/hooks/useJobSave";
@@ -20,19 +20,44 @@ import {
 import { ArrowLeft, MapPin, Briefcase, Clock, Building2, Calendar, Share2, Bookmark, BookmarkCheck, FileText, Users, Languages, Award, CheckCircle, AlertCircle } from "lucide-react";
 import { DocumentUploadPrompt } from "@/components/jobs/DocumentUploadPrompt";
 import { DOCUMENT_TYPE_LABELS, type DocType } from "@/lib/document-types";
+import { JobPostingStructuredData } from "@/components/seo/StructuredData";
+import { AccountRequiredDialog } from "@/components/jobs/AccountRequiredDialog";
+import { LandingHeader } from "@/components/marketing/LandingHeader";
+import { cn } from "@/lib/utils";
+import { JobApplicationInterviewQuestions } from "@/components/jobs/JobApplicationInterviewQuestions";
+import { ScheduleInterviewAfterQuestions } from "@/components/jobs/ScheduleInterviewAfterQuestions";
+import { useSearchParams } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 
 export default function PublicJobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [documentUploadOpen, setDocumentUploadOpen] = useState(false);
+  const [accountRequiredOpen, setAccountRequiredOpen] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [jobLocation, setJobLocation] = useState("");
+  const [interviewQuestionsOpen, setInterviewQuestionsOpen] = useState(false);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
   
   const { isSaved, toggleSave, isToggling } = useJobSave(id || "");
   const { hasApplied, applyToJob, isApplying, canApply, profileStatus } = useQuickApply(id || "");
+
+  // Check if we should show interview questions modal
+  useEffect(() => {
+    const showQuestions = searchParams.get('showQuestions') === 'true';
+    const appId = searchParams.get('application');
+    
+    if (showQuestions && appId && user && job) {
+      setApplicationId(appId);
+      setInterviewQuestionsOpen(true);
+      // Remove query params from URL
+      navigate(`/stelle/${id}`, { replace: true });
+    }
+  }, [searchParams, user, job, id, navigate]);
 
   const { data: job, isLoading } = useQuery({
     queryKey: ["public-job-detail", id],
@@ -93,10 +118,48 @@ export default function PublicJobDetailPage() {
     );
   }
 
+  // Only add Structured Data for explicitly public jobs
+  const isPublicJob = job.is_public === true && job.status === 'published' && job.is_active === true;
+  
+  // Show LandingHeader only if user is NOT authenticated (public view)
+  const showLandingHeader = !user;
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Landing Header - Only for public (non-authenticated) users */}
+      {showLandingHeader && <LandingHeader />}
+      
+      {/* Structured Data - ONLY for public jobs */}
+      {isPublicJob && (
+        <JobPostingStructuredData
+          job={{
+            title: job.title,
+            description: job.description_md || job.tasks_md || job.title,
+            company: job.company?.name || 'Unbekanntes Unternehmen',
+            companyLogo: job.company?.logo_url,
+            location: [job.city, job.state, job.country].filter(Boolean).join(', ') || 'Deutschland',
+            city: job.city,
+            postalCode: job.postal_code,
+            employmentType: getEmploymentTypeLabel(job.employment_type),
+            industry: job.company?.industry || job.industry || undefined,
+            salary: (job.salary_min || job.salary_max) ? {
+              min: job.salary_min,
+              max: job.salary_max,
+              currency: 'EUR',
+              unit: 'MONTH'
+            } : undefined,
+            datePosted: job.created_at,
+            validThrough: job.expires_at || undefined,
+            url: `https://bevisiblle.de/stelle/${job.id}`,
+            identifier: {
+              name: 'BeVisiblle Job ID',
+              value: job.id
+            }
+          }}
+        />
+      )}
       {/* Header */}
-      <div className="border-b bg-card">
+      <div className={cn("border-b bg-card", showLandingHeader ? "pt-20" : "")}>
         <div className="max-w-5xl mx-auto px-4 py-6">
           <Button
             variant="ghost"
@@ -253,7 +316,18 @@ export default function PublicJobDetailPage() {
                     size="lg"
                     onClick={() => {
                       if (!user) {
-                        navigate("/auth");
+                        // Show account required dialog instead of navigating directly
+                        setCompanyName(job.company?.name || "das Unternehmen");
+                        setJobTitle(job.title || "");
+                        setAccountRequiredOpen(true);
+                        return;
+                      }
+                      
+                      // Check if user has a profile (CV created)
+                      if (!profileStatus?.hasProfile) {
+                        setCompanyName(job.company?.name || "das Unternehmen");
+                        setJobTitle(job.title || "");
+                        setAccountRequiredOpen(true);
                         return;
                       }
                       
@@ -628,6 +702,56 @@ export default function PublicJobDetailPage() {
             setJobTitle(job?.title || "");
             setJobLocation(job?.city || job?.state || "");
             setConfirmDialogOpen(true);
+          }}
+        />
+      )}
+
+      {/* Account Required Dialog */}
+      <AccountRequiredDialog
+        open={accountRequiredOpen}
+        onOpenChange={setAccountRequiredOpen}
+        jobTitle={jobTitle}
+        companyName={companyName}
+      />
+
+      {/* Interview Questions Modal - Opens after unlock */}
+      {interviewQuestionsOpen && applicationId && job && (
+        <JobApplicationInterviewQuestions
+          open={interviewQuestionsOpen}
+          onOpenChange={setInterviewQuestionsOpen}
+          applicationId={applicationId}
+          jobId={job.id}
+          companyId={job.company_id}
+          onScheduleInterview={(appId, jId, cId) => {
+            // After answering questions, show interview scheduling dialog
+            setInterviewQuestionsOpen(false);
+            setShowScheduleInterview(true);
+          }}
+          onComplete={() => {
+            setInterviewQuestionsOpen(false);
+            toast({
+              title: 'Vielen Dank!',
+              description: 'Deine Antworten wurden gespeichert.',
+            });
+          }}
+        />
+      )}
+
+      {/* Schedule Interview Modal - Opens after questions are answered */}
+      {showScheduleInterview && applicationId && job && (
+        <ScheduleInterviewAfterQuestions
+          open={showScheduleInterview}
+          onOpenChange={setShowScheduleInterview}
+          applicationId={applicationId}
+          jobId={job.id}
+          companyId={job.company_id}
+          candidateName={user ? `${user.user_metadata?.vorname || ''} ${user.user_metadata?.nachname || ''}`.trim() : undefined}
+          onComplete={() => {
+            setShowScheduleInterview(false);
+            toast({
+              title: 'Erfolgreich',
+              description: 'Interview-Anfrage wurde gesendet. Du erhältst eine Benachrichtigung, sobald der Kandidat antwortet.',
+            });
           }}
         />
       )}

@@ -33,6 +33,7 @@ export interface CVData {
     zeitraum_von: string;
     zeitraum_bis: string;
     beschreibung?: string;
+    abschluss?: string; // Abschluss bei Ausbildungen
   }>;
   sprachen?: Array<{
     sprache: string;
@@ -69,13 +70,40 @@ export const formatDate = (date: Date | string | undefined) => {
   return new Intl.DateTimeFormat('de-DE').format(new Date(date));
 };
 
-// Format date as MM/YYYY (German format for CV periods)
+// Format date as MM.YYYY (German format for CV periods)
+// Accepts: Date object, "YYYY-MM" string, "YYYY" string, or undefined
 export const formatMonthYear = (date: Date | string | undefined) => {
   if (!date) return '';
+  
+  // Handle string formats: "YYYY-MM" or "YYYY"
+  if (typeof date === 'string') {
+    // Check if it's "heute" or empty
+    if (date === 'heute' || date === '') return '';
+    
+    const parts = date.split('-');
+    const year = parseInt(parts[0] || '0');
+    
+    if (isNaN(year) || year === 0) return '';
+    
+    // If only year provided (format: "YYYY")
+    if (parts.length === 1) {
+      return year.toString();
+    }
+    
+    // If month and year provided (format: "YYYY-MM")
+    const month = parseInt(parts[1] || '1');
+    if (isNaN(month) || month < 1 || month > 12) return year.toString();
+    
+    return `${String(month).padStart(2, '0')}.${year}`;
+  }
+  
+  // Handle Date object
   const d = new Date(date);
+  if (isNaN(d.getTime())) return '';
+  
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
-  return `${month}/${year}`;
+  return `${month}.${year}`;
 };
 
 // Get current date formatted as DD.MM.YYYY

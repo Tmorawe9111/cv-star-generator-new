@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 export default function Footer() {
   return (
     <footer className="border-t border-zinc-800 bg-black text-white">
-      <div className="mx-auto max-w-7xl px-4 py-10 grid grid-cols-1 md:grid-cols-4 gap-8 items-start text-center md:text-left">
+      <div className="mx-auto max-w-7xl px-4 py-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-start text-center md:text-left">
         <div>
           <div className="flex items-center gap-3 justify-center md:justify-start">
             <img 
@@ -37,21 +37,20 @@ export default function Footer() {
         </div>
         
         <div className="text-sm text-zinc-300">
-          <div className="font-semibold text-white">Navigation</div>
+          <div className="font-semibold text-white">Company</div>
           <ul className="mt-3 space-y-2">
-            <li><Link to="/features" className="hover:text-white">Features</Link></li>
-            <li><Link to="/produkt" className="hover:text-white">Produkt</Link></li>
-            <li><Link to="/blog" className="hover:text-white">Newsroom</Link></li>
-            <li><Link to="/kontakt" className="hover:text-white">Kontakt</Link></li>
+            <li><Link to="/ueber-uns" className="hover:text-white">Über uns</Link></li>
+            <li><Link to="/community" className="hover:text-white">Community</Link></li>
+            <li><Link to="/unternehmen" className="hover:text-white">Unternehmen</Link></li>
           </ul>
         </div>
         
         <div className="text-sm text-zinc-300">
-          <div className="font-semibold text-white">Unternehmen</div>
+          <div className="font-semibold text-white">Support</div>
           <ul className="mt-3 space-y-2">
-            <li><Link to="/unternehmen" className="hover:text-white">Unternehmen</Link></li>
-            <li><Link to="/unternehmen/onboarding" className="hover:text-white">Registrierung</Link></li>
-            <li><Link to="/ueber-uns" className="hover:text-white">Über uns</Link></li>
+            <li><Link to="/hilfe" className="hover:text-white">Hilfe</Link></li>
+            <li><Link to="/feedback" className="hover:text-white">Feedback</Link></li>
+            <li><Link to="/kontakt" className="hover:text-white">Kontakt</Link></li>
           </ul>
         </div>
         

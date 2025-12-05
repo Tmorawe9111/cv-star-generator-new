@@ -20,13 +20,20 @@ interface CVData {
   sprachen?: Array<{ sprache: string; niveau: string }>;
 }
 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { cvData }: { cvData: CVData } = await req.json();
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { cvData }: { cvData: CVData & { id?: string } } = await req.json();
 
     // Generate Berufswunsch based on branche and status
     const getBerufswunsch = (branche?: string, status?: string) => {
@@ -101,6 +108,55 @@ serve(async (req) => {
       return `${latestJob.titel} bei ${latestJob.unternehmen}`;
     };
 
+    // Load user values and interview answers for context
+    let valuesContext = '';
+    let interviewContext = '';
+    
+    try {
+      const { data: valuesData } = await supabase
+        .from('user_values')
+        .select('*')
+        .eq('user_id', cvData.id)
+        .single();
+      
+      if (valuesData) {
+        const valuesText = [
+          valuesData.q1_team,
+          valuesData.q2_conflict,
+          valuesData.q3_reliable,
+          valuesData.q4_motivation,
+          valuesData.q5_stress,
+          valuesData.q6_environment,
+          valuesData.q7_respect,
+          valuesData.q8_expectations,
+        ]
+          .filter(v => v && v.trim())
+          .join(' ');
+        
+        if (valuesText) {
+          valuesContext = `\n\nWERTE & ARBEITSWEISE (für Kontext, nicht direkt zitieren):\n${valuesText}`;
+        }
+      }
+
+      const { data: interviewData } = await supabase
+        .from('user_interview_answers')
+        .select('answer, interview_questions!inner(question)')
+        .eq('user_id', cvData.id);
+      
+      if (interviewData && interviewData.length > 0) {
+        const interviewText = interviewData
+          .map((item: any) => `${item.interview_questions.question}: ${item.answer}`)
+          .join('\n');
+        
+        if (interviewText) {
+          interviewContext = `\n\nINTERVIEW-ANTWORTEN (für Kontext, nicht direkt zitieren):\n${interviewText}`;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading values/interview:', error);
+      // Continue without values/interview context
+    }
+
     const prompt = `Du bist ein Karriereberater für junge Menschen in Deutschland. Erstelle eine präzise, kurze "Über mich" Zusammenfassung für einen Lebenslauf.
 
 PERSON:
@@ -117,7 +173,7 @@ TOP 3 FÄHIGKEITEN:
 ${(cvData.faehigkeiten || []).slice(0, 3).join(', ') || 'keine Angaben'}
 
 SPRACHEN:
-${sprachenSummary || 'keine Angaben'}
+${sprachenSummary || 'keine Angaben'}${valuesContext}${interviewContext}
 
 ANFORDERUNGEN:
 1. Maximal 250 Zeichen
@@ -128,6 +184,7 @@ ANFORDERUNGEN:
 6. Keine generischen Phrasen
 7. Professionell aber authentisch
 8. Sehr präzise und auf den Punkt
+9. Nutze die Werte & Interview-Antworten als Inspiration für authentische Formulierungen, aber zitiere sie nicht direkt
 
 WICHTIG: Halte dich strikt an das 250 Zeichen Limit!
 

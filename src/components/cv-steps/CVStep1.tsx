@@ -22,36 +22,39 @@ const CVStep1 = () => {
   ] as const;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-2 md:space-y-4">
       <div>
-        <h2 className="text-xl font-semibold mb-2">Wähle deine Branche</h2>
-        <p className="text-muted-foreground mb-2">
+        <h2 className="text-sm md:text-lg font-semibold mb-0.5 md:mb-1">Wähle deine Branche</h2>
+        <p className="text-[10px] md:text-sm text-muted-foreground mb-1.5 md:mb-2">
           In welchem Bereich möchtest du arbeiten?
         </p>
         {validationErrors.branche && (
-          <p className="text-sm text-destructive font-medium mb-4">
+          <p className="text-[9px] md:text-xs text-destructive font-medium mb-1.5">
             {validationErrors.branche}
           </p>
         )}
         
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-1 md:gap-2">
           {branches.map((branch) => (
             <Card 
               key={branch.key}
-              className={`p-4 md:p-5 cursor-pointer transition-all hover:shadow-md min-w-0 overflow-hidden ${
+              className={`p-1.5 md:p-3 cursor-pointer transition-all hover:shadow-md min-w-0 overflow-hidden ${
                 formData.branche === branch.key 
-                  ? 'ring-2 ring-primary bg-primary/5' 
+                  ? 'ring-2 ring-blue-600 bg-blue-50 border-blue-600 shadow-sm' 
                   : validationErrors.branche 
                     ? 'border-destructive ring-1 ring-destructive/20 hover:bg-accent/50'
-                    : 'hover:bg-accent/50'
+                    : 'hover:bg-accent/50 border-gray-200'
               }`}
               onClick={() => updateFormData({ branche: branch.key })}
             >
               <div className="text-center min-w-0 w-full">
-                <div className="text-2xl md:text-3xl mb-2">{branch.emoji}</div>
-                <h3 className="text-xs md:text-sm font-semibold mb-1.5 px-1 break-words hyphens-auto">{branch.title}</h3>
-                <p className="text-[10px] md:text-xs text-muted-foreground leading-snug px-1 break-words">{branch.desc}</p>
+                <div className="text-lg md:text-2xl mb-0.5 md:mb-1">{branch.emoji}</div>
+                <h3 className={`text-[9px] md:text-xs font-semibold mb-0.5 px-0.5 md:px-1 break-words hyphens-auto leading-tight ${
+                  formData.branche === branch.key ? 'text-blue-700' : ''
+                }`}>{branch.title}</h3>
+                <p className={`text-[8px] md:text-[10px] leading-tight px-0.5 md:px-1 break-words line-clamp-2 ${
+                  formData.branche === branch.key ? 'text-blue-600' : 'text-muted-foreground'
+                }`}>{branch.desc}</p>
               </div>
             </Card>
           ))}
@@ -59,34 +62,37 @@ const CVStep1 = () => {
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-2">Deine aktuelle Situation</h2>
-        <p className="text-muted-foreground mb-2">
+        <h2 className="text-sm md:text-lg font-semibold mb-0.5 md:mb-1">Deine aktuelle Situation</h2>
+        <p className="text-[10px] md:text-sm text-muted-foreground mb-1.5 md:mb-2">
           Was beschreibt dich am besten?
         </p>
         {validationErrors.status && (
-          <p className="text-sm text-destructive font-medium mb-4">
+          <p className="text-[9px] md:text-xs text-destructive font-medium mb-1.5">
             {validationErrors.status}
           </p>
         )}
         
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-3 gap-1 md:gap-2">
           {statuses.map((status) => (
             <Card 
               key={status.key}
-              className={`p-4 md:p-5 cursor-pointer transition-all hover:shadow-md min-w-0 overflow-hidden ${
+              className={`p-1.5 md:p-3 cursor-pointer transition-all hover:shadow-md min-w-0 overflow-hidden ${
                 formData.status === status.key 
-                  ? 'ring-2 ring-primary bg-primary/5' 
+                  ? 'ring-2 ring-blue-600 bg-blue-50 border-blue-600 shadow-sm' 
                   : validationErrors.status 
                     ? 'border-destructive ring-1 ring-destructive/20 hover:bg-accent/50'
-                    : 'hover:bg-accent/50'
+                    : 'hover:bg-accent/50 border-gray-200'
               }`}
               onClick={() => updateFormData({ status: status.key })}
             >
               <div className="text-center min-w-0 w-full">
-                <div className="text-2xl md:text-3xl mb-2">{status.emoji}</div>
-                <h3 className="text-xs md:text-sm font-semibold mb-1.5 px-1 break-words hyphens-auto">{status.title}</h3>
-                <p className="text-[10px] md:text-xs text-muted-foreground leading-snug px-1 break-words">{status.desc}</p>
+                <div className="text-lg md:text-2xl mb-0.5 md:mb-1">{status.emoji}</div>
+                <h3 className={`text-[9px] md:text-xs font-semibold mb-0.5 px-0.5 md:px-1 break-words hyphens-auto leading-tight ${
+                  formData.status === status.key ? 'text-blue-700' : ''
+                }`}>{status.title}</h3>
+                <p className={`text-[8px] md:text-[10px] leading-tight px-0.5 md:px-1 break-words ${
+                  formData.status === status.key ? 'text-blue-600' : 'text-muted-foreground'
+                }`}>{status.desc}</p>
               </div>
             </Card>
           ))}
@@ -94,8 +100,8 @@ const CVStep1 = () => {
       </div>
 
       {formData.branche && formData.status && (
-        <div className="p-4 bg-primary/5 rounded-lg border">
-          <p className="text-sm text-foreground">
+        <div className="p-1.5 md:p-2.5 bg-primary/5 rounded-lg border">
+          <p className="text-[9px] md:text-xs text-foreground leading-tight">
             ✅ Perfekt! Du hast <strong>{branches.find(b => b.key === formData.branche)?.title}</strong> und 
             <strong> {statuses.find(s => s.key === formData.status)?.title}</strong> gewählt.
           </p>

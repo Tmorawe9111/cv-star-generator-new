@@ -14,6 +14,7 @@ import { CheckCircle, XCircle, Clock, Building2, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
+import { formatSupportCode } from "@/lib/support-code";
 
 type PendingCompany = {
   id: string;
@@ -25,6 +26,8 @@ type PendingCompany = {
   website_url: string | null;
   contact_person: string | null;
   employee_count: number | null;
+  support_code: string | null;
+  support_code_verified_at: string | null;
 };
 
 const REJECTION_REASONS = [
@@ -50,7 +53,7 @@ export default function PendingVerifications() {
       console.log("Fetching pending companies...");
       const { data, error } = await supabase
         .from("companies")
-        .select("id, name, primary_email, created_at, industry, location, website_url, contact_person, employee_count")
+        .select("id, name, primary_email, created_at, industry, location, website_url, contact_person, employee_count, support_code, support_code_verified_at")
         .eq("account_status", "pending")
         .order("created_at", { ascending: false });
 
@@ -73,23 +76,56 @@ export default function PendingVerifications() {
         throw new Error("Nicht authentifiziert");
       }
 
-      const { data, error } = await supabase
-        .from("companies")
-        .update({ account_status: "active" })
-        .eq("id", companyId)
-        .select();
+      // Use RPC function to verify support code (which also sets account_status to active)
+      const { data: verifyResult, error: verifyError } = await supabase
+        .rpc('verify_support_code', {
+          p_company_id: companyId,
+          p_admin_user_id: user.id
+        });
 
-      if (error) {
-        console.error("Error verifying company:", error);
-        throw new Error(`Fehler: ${error.message}`);
+      if (verifyError) {
+        console.error("Error verifying company:", verifyError);
+        throw new Error(`Fehler: ${verifyError.message}`);
       }
-      
-      if (!data || data.length === 0) {
-        throw new Error("Unternehmen konnte nicht aktualisiert werden");
+
+      // If RPC returns false, company might not have a support code
+      if (verifyResult === false) {
+        // Fallback: update directly if RPC fails
+        const { data, error } = await supabase
+          .from("companies")
+          .update({ 
+            account_status: "active",
+            support_code_verified_at: new Date().toISOString(),
+            support_code_verified_by: user.id
+          })
+          .eq("id", companyId)
+          .select();
+
+        if (error) {
+          console.error("Error verifying company:", error);
+          throw new Error(`Fehler: ${error.message}`);
+        }
+        
+        if (!data || data.length === 0) {
+          throw new Error("Unternehmen konnte nicht aktualisiert werden");
+        }
+        
+        console.log("Company verified successfully:", data);
+        return data;
       }
-      
-      console.log("Company verified successfully:", data);
-      return data;
+
+      // Fetch updated company data
+      const { data: updatedCompany, error: fetchError } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", companyId)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Fehler beim Abrufen: ${fetchError.message}`);
+      }
+
+      return [updatedCompany];
     },
     onSuccess: (data) => {
       console.log("Verification successful, invalidating queries");
@@ -233,6 +269,7 @@ export default function PendingVerifications() {
                 <TableRow>
                   <TableHead>Unternehmen</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Support-Code</TableHead>
                   <TableHead>Branche</TableHead>
                   <TableHead>Standort</TableHead>
                   <TableHead>Angemeldet</TableHead>
@@ -264,6 +301,22 @@ export default function PendingVerifications() {
                     </TableCell>
                     <TableCell className="font-mono text-sm">
                       {company.primary_email}
+                    </TableCell>
+                    <TableCell>
+                      {company.support_code ? (
+                        <div className="flex flex-col gap-1">
+                          <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                            {formatSupportCode(company.support_code)}
+                          </code>
+                          {company.support_code_verified_at && (
+                            <span className="text-xs text-green-600">
+                              ✓ Verifiziert
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {company.industry ? (

@@ -99,22 +99,29 @@ export function useEntryGates() {
   }, [user?.id, profile?.first_dashboard_seen, profile?.onboarding_completed, profile?.first_profile_saved, profile?.visibility_mode, profile?.visibility_prompt_shown, loginCount]);
 
   const onNavigate = useCallback(async () => {
-    if (!user) return;
+    if (!user || !profile) return;
 
     setState(prev => ({ ...prev, loading: true }));
 
     try {
-      // First check address confirmation (blocking)
-      const needsAddress = await checkAddressConfirmation();
-      
-      if (!needsAddress) {
-        // Then check visibility prompt
-        await checkVisibilityPrompt();
+      // Auto-confirm address if it exists in profile but not confirmed yet
+      if (profile.plz && profile.ort && !profile.address_confirmed) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ address_confirmed: true })
+            .eq('id', user.id);
+        } catch (error) {
+          console.error('Error auto-confirming address:', error);
+        }
       }
+
+      // Check visibility prompt directly
+      await checkVisibilityPrompt();
     } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
-  }, [user?.id, checkAddressConfirmation, checkVisibilityPrompt]);
+  }, [user?.id, profile?.plz, profile?.ort, profile?.address_confirmed, checkVisibilityPrompt]);
 
   const saveAddress = useCallback(async (addressData: AddressData) => {
     if (!user) throw new Error('No user');

@@ -107,7 +107,7 @@ export function WelcomePopup({ type = 'user', companyId }: WelcomePopupProps) {
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
+      className="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
       onClick={() => setShowWelcome(false)}
     >
       <div 

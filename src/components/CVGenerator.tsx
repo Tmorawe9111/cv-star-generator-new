@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useCVForm } from '@/contexts/CVFormContext';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,8 @@ const CVGeneratorContent = () => {
   } = useCVForm();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const startTimeRef = useRef<number>(Date.now());
   const stepNames: Record<number, string> = {
     0: 'Willkommen',
@@ -84,7 +86,7 @@ const CVGeneratorContent = () => {
       case 5:
         return <CVStep5 />;
       case 6:
-        return <CVStep6 />;
+        return <CVStep6 />; // Final Review (optional, can be skipped)
       case 7:
         return <CVStep7 />;
       default:
@@ -111,15 +113,19 @@ const CVGeneratorContent = () => {
           validated: true,
         });
         
-        // If moving to final step, track completion
-        if (currentStep === 6) {
+        // Step 5 -> Skip Step 6 (optional review) and go directly to Step 7 (final)
+        if (currentStep === 5) {
+          setCurrentStep(7);
+        } else if (currentStep === 6) {
+          // If moving to final step from Step 6, track completion
           const timeToComplete = Math.round((Date.now() - startTimeRef.current) / 1000);
           trackCVCompletion('classic', 7, timeToComplete, {
             isLayoutEditMode: false,
           });
+          setCurrentStep(7);
+        } else {
+          setCurrentStep(currentStep + 1);
         }
-        
-        setCurrentStep(currentStep + 1);
       } else {
         // Track validation error
         const stepName = stepNames[currentStep] || `Step ${currentStep}`;
@@ -158,74 +164,80 @@ const CVGeneratorContent = () => {
       navigate('/');
     }
   };
-  return <div className="min-h-screen bg-background overflow-x-hidden" data-cv-preview>
-      <div className="container mx-auto px-4 py-4 md:py-8 pb-24 md:pb-8 pt-safe max-w-full md:max-w-2xl">
-        {/* Header */}
-        <div className="sticky top-0 z-30 mb-6 md:mb-8 bg-background/80 supports-[backdrop-filter]:bg-background/60 backdrop-blur border-b">
-          <Button variant="ghost" onClick={handleBackToHome} className="mb-4 text-sm md:text-base min-h-[44px]" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Zu meinem Profil</span>
-            <span className="sm:hidden">Zurück</span>
+  return <div className="h-screen bg-background overflow-hidden flex flex-col" data-cv-preview>
+      <div className="flex-1 flex flex-col overflow-hidden container mx-auto px-2 md:px-4 max-w-full md:max-w-2xl w-full">
+        {/* Header - Ultra compact on mobile */}
+        <div className="flex-shrink-0 z-30 bg-background border-b py-1.5 md:py-3">
+          <Button variant="ghost" onClick={handleBackToHome} className="mb-1 md:mb-2 text-[10px] md:text-sm min-h-[28px] md:min-h-[36px] h-auto py-0.5 px-1.5 md:px-2" size="sm">
+            <ArrowLeft className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+            <span className="hidden sm:inline text-xs md:text-sm">Zurück</span>
+            <span className="sm:hidden text-[10px]">←</span>
           </Button>
           
-          {/* Quick Navigation für eingeloggte User */}
-          
-          
-          <div className="space-y-3 md:space-y-4">
-            <h1 className="text-2xl md:text-2xl font-bold text-foreground">
+          <div className="space-y-1 md:space-y-2">
+            <h1 className="text-sm md:text-xl font-bold text-foreground leading-tight">
               {isLayoutEditMode ? 'CV-Layout bearbeiten' : 'CV-Generator'}
             </h1>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs md:text-sm text-muted-foreground">
+            <div className="space-y-0.5 md:space-y-1">
+              <div className="flex justify-between text-[9px] md:text-xs text-muted-foreground">
                 {isLayoutEditMode ? <>
                     <span>Schritt {currentStep - 4} von 2</span>
-                    <span>{Math.round((currentStep - 4) / 2 * 100)}% abgeschlossen</span>
+                    <span>{Math.round((currentStep - 4) / 2 * 100)}%</span>
                   </> : currentStep === 0 ? <>
                     <span>Willkommen</span>
-                    <span>Wähle deine Option</span>
+                    <span>Wähle Option</span>
                   </> : <>
                     <span>Schritt {currentStep} von 7</span>
-                    <span>{Math.round(currentStep / 7 * 100)}% abgeschlossen</span>
+                    <span>{Math.round(currentStep / 7 * 100)}%</span>
                   </>}
               </div>
-              {currentStep > 0 && <Progress value={isLayoutEditMode ? (currentStep - 4) / 2 * 100 : currentStep / 7 * 100} className="h-2" />}
+              {currentStep > 0 && <Progress value={isLayoutEditMode ? (currentStep - 4) / 2 * 100 : currentStep / 7 * 100} className="h-0.5 md:h-1" />}
             </div>
           </div>
         </div>
 
-        {/* Step Content */}
-        <div className="mb-6 md:mb-8 break-words">
-          {renderStep()}
+        {/* Step Content - Scrollable except Step 5, 6, and 7 */}
+        <div className={`flex-1 min-h-0 flex flex-col ${currentStep === 5 || currentStep === 6 || currentStep === 7 ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+          <div className={`flex-1 ${currentStep === 5 || currentStep === 6 || currentStep === 7 ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+            <div className={`min-h-full ${currentStep === 5 || currentStep === 6 || currentStep === 7 ? 'overflow-hidden h-full p-0' : 'overflow-y-auto'}`}>
+              <div className={`${currentStep === 5 || currentStep === 6 || currentStep === 7 ? 'h-full p-0' : 'py-1 md:py-2'} break-words`}>
+                {renderStep()}
+              </div>
+
+              {/* Validation Errors */}
+              {Object.keys(validationErrors).length > 0 && (
+                <div className="mb-2 md:mb-3 p-2 md:p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <h3 className="text-[10px] md:text-sm font-medium text-destructive mb-1">
+                    Bitte füllen Sie alle Pflichtfelder aus:
+                  </h3>
+                  <ul className="text-[9px] md:text-xs text-destructive space-y-0.5">
+                    {Object.values(validationErrors).map((error, index) => <li key={index}>• {error}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Validation Errors */}
-        {Object.keys(validationErrors).length > 0 && <div className="mb-6 md:mb-8 p-3 md:p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-            <h3 className="text-sm font-medium text-destructive mb-2">
-              Bitte füllen Sie alle Pflichtfelder aus:
-            </h3>
-            <ul className="text-xs md:text-sm text-destructive space-y-1">
-              {Object.values(validationErrors).map((error, index) => <li key={index}>• {error}</li>)}
-            </ul>
-          </div>}
-
-        {/* Navigation */}
-        {/* Navigation - Hide on Step 0 */}
-        {currentStep > 0 && (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur px-4 py-3 pb-safe md:static md:bg-transparent md:border-0 md:px-0 md:py-0">
-            <div className="container mx-auto max-w-full md:max-w-2xl flex justify-between gap-2">
-              <Button variant="outline" onClick={handlePrevious} disabled={isLayoutEditMode ? currentStep === 5 : currentStep === 1} size="sm" className="flex-shrink-0 min-h-[44px]">
-                <ArrowLeft className="h-4 w-4 mr-1 md:mr-2" />
+        {/* Navigation - Fixed at bottom, compact on mobile - Hidden for Step 7 */}
+        {currentStep > 0 && currentStep !== 7 && (
+          <div className="flex-shrink-0 border-t bg-background px-2 md:px-4 py-2 md:py-3">
+            <div className="flex justify-between gap-1.5 md:gap-2">
+              <Button variant="outline" onClick={handlePrevious} disabled={isLayoutEditMode ? currentStep === 5 : currentStep === 1} size="sm" className="flex-shrink-0 h-9 md:h-11 text-[10px] md:text-sm px-2 md:px-4">
+                <ArrowLeft className="h-3 w-3 md:h-4 md:w-4 mr-1" />
                 <span className="hidden sm:inline">Zurück</span>
-                <span className="sm:hidden">←</span>
+                <span className="sm:hidden text-[10px]">←</span>
               </Button>
 
-              {(isLayoutEditMode ? currentStep < 6 : currentStep < 7) && <Button onClick={handleNext} size="sm" className="flex-shrink-0 min-h-[44px]">
+              {(isLayoutEditMode ? currentStep < 6 : currentStep < 7) && (
+                <Button onClick={handleNext} size="sm" className="flex-shrink-0 h-9 md:h-11 text-[10px] md:text-sm px-2 md:px-4">
                   <span className="hidden sm:inline">
-                    {currentStep === 5 ? 'Weiter zur Vorschau' : 'Weiter'}
+                    {currentStep === 5 ? 'Weiter zum Download' : currentStep === 6 ? 'Weiter zum Download' : 'Weiter'}
                   </span>
-                  <span className="sm:hidden">→</span>
-                  <ArrowRight className="h-4 w-4 ml-1 md:ml-2" />
-                </Button>}
+                  <span className="sm:hidden text-[10px]">→</span>
+                  <ArrowRight className="h-3 w-3 md:h-4 md:w-4 ml-1" />
+                </Button>
+              )}
             </div>
           </div>
         )}

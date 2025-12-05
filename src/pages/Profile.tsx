@@ -23,6 +23,7 @@ import { SkillsLanguagesSidebar } from '@/components/linkedin/SkillsLanguagesSid
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { InView } from '@/components/util/InView';
+import { checkProfileUniqueness } from '@/lib/profile-validation';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -42,6 +43,34 @@ const Profile = () => {
   // All hooks must be called before any conditional returns
   const handleProfileUpdateImmediate = useCallback(async (updates: any) => {
     if (!profile?.id) return;
+    
+    // Check uniqueness if email or telefon is being updated
+    if (updates.email || updates.telefon) {
+      const { emailExists, phoneExists } = await checkProfileUniqueness(
+        updates.email || profile.email,
+        updates.telefon || profile.telefon,
+        profile.id
+      );
+      
+      if (emailExists && updates.email) {
+        toast({
+          title: "E-Mail bereits vergeben",
+          description: "Diese E-Mail-Adresse wird bereits von einem anderen Benutzer verwendet.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (phoneExists && updates.telefon) {
+        toast({
+          title: "Telefonnummer bereits vergeben",
+          description: "Diese Telefonnummer wird bereits von einem anderen Benutzer verwendet.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     setIsSaving(true);
     try {
       const { error } = await supabase
@@ -74,7 +103,7 @@ const Profile = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [profile?.id]);
+  }, [profile?.id, profile?.email, profile?.telefon]);
 
   // Simple profile update without debouncing for form submissions
   const handleProfileUpdate = handleProfileUpdateImmediate;
@@ -90,6 +119,34 @@ const Profile = () => {
   }, [handleProfileUpdateImmediate]);
   const handleSave = async () => {
     if (!profile?.id) return;
+    
+    // Check uniqueness if email or telefon is being updated
+    if (profile.email || profile.telefon) {
+      const { emailExists, phoneExists } = await checkProfileUniqueness(
+        profile.email,
+        profile.telefon,
+        profile.id
+      );
+      
+      if (emailExists) {
+        toast({
+          title: "E-Mail bereits vergeben",
+          description: "Diese E-Mail-Adresse wird bereits von einem anderen Benutzer verwendet.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (phoneExists) {
+        toast({
+          title: "Telefonnummer bereits vergeben",
+          description: "Diese Telefonnummer wird bereits von einem anderen Benutzer verwendet.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     setIsSaving(true);
     try {
       // Resolve canonical location_id from PLZ + Ort
@@ -110,7 +167,8 @@ const Profile = () => {
       const { error } = await supabase.from('profiles').update({
         vorname: profile.vorname,
         nachname: profile.nachname,
-        telefon: profile.telefon,
+        email: profile.email ? profile.email.trim().toLowerCase() : profile.email,
+        telefon: profile.telefon ? profile.telefon.trim() : profile.telefon,
         strasse: profile.strasse,
         hausnummer: profile.hausnummer,
         plz: profile.plz,

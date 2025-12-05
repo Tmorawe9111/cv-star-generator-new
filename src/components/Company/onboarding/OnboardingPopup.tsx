@@ -12,7 +12,7 @@ interface OnboardingPopupProps {
 
 export function OnboardingPopup({ children, onSkip, showSkip = true, stepNumber, totalSteps }: OnboardingPopupProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md">
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-md">
       <div className="w-full max-w-2xl mx-6 bg-card border border-border/60 rounded-3xl shadow-soft-xl relative">
         {showSkip && onSkip && (
           <div className="absolute top-4 right-4 flex items-center gap-2">

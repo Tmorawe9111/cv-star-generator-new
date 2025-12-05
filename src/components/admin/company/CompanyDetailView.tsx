@@ -1,6 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompanyOverview } from "./CompanyOverview";
 import { AdminPlanManager } from "./AdminPlanManager";
+import { AdminPlanHistory } from "./AdminPlanHistory";
+import { AdminLocationManager } from "./AdminLocationManager";
 import { AdminTokenManager } from "./AdminTokenManager";
 import { SeatManager } from "./SeatManager";
 import { CompanyActivityLog } from "./CompanyActivityLog";
@@ -15,9 +17,11 @@ interface CompanyDetailViewProps {
 export function CompanyDetailView({ companyId }: CompanyDetailViewProps) {
   return (
     <Tabs defaultValue="overview" className="w-full">
-      <TabsList className="grid w-full grid-cols-8">
+      <TabsList className="grid w-full grid-cols-10">
         <TabsTrigger value="overview">Übersicht</TabsTrigger>
         <TabsTrigger value="plan">Plan</TabsTrigger>
+        <TabsTrigger value="plan-history">Plan-Historie</TabsTrigger>
+        <TabsTrigger value="locations">Standorte</TabsTrigger>
         <TabsTrigger value="tokens">Tokens</TabsTrigger>
         <TabsTrigger value="team">Team</TabsTrigger>
         <TabsTrigger value="unlocks">Freischaltungen</TabsTrigger>
@@ -32,6 +36,14 @@ export function CompanyDetailView({ companyId }: CompanyDetailViewProps) {
 
       <TabsContent value="plan" className="space-y-4 mt-6">
         <AdminPlanManager companyId={companyId} />
+      </TabsContent>
+
+      <TabsContent value="plan-history" className="space-y-4 mt-6">
+        <AdminPlanHistory companyId={companyId} />
+      </TabsContent>
+
+      <TabsContent value="locations" className="space-y-4 mt-6">
+        <AdminLocationManager companyId={companyId} />
       </TabsContent>
 
       <TabsContent value="tokens" className="space-y-4 mt-6">

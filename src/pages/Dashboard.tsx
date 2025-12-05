@@ -5,6 +5,7 @@ import FeedSortBar from '@/components/community/FeedSortBar';
 import { LeftPanel } from '@/components/dashboard/LeftPanel';
 import { RightPanel } from '@/components/dashboard/RightPanel';
 import { WelcomePopup } from '@/components/welcome/WelcomePopup';
+import { ValuesReminderBanner } from '@/components/reminders/ValuesReminderBanner';
 
 const Dashboard = () => {
 
@@ -17,6 +18,10 @@ const Dashboard = () => {
       {/* Inhalt direkt unter der Navbar - kompensiere BaseLayout Padding auf Mobile */}
       <div className="-mx-3 sm:-mx-4 md:mx-auto">
         <div className="mx-auto max-w-screen-2xl grid grid-cols-12 gap-0 md:gap-3 lg:gap-6 px-0 md:px-3 lg:px-6">
+          {/* Reminder Banner - Full Width */}
+          <div className="col-span-12 px-3 md:px-6 pt-4">
+            <ValuesReminderBanner />
+          </div>
           
           {/* (1) Left Panel - sticky */}
           <aside

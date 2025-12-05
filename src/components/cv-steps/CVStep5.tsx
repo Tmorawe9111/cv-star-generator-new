@@ -1,137 +1,89 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCVForm } from '@/contexts/CVFormContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+
+// A4 layout variants - 9 City Layouts
+import BerlinLayout from '@/components/cv-layouts/BerlinLayout';
+import MuenchenLayout from '@/components/cv-layouts/MuenchenLayout';
+import HamburgLayout from '@/components/cv-layouts/HamburgLayout';
+import KoelnLayout from '@/components/cv-layouts/KoelnLayout';
+import FrankfurtLayout from '@/components/cv-layouts/FrankfurtLayout';
+import DuesseldorfLayout from '@/components/cv-layouts/DuesseldorfLayout';
+import StuttgartLayout from '@/components/cv-layouts/StuttgartLayout';
+import DresdenLayout from '@/components/cv-layouts/DresdenLayout';
+import LeipzigLayout from '@/components/cv-layouts/LeipzigLayout';
+import { mapFormDataToCVData } from '@/components/cv-layouts/mapFormDataToCVData';
 
 const CVStep5 = () => {
   const { formData, updateFormData } = useCVForm();
-  const { toast } = useToast();
-  const [generatingAboutMe, setGeneratingAboutMe] = useState(false);
-
-  // Check if user can generate (has skills and languages)
-  const canGenerateAboutMe = () => {
-    return (formData.faehigkeiten?.length || 0) > 0 && (formData.sprachen?.length || 0) > 0;
-  };
-
-  // Generate "About Me" text using AI
-  const generateAboutMeWithAI = async () => {
-    if (!canGenerateAboutMe()) {
-      toast({
-        title: "Fehler",
-        description: "Bitte wähle zuerst mindestens eine Fähigkeit und eine Sprache aus (Step 3).",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setGeneratingAboutMe(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-generate-about-me', {
-        body: { 
-          branche: formData.branche,
-          status: formData.status,
-          faehigkeiten: formData.faehigkeiten || [],
-          schulbildung: formData.schulbildung || [],
-          berufserfahrung: formData.berufserfahrung || [],
-          motivation: formData.motivation,
-          kenntnisse: formData.kenntnisse,
-          geburtsdatum: formData.geburtsdatum
-        }
-      });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw error;
-      }
-
-      if (data.success && data.aboutMe) {
-        updateFormData({ ueberMich: data.aboutMe });
-        
-        toast({
-          title: "Erfolgreich generiert!",
-          description: "Dein persönlicher Text wurde erstellt. Du kannst ihn jederzeit bearbeiten."
-        });
-      } else {
-        throw new Error(data.error || 'Keine Antwort von der KI erhalten');
-      }
-    } catch (error: any) {
-      console.error('Error generating about me:', error);
-      toast({
-        title: "Fehler",
-        description: error.message || "Der Text konnte nicht generiert werden. Bitte versuche es erneut.",
-        variant: "destructive"
-      });
-    } finally {
-      setGeneratingAboutMe(false);
-    }
-  };
+  const isMobile = useIsMobile();
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.5);
 
   const layouts = [
     {
       id: 1,
       name: 'Berlin',
-      description: 'Elegantes Sidebar-Layout mit beige Tönen – Perfekt für kreative Berufe',
+      description: 'Elegant, beige Sidebar',
       preview: '🎨',
       color: 'bg-amber-50 border-amber-300'
     },
     {
       id: 2,
       name: 'München',
-      description: 'Modernes Layout mit blauer Sidebar – Ideal für IT & Technik',
+      description: 'Modern, blaue Sidebar',
       preview: '💼',
       color: 'bg-blue-50 border-blue-300'
     },
     {
       id: 3,
       name: 'Hamburg',
-      description: 'Klassisches Timeline-Layout – Übersichtlich für alle Branchen',
+      description: 'Klassisch, Timeline',
       preview: '📅',
       color: 'bg-gray-50 border-gray-300'
     },
     {
       id: 4,
       name: 'Köln',
-      description: 'Modernes Urban-Layout mit dunkler Sidebar – Professionell für alle Branchen',
+      description: 'Urban, dunkle Sidebar',
       preview: '🏙️',
       color: 'bg-slate-50 border-slate-300'
     },
     {
       id: 5,
       name: 'Frankfurt',
-      description: 'Business-Layout mit hellem Design – Ideal für Verwaltung & Management',
+      description: 'Business, helles Design',
       preview: '📊',
       color: 'bg-stone-50 border-stone-300'
     },
     {
       id: 6,
       name: 'Düsseldorf',
-      description: 'Harvard Style ohne Foto – Akademisch für Finance & Consulting',
+      description: 'Harvard Style, ohne Foto',
       preview: '🎓',
       color: 'bg-neutral-50 border-neutral-300'
     },
     {
       id: 7,
       name: 'Stuttgart',
-      description: 'Warmes Orange-Beige Design mit Unterschrift – Ideal für Handwerk & Kreative',
+      description: 'Orange-Beige, mit Unterschrift',
       preview: '🎨',
       color: 'bg-orange-50 border-orange-300'
     },
     {
       id: 8,
       name: 'Dresden',
-      description: 'Elegantes Dunkelblau mit Icons – Professionell für alle Branchen',
+      description: 'Elegant, dunkelblau',
       preview: '💎',
       color: 'bg-blue-50 border-blue-300'
     },
     {
       id: 9,
       name: 'Leipzig',
-      description: 'Minimalistisches Schwarz-Weiß Timeline-Design – Modern für IT & Business',
+      description: 'Minimalistisch, Schwarz-Weiß',
       preview: '⚡',
       color: 'bg-slate-50 border-slate-300'
     }
@@ -152,144 +104,169 @@ const CVStep5 = () => {
 
   const recommendedLayoutId = getRecommendedLayout();
 
-  const handleLayoutClick = (layoutId: number, layoutName: string) => {
-    console.log('🟢 CVStep5 - Layout clicked:', layoutId, layoutName);
-    console.log('🟢 CVStep5 - Before update, formData.layout:', formData.layout);
-    
-    updateFormData({ layout: layoutId });
-    
-    console.log('🟢 CVStep5 - After update called');
-    
-    // Check localStorage after a short delay
-    setTimeout(() => {
-      const savedData = localStorage.getItem('cvFormData');
-      if (savedData) {
-        const parsed = JSON.parse(savedData);
-        console.log('🟢 CVStep5 - localStorage after update:', parsed.layout);
-      }
-    }, 100);
+  // Calculate optimal scale for CV preview - maximize size, fit exactly without scrolling
+  useEffect(() => {
+    const calculateScale = () => {
+      if (!previewContainerRef.current) return;
+      
+      const container = previewContainerRef.current;
+      const containerHeight = container.clientHeight;
+      const containerWidth = container.clientWidth;
+      
+      // A4 dimensions: 210mm x 297mm
+      // At 96 DPI: ~794px x 1123px
+      const a4Width = 794;
+      const a4Height = 1123;
+      
+      // Calculate scale to fit both width and height exactly
+      const scaleX = containerWidth / a4Width;
+      const scaleY = containerHeight / a4Height;
+      
+      // Use the smaller scale to ensure everything fits without scrolling
+      const optimalScale = Math.min(scaleX, scaleY);
+      
+      setScale(Math.max(0.1, Math.min(optimalScale, 1))); // Clamp between 0.1 and 1
+    };
+
+    calculateScale();
+    const resizeObserver = new ResizeObserver(calculateScale);
+    if (previewContainerRef.current) {
+      resizeObserver.observe(previewContainerRef.current);
+    }
+    window.addEventListener('resize', calculateScale);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', calculateScale);
+    };
+  }, [formData.layout]); // Recalculate when layout changes
+
+  const handleLayoutChange = (layoutId: string) => {
+    updateFormData({ layout: parseInt(layoutId) });
+  };
+
+  const renderLayoutComponent = () => {
+    const data = mapFormDataToCVData(formData);
+    const selected = formData.layout ?? 1;
+
+    const LayoutComponent =
+      selected === 2 ? MuenchenLayout :
+      selected === 3 ? HamburgLayout :
+      selected === 4 ? KoelnLayout :
+      selected === 5 ? FrankfurtLayout :
+      selected === 6 ? DuesseldorfLayout :
+      selected === 7 ? StuttgartLayout :
+      selected === 8 ? DresdenLayout :
+      selected === 9 ? LeipzigLayout :
+      BerlinLayout;
+
+    return (
+      <article
+        data-cv-preview
+        data-variant="a4"
+        className={cn(
+          'cv-a4-page bg-white text-foreground',
+          'w-[210mm] h-[297mm]'
+        )}
+        style={{
+          width: '210mm',
+          height: '297mm',
+          margin: 0,
+          padding: 0,
+          boxShadow: 'none',
+        }}
+        aria-label="Lebenslauf Vorschau – A4"
+      >
+        <LayoutComponent data={data} />
+      </article>
+    );
   };
 
   return (
-    <div className="space-y-6">
-      {/* Motivation & Persönlichkeit */}
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-lg">💬 Motivation & Persönlichkeit</h3>
-            <Button
-              onClick={generateAboutMeWithAI}
-              disabled={generatingAboutMe || !canGenerateAboutMe()}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              {generatingAboutMe ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generiere...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Mit KI generieren
-                </>
-              )}
-            </Button>
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Ultra Compact Header with Layout Selector */}
+      <div className="flex-shrink-0 border-b bg-background/95 backdrop-blur-sm">
+        <div className={cn(
+          "flex items-center justify-between gap-2 py-1.5 px-2",
+          isMobile ? "flex-col gap-1.5" : "flex-row"
+        )}>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xs md:text-sm font-semibold truncate">CV-Vorschau</h2>
           </div>
-          {!canGenerateAboutMe() && (
-            <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded">
-              ⚠️ Bitte wähle zuerst mindestens eine Fähigkeit und eine Sprache aus (Step 3), um den Text generieren zu können.
-            </p>
-          )}
-          <p className="text-sm text-muted-foreground">
-            Beschreibe dich selbst, deine Motivation und deine Persönlichkeit. Du kannst den Text selbst schreiben oder mit KI generieren lassen.
-          </p>
-          <Textarea
-            value={formData.ueberMich || ''}
-            onChange={(e) => updateFormData({ ueberMich: e.target.value })}
-            placeholder="Ich bin... Besonders interessiere ich mich für... Meine Stärken sind..."
-            rows={6}
-            className="resize-none"
-          />
-          <p className="text-xs text-muted-foreground">
-            💡 Tipp: Dieser Text erscheint in deinem Lebenslauf und gibt Arbeitgebern einen persönlichen Einblick.
-          </p>
+          
+          {/* Compact Layout Selector */}
+          <div className={cn(
+            "flex-shrink-0",
+            isMobile ? "w-full" : "w-48 max-w-[calc(100vw-200px)]"
+          )}>
+            <Select
+              value={formData.layout?.toString() || '1'}
+              onValueChange={handleLayoutChange}
+            >
+              <SelectTrigger className={cn(
+                "h-7 md:h-8 text-[11px] md:text-xs",
+                isMobile && "w-full"
+              )}>
+                <SelectValue>
+                  {formData.layout ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm">{layouts.find(l => l.id === formData.layout)?.preview}</span>
+                      <span className="truncate">{layouts.find(l => l.id === formData.layout)?.name}</span>
+                    </div>
+                  ) : (
+                    'Layout wählen'
+                  )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="max-h-[50vh] w-[var(--radix-select-trigger-width)]">
+                {layouts.map((layout) => (
+                  <SelectItem key={layout.id} value={layout.id.toString()} className="text-xs py-2">
+                    <div className="flex items-center gap-2 w-full">
+                      <span className="text-base flex-shrink-0">{layout.preview}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium">{layout.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{layout.description}</span>
+                          {layout.id === recommendedLayoutId && (
+                            <span className="text-[9px] bg-primary text-primary-foreground px-1 py-0.5 rounded flex-shrink-0">
+                              ⭐
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </Card>
-
-      <div>
-        <h2 className="text-xl font-semibold mb-2">Wählen Sie Ihr CV-Layout</h2>
-        <p className="text-muted-foreground">
-          Wählen Sie das Layout, das am besten zu Ihrer Branche und Ihrem Stil passt.
-        </p>
-        <p className="text-xs text-blue-600 mt-2">
-          Aktuell gewählt: {formData.layout ? `Layout ${formData.layout}` : 'Keins'}
-        </p>
       </div>
 
-      <div className="grid gap-4">
-        {layouts.map((layout) => (
-          <Card
-            key={layout.id}
-            className={`cursor-pointer transition-all hover:shadow-md ${
-              formData.layout === layout.id
-                ? 'ring-2 ring-primary border-primary'
-                : 'hover:border-primary/50'
-            } ${layout.color}`}
-            onClick={() => handleLayoutClick(layout.id, layout.name)}
+      {/* CV Preview - Maximum space, zero padding, no scrolling */}
+      <div className="flex-1 min-h-0 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 relative">
+        {formData.layout ? (
+          <div
+            ref={previewContainerRef}
+            className="w-full h-full relative"
+            style={{ padding: 0, margin: 0 }}
           >
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="text-4xl">{layout.preview}</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold">{layout.name}</h3>
-                    {layout.id === recommendedLayoutId && (
-                      <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                        Empfohlen
-                      </span>
-                    )}
-                    {formData.layout === layout.id && (
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                        Ausgewählt
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">{layout.description}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+            <div
+              className="absolute top-1/2 left-1/2 transition-transform duration-300 ease-out"
+              style={{
+                transform: `translate(-50%, -50%) scale(${scale})`,
+                transformOrigin: 'center center',
+              }}
+            >
+              {renderLayoutComponent()}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-muted-foreground p-8">
+            <p className="text-sm md:text-base mb-2">Wähle ein Layout aus</p>
+            <p className="text-xs text-muted-foreground">Die Vorschau erscheint hier</p>
+          </div>
+        )}
       </div>
-
-      {formData.layout && (
-        <Card className="bg-green-50 border-green-200">
-          <CardContent className="p-4">
-            <p className="text-sm text-green-800">
-              ✓ Layout "{layouts.find(l => l.id === formData.layout)?.name}" ausgewählt (ID: {formData.layout})
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {recommendedLayoutId && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-4">
-            <p className="text-sm text-blue-800">
-              💡 <strong>Tipp:</strong> Das Layout "{layouts.find(l => l.id === recommendedLayoutId)?.name}"
-              ist besonders gut für den Bereich {formData.branche === 'handwerk' ? 'Handwerk' :
-              formData.branche === 'it' ? 'IT' :
-              formData.branche === 'gesundheit' ? 'Gesundheitswesen' :
-              formData.branche === 'buero' ? 'Büro & Verwaltung' :
-              formData.branche === 'verkauf' ? 'Verkauf & Handel' :
-              formData.branche === 'gastronomie' ? 'Gastronomie' :
-              formData.branche === 'bau' ? 'Bau & Architektur' : ''} geeignet.
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };

@@ -50,7 +50,7 @@ export function VisibilityNudge({ open, onClose, onChoose, allowClose = true }: 
 
 export function VisibilityInfoBanner({ onOpen }: { onOpen: () => void }) {
   return (
-    <div className="fixed inset-x-0 bottom-3 z-40 mx-auto w-[min(640px,92vw)] rounded-xl bg-amber-50 text-amber-900 shadow ring-1 ring-amber-200 px-3 py-2 flex items-center gap-2"
+    <div className="fixed inset-x-0 bottom-3 z-[9996] mx-auto w-[min(640px,92vw)] rounded-xl bg-amber-50 text-amber-900 shadow ring-1 ring-amber-200 px-3 py-2 flex items-center gap-2"
          style={{ bottom: 'env(safe-area-inset-bottom, 12px)' }}>
       <span className="text-sm">
         Aktuell <strong>unsichtbar</strong> für Unternehmen.

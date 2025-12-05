@@ -20,50 +20,50 @@ const CVStep0 = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-2 md:space-y-4">
       <div className="text-center">
-        <h2 className="text-2xl md:text-3xl font-bold mb-4">
+        <h2 className="text-sm md:text-xl font-bold mb-1 md:mb-2 leading-tight">
           Wie möchtest du deinen CV erstellen?
         </h2>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-[10px] md:text-sm text-muted-foreground max-w-2xl mx-auto">
           Wähle die beste Option für dich. Mit einem Profil kannst du deine Daten später auch für Job-Bewerbungen nutzen.
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+      <div className="grid md:grid-cols-2 gap-2 md:gap-4 max-w-4xl mx-auto">
         {/* Mit Profil erstellen */}
-        <Card className="p-8 hover:shadow-lg transition-all cursor-pointer group border-2 hover:border-primary">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-              <User className="w-8 h-8 text-primary" />
+        <Card className="p-2.5 md:p-5 hover:shadow-lg transition-all cursor-pointer group border-2 hover:border-primary">
+          <div className="text-center space-y-1.5 md:space-y-3">
+            <div className="w-10 h-10 md:w-14 md:h-14 mx-auto bg-primary/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <User className="w-5 h-5 md:w-7 md:h-7 text-primary" />
             </div>
             
             <div>
-              <h3 className="text-xl font-semibold mb-2">Mit Profil erstellen</h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <h3 className="text-sm md:text-lg font-semibold mb-0.5 md:mb-1">Mit Profil erstellen</h3>
+              <p className="text-[10px] md:text-sm text-muted-foreground mb-2 md:mb-3 leading-tight">
                 Erstelle erst ein Profil und generiere dann automatisch deinen CV. 
                 Deine Daten sind später für Bewerbungen verfügbar.
               </p>
             </div>
 
-            <div className="space-y-2 text-left">
-              <div className="flex items-start gap-2 text-sm">
-                <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+            <div className="space-y-1 text-left">
+              <div className="flex items-start gap-1 text-[10px] md:text-sm">
+                <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-primary mt-0.5 flex-shrink-0" />
                 <span>Profil für Job-Matching nutzen</span>
               </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+              <div className="flex items-start gap-1 text-[10px] md:text-sm">
+                <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-primary mt-0.5 flex-shrink-0" />
                 <span>CV automatisch aus Profil generieren</span>
               </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+              <div className="flex items-start gap-1 text-[10px] md:text-sm">
+                <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-primary mt-0.5 flex-shrink-0" />
                 <span>Daten mehrfach verwenden</span>
               </div>
             </div>
 
             <Button 
-              className="w-full mt-4" 
-              size="lg"
+              className="w-full mt-2 md:mt-3 h-8 md:h-10 text-[10px] md:text-sm" 
+              size="sm"
               onClick={handleCreateWithProfile}
             >
               Profil erstellen & CV generieren
@@ -72,39 +72,39 @@ const CVStep0 = () => {
         </Card>
 
         {/* Nur CV erstellen */}
-        <Card className="p-8 hover:shadow-lg transition-all cursor-pointer group border-2 hover:border-primary">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-              <FileText className="w-8 h-8 text-primary" />
+        <Card className="p-2.5 md:p-5 hover:shadow-lg transition-all cursor-pointer group border-2 hover:border-primary">
+          <div className="text-center space-y-1.5 md:space-y-3">
+            <div className="w-10 h-10 md:w-14 md:h-14 mx-auto bg-primary/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <FileText className="w-5 h-5 md:w-7 md:h-7 text-primary" />
             </div>
             
             <div>
-              <h3 className="text-xl font-semibold mb-2">Nur CV erstellen</h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <h3 className="text-sm md:text-lg font-semibold mb-0.5 md:mb-1">Nur CV erstellen</h3>
+              <p className="text-[10px] md:text-sm text-muted-foreground mb-2 md:mb-3 leading-tight">
                 Erstelle schnell einen CV ohne Profil. 
                 Ideal wenn du nur einen Lebenslauf brauchst.
               </p>
             </div>
 
-            <div className="space-y-2 text-left">
-              <div className="flex items-start gap-2 text-sm">
-                <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+            <div className="space-y-1 text-left">
+              <div className="flex items-start gap-1 text-[10px] md:text-sm">
+                <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-primary mt-0.5 flex-shrink-0" />
                 <span>Schneller Start</span>
               </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+              <div className="flex items-start gap-1 text-[10px] md:text-sm">
+                <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-primary mt-0.5 flex-shrink-0" />
                 <span>Weniger Schritte</span>
               </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+              <div className="flex items-start gap-1 text-[10px] md:text-sm">
+                <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-primary mt-0.5 flex-shrink-0" />
                 <span>Nur CV-Daten eingeben</span>
               </div>
             </div>
 
             <Button 
               variant="outline"
-              className="w-full mt-4" 
-              size="lg"
+              className="w-full mt-2 md:mt-3 h-8 md:h-10 text-[10px] md:text-sm" 
+              size="sm"
               onClick={handleCreateFromScratch}
             >
               Direkt zum CV Generator
@@ -114,8 +114,8 @@ const CVStep0 = () => {
       </div>
 
       {profile && (
-        <div className="max-w-4xl mx-auto p-4 bg-primary/5 rounded-lg border text-center">
-          <p className="text-sm">
+        <div className="max-w-4xl mx-auto p-2 md:p-3 bg-primary/5 rounded-lg border text-center">
+          <p className="text-[10px] md:text-sm leading-tight">
             <strong>Hinweis:</strong> Du hast bereits ein Profil! 
             Wir können deinen CV automatisch mit deinen Profil-Daten füllen.
           </p>

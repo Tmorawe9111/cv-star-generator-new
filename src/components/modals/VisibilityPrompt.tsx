@@ -157,34 +157,62 @@ export function VisibilityPrompt() {
   // Get available months based on selected year
   const getAvailableMonths = (year?: string): typeof allMonthOptions => {
     const yearToCheck = year || selectedYear;
-    if (!yearToCheck) return allMonthOptions;
+    if (!yearToCheck) {
+      // If no year selected, return only future months from next month
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth() + 1;
+      
+      // If we're in December or later, only show months from next year
+      if (currentMonth >= 12) {
+        return allMonthOptions; // All months of next year
+      }
+      
+      // Otherwise show months from next month onwards
+      return allMonthOptions.filter(month => parseInt(month.value) > currentMonth);
+    }
     
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth() + 1;
     const selectedYearNum = parseInt(yearToCheck);
 
-    // If current year is selected, only show future months
+    // If selected year is current year, only show future months
     if (selectedYearNum === currentYear) {
       return allMonthOptions.filter(month => parseInt(month.value) > currentMonth);
     }
 
-    // If next year is selected, show all months
-    if (selectedYearNum === currentYear + 1) {
+    // If selected year is future year, show all months
+    if (selectedYearNum > currentYear) {
       return allMonthOptions;
     }
 
-    return allMonthOptions;
+    // Past years: return empty (shouldn't happen with yearOptions filter)
+    return [];
   };
 
-  // Generate year options (current year to 1 year in the future)
+  // Generate year options (only future years)
   const yearOptions = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const maxYear = currentYear + 1;
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+    
+    // If we're in December or later, only show next year
+    // Otherwise show current year (if future months available) and next year
     const years: Array<{ value: string; label: string }> = [];
-    for (let y = currentYear; y <= maxYear; y++) {
-      years.push({ value: String(y), label: String(y) });
+    
+    if (currentMonth >= 12) {
+      // December or later: only show next year
+      years.push({ value: String(currentYear + 1), label: String(currentYear + 1) });
+    } else {
+      // Before December: show current year (if future months available) and next year
+      // Current year is only valid if there are future months
+      if (currentMonth < 12) {
+        years.push({ value: String(currentYear), label: String(currentYear) });
+      }
+      years.push({ value: String(currentYear + 1), label: String(currentYear + 1) });
     }
+    
     return years;
   }, []);
 

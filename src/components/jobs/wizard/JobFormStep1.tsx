@@ -235,10 +235,10 @@ export function JobFormStep1({ isEditMode = false }: { isEditMode?: boolean }) {
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="apprenticeship">Ausbildung</SelectItem>
-                    <SelectItem value="fulltime">Vollzeit</SelectItem>
-                    <SelectItem value="parttime">Teilzeit</SelectItem>
+                    <SelectItem value="full-time">Vollzeit</SelectItem>
+                    <SelectItem value="part-time">Teilzeit</SelectItem>
                     <SelectItem value="internship">Praktikum</SelectItem>
-                    <SelectItem value="temporary">Zeitarbeit</SelectItem>
+                    <SelectItem value="contract">Zeitarbeit</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

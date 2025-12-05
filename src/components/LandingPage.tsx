@@ -22,14 +22,16 @@ import communityFeature from '@/assets/community-feature.png';
  - Accent color uses inline style var --brand (default #5ce1e6)
 */
 
+import { OrganizationStructuredData } from '@/components/seo/StructuredData';
+
 export default function LandingPage() {
   // SEO Head Injection
   useEffect(() => {
-    const site = "https://ausbildungsbasis.de";
-    const title = "Lebenslauf Ausbildung – CV Generator | Ausbildungsbasis";
-    const desc = "Erstelle deinen Azubi-Lebenslauf in 5 Minuten. CV für Ausbildung als PDF, Profil veröffentlichen und direkt von Unternehmen gefunden werden – kostenlos starten.";
-    const keywords = "Lebenslauf Ausbildung, CV Ausbildung, Lebenslauf erstellen, Lebenslauf Hilfe, Azubi Lebenslauf, Bewerbung Ausbildung, CV Generator";
-    const ogImage = site + "/images/step1-hero.jpg";
+    const site = "https://bevisiblle.de";
+    const title = "BeVisiblle – Vernetze dich mit Kollegen & finde deinen passenden Arbeitgeber";
+    const desc = "Vernetze dich mit Kollegen, tausche dich aus und werde von passenden Unternehmen kontaktiert. Dein Lebenslauf bildet die Grundlage für dein Profil – immer up-to-date.";
+    const keywords = "Fachkräfte Netzwerk, Kollegen finden, Berufsnetzwerk, Lebenslauf Profil, Fachkräfte Community, Pflege Netzwerk, Handwerk Community, Industrie Kollegen, Karriere Netzwerk";
+    const ogImage = site + "/lovable-uploads/logo-32x32.png";
     const head = document.head;
     const meta = (name: string, content: string, attr = "name") => {
       let el = head.querySelector(`meta[${attr}="${name}"]`) as HTMLMetaElement;
@@ -55,6 +57,98 @@ export default function LandingPage() {
     meta("description", desc);
     meta("keywords", keywords);
     meta("robots", "index,follow,max-image-preview:large");
+    
+    // Structured Data for Organization
+    const organizationScript = document.createElement('script');
+    organizationScript.type = 'application/ld+json';
+    organizationScript.id = 'structured-data-organization';
+    organizationScript.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: 'BeVisiblle',
+      url: 'https://bevisiblle.de',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://bevisiblle.de/lovable-uploads/logo-32x32.png',
+        width: 512,
+        height: 512
+      },
+      description: desc,
+      foundingDate: '2024',
+      address: {
+        '@type': 'PostalAddress',
+        addressCountry: 'DE',
+        addressLocality: 'Deutschland'
+      },
+      areaServed: {
+        '@type': 'Country',
+        name: 'Deutschland'
+      },
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'Customer Service',
+        availableLanguage: ['German', 'Deutsch']
+      },
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: {
+          '@type': 'EntryPoint',
+          urlTemplate: 'https://bevisiblle.de/stellenangebote?q={search_term_string}'
+        },
+        'query-input': 'required name=search_term_string'
+      }
+    });
+    
+    // Remove existing script if present
+    const existingOrgScript = document.getElementById('structured-data-organization');
+    if (existingOrgScript) {
+      existingOrgScript.remove();
+    }
+    head.appendChild(organizationScript);
+    
+    // WebSite Structured Data
+    const websiteScript = document.createElement('script');
+    websiteScript.type = 'application/ld+json';
+    websiteScript.id = 'structured-data-website';
+    websiteScript.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'BeVisiblle',
+      url: 'https://bevisiblle.de',
+      description: desc,
+      inLanguage: 'de-DE',
+      publisher: {
+        '@type': 'Organization',
+        name: 'BeVisiblle',
+        logo: {
+          '@type': 'ImageObject',
+          url: 'https://bevisiblle.de/lovable-uploads/logo-32x32.png',
+          width: 512,
+          height: 512
+        }
+      },
+      potentialAction: [
+        {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: 'https://bevisiblle.de/stellenangebote?q={search_term_string}'
+          },
+          'query-input': 'required name=search_term_string'
+        },
+        {
+          '@type': 'ReadAction',
+          target: 'https://bevisiblle.de/blog'
+        }
+      ]
+    });
+    
+    // Remove existing script if present
+    const existingWebScript = document.getElementById('structured-data-website');
+    if (existingWebScript) {
+      existingWebScript.remove();
+    }
+    head.appendChild(websiteScript);
     meta("viewport", "width=device-width, initial-scale=1");
     link("canonical", site + "/");
 

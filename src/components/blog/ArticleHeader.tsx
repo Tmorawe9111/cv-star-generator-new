@@ -1,18 +1,23 @@
 import React from 'react';
-import { Facebook, Twitter, Mail, Link as LinkIcon } from 'lucide-react';
+import { Facebook, Twitter, Mail, Link as LinkIcon, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { calculateReadingTime, formatReadingTime } from '@/lib/readingTime';
 
 interface ArticleHeaderProps {
   label: string;
   date: string | null;
   title: string;
+  content?: string; // HTML content for reading time calculation
 }
 
-export function ArticleHeader({ label, date, title }: ArticleHeaderProps) {
+export function ArticleHeader({ label, date, title, content }: ArticleHeaderProps) {
   const formattedDate = date
     ? format(new Date(date), 'd. MMMM yyyy', { locale: de })
     : '';
+
+  const readingTime = content ? calculateReadingTime(content) : 0;
+  const readingTimeText = readingTime > 0 ? formatReadingTime(readingTime) : null;
 
   const handleShare = (platform: string) => {
     const url = window.location.href;
@@ -41,9 +46,20 @@ export function ArticleHeader({ label, date, title }: ArticleHeaderProps) {
         <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
           {label}
         </span>
-        {formattedDate && (
-          <time className="text-gray-500 font-medium">{formattedDate}</time>
-        )}
+        <div className="flex items-center gap-3 flex-wrap">
+          {formattedDate && (
+            <time className="text-gray-500 font-medium">{formattedDate}</time>
+          )}
+          {readingTimeText && (
+            <>
+              {formattedDate && <span className="text-gray-300">•</span>}
+              <div className="flex items-center gap-1.5 text-gray-500">
+                <Clock size={14} className="text-gray-400" />
+                <span className="text-sm font-medium">{readingTimeText}</span>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Huge Title */}

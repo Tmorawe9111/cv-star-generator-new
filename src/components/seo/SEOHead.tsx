@@ -10,17 +10,31 @@ interface SEOHeadProps {
   type?: 'website' | 'article' | 'profile';
   industry?: 'pflege' | 'handwerk' | 'industrie';
   targetAudience?: 'schueler' | 'azubi' | 'profi' | 'unternehmen';
+  geoRegion?: string; // z.B. "DE-BE" für Berlin, "DE" für Deutschland
+  geoPlacename?: string; // z.B. "Berlin" oder "Deutschland"
+  geoPosition?: string; // z.B. "52.52;13.40" (latitude;longitude)
+  address?: {
+    streetAddress?: string;
+    addressLocality?: string;
+    postalCode?: string;
+    addressRegion?: string;
+    addressCountry?: string;
+  };
 }
 
 export function SEOHead({
-  title = 'BeVisiblle - Netzwerk für Fachkräfte',
-  description = 'Vernetze dich mit anderen Fachkräften, finde deinen Traumjob oder deine Traumausbildung. BeVisiblle verbindet Azubis, Fachkräfte und Unternehmen.',
-  keywords = ['Fachkräfte', 'Ausbildung', 'Karriere', 'Recruiting'],
-  image = 'https://bevisiblle.de/og-image.png',
+  title = 'BeVisiblle – Vernetze dich mit Kollegen & finde deinen passenden Arbeitgeber',
+  description = 'Vernetze dich mit Kollegen, tausche dich aus und werde von passenden Unternehmen kontaktiert. Dein Lebenslauf bildet die Grundlage für dein Profil – immer up-to-date. Nie mehr Gedanken machen, wo du deine Kollegen und deinen neuen Arbeitgeber findest.',
+  keywords = ['Fachkräfte Netzwerk', 'Kollegen finden', 'Berufsnetzwerk', 'Lebenslauf Profil', 'Fachkräfte Community'],
+  image = 'https://bevisiblle.de/og-image.jpg',
   url,
   type = 'website',
   industry,
-  targetAudience
+  targetAudience,
+  geoRegion = 'DE',
+  geoPlacename = 'Deutschland',
+  geoPosition = '51.1657;10.4515',
+  address
 }: SEOHeadProps) {
   const location = useLocation();
   const currentUrl = url || `https://bevisiblle.de${location.pathname}`;
@@ -70,6 +84,18 @@ export function SEOHead({
     updateMetaTag('twitter:description', description);
     updateMetaTag('twitter:image', image);
 
+    // Geo-Meta-Tags für lokale Suche
+    updateMetaTag('geo.region', geoRegion);
+    updateMetaTag('geo.placename', geoPlacename);
+    updateMetaTag('geo.position', geoPosition);
+    updateMetaTag('ICBM', geoPosition.replace(';', ', '));
+    updateMetaTag('language', 'de');
+    updateMetaTag('country', 'Deutschland');
+
+    // Open Graph Locale
+    updateMetaTag('og:locale', 'de_DE', 'property');
+    updateMetaTag('og:site_name', 'BeVisiblle', 'property');
+
     // Canonical URL
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
     if (!canonical) {
@@ -78,7 +104,7 @@ export function SEOHead({
       document.head.appendChild(canonical);
     }
     canonical.href = currentUrl;
-  }, [title, description, enhancedKeywords, image, currentUrl, type]);
+  }, [title, description, enhancedKeywords, image, currentUrl, type, geoRegion, geoPlacename, geoPosition]);
 
   return null; // This component doesn't render anything
 }

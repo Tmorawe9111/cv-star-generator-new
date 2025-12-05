@@ -200,7 +200,7 @@ const CVStep3New = () => {
     }
   };
 
-  // AI Summary Generator
+  // AI Summary Generator (for Motivation & Persönlichkeit)
   const canGenerateSummary = () => {
     return (formData.faehigkeiten?.length || 0) > 0 && (formData.sprachen?.length || 0) > 0;
   };
@@ -217,34 +217,39 @@ const CVStep3New = () => {
 
     setGeneratingSummary(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-cv-summary', {
+      const { data, error } = await supabase.functions.invoke('ai-generate-about-me', {
         body: { 
-          cvData: {
-            status: formData.status,
-            branche: formData.branche,
-            faehigkeiten: formData.faehigkeiten || [],
-            sprachen: formData.sprachen || [],
-            schulbildung: formData.schulbildung || [],
-            berufserfahrung: formData.berufserfahrung || []
-          }
+          branche: formData.branche,
+          status: formData.status,
+          faehigkeiten: formData.faehigkeiten || [],
+          schulbildung: formData.schulbildung || [],
+          berufserfahrung: formData.berufserfahrung || [],
+          motivation: formData.motivation,
+          kenntnisse: formData.kenntnisse,
+          geburtsdatum: formData.geburtsdatum
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
-      if (data.summary) {
-        updateFormData({ ueberMich: data.summary });
+      if (data.success && data.aboutMe) {
+        updateFormData({ ueberMich: data.aboutMe });
         
         toast({
-          title: "Erfolgreich",
-          description: "KI Summary wurde generiert!"
+          title: "Erfolgreich generiert!",
+          description: "Dein persönlicher Text wurde erstellt. Du kannst ihn jederzeit bearbeiten."
         });
+      } else {
+        throw new Error(data.error || 'Keine Antwort von der KI erhalten');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating summary:', error);
       toast({
         title: "Fehler",
-        description: "Fehler beim Generieren der Summary.",
+        description: error.message || "Der Text konnte nicht generiert werden. Bitte versuche es erneut.",
         variant: "destructive"
       });
     } finally {
@@ -253,7 +258,7 @@ const CVStep3New = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-2">Kenntnisse, Skills & Motivation</h2>
         <p className="text-muted-foreground mb-6">
@@ -475,6 +480,52 @@ const CVStep3New = () => {
               </Button>
             </div>
           ))}
+        </div>
+      </Card>
+
+      {/* Motivation & Persönlichkeit */}
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-lg">💬 Motivation & Persönlichkeit</h3>
+            <Button
+              onClick={handleGenerateSummary}
+              disabled={generatingSummary || !canGenerateSummary()}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              {generatingSummary ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generiere...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Mit KI generieren
+                </>
+              )}
+            </Button>
+          </div>
+          {!canGenerateSummary() && (
+            <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded">
+              ⚠️ Bitte wähle zuerst mindestens eine Fähigkeit und eine Sprache aus, um den Text generieren zu können.
+            </p>
+          )}
+          <p className="text-sm text-muted-foreground">
+            Beschreibe dich selbst, deine Motivation und deine Persönlichkeit. Du kannst den Text selbst schreiben oder mit KI generieren lassen.
+          </p>
+          <Textarea
+            value={formData.ueberMich || ''}
+            onChange={(e) => updateFormData({ ueberMich: e.target.value })}
+            placeholder="Ich bin... Besonders interessiere ich mich für... Meine Stärken sind..."
+            rows={6}
+            className="resize-none"
+          />
+          <p className="text-xs text-muted-foreground">
+            💡 Tipp: Dieser Text erscheint in deinem Lebenslauf und gibt Arbeitgebern einen persönlichen Einblick.
+          </p>
         </div>
       </Card>
     </div>

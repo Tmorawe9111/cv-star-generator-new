@@ -21,6 +21,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { LandingHeader } from "@/components/marketing/LandingHeader";
 
 type TabType = "foryou" | "career" | "interested";
 
@@ -28,6 +29,9 @@ export default function CommunityJobs() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  
+  // Show LandingHeader only if user is NOT authenticated (public view)
+  const showLandingHeader = !user;
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>("foryou");
   const [search, setSearch] = useState(searchParams.get("q") || "");
@@ -388,6 +392,9 @@ export default function CommunityJobs() {
 
     return (
       <div className="w-full min-h-screen bg-background pb-20">
+        {/* Landing Header - Only for public (non-authenticated) users */}
+        {showLandingHeader && <LandingHeader />}
+        
         {/* Search Modal */}
         <JobSearchModal
           open={isSearchModalOpen}
@@ -435,10 +442,11 @@ export default function CommunityJobs() {
           </SheetContent>
         </Sheet>
 
-        {/* Filter Tabs and Pills - Sticky directly below TopNavBar with scroll behavior */}
+        {/* Filter Tabs and Pills - Sticky directly below LandingHeader/TopNavBar with scroll behavior */}
         <div 
           className={cn(
-            "sticky top-12 z-40 bg-background border-b border-border transition-transform duration-300",
+            "sticky z-40 bg-background border-b border-border transition-transform duration-300",
+            showLandingHeader ? "top-20" : "top-12",
             isTabsVisible ? "translate-y-0" : "-translate-y-full"
           )}
         >
@@ -901,7 +909,10 @@ export default function CommunityJobs() {
   // Desktop View - Original Layout
   return (
     <div className="w-full py-6 px-3 sm:px-6 bg-background">
-      <div className="max-w-[1400px] mx-auto space-y-6">
+      {/* Landing Header - Only for public (non-authenticated) users */}
+      {showLandingHeader && <LandingHeader />}
+      
+      <div className={cn("max-w-[1400px] mx-auto space-y-6", showLandingHeader ? "pt-20" : "")}>
         {/* Hero Section */}
         <JobSearchHero 
           search={search} 

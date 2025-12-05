@@ -230,11 +230,31 @@ export default function UserProfilePage() {
     if (!id) return;
     try {
       await requestConnection(id);
-      setStatus("pending");
+      // Refresh status after successful request
+      const statuses = await getStatuses([id]);
+      setStatus(statuses[id] || "pending");
       toast({ title: "Anfrage gesendet", description: "Wartet auf Bestätigung." });
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      toast({ title: "Fehler", description: "Anfrage konnte nicht gesendet werden.", variant: "destructive" });
+      // Check if it's a duplicate key error
+      if (e?.code === '23505' || e?.message?.includes('duplicate key')) {
+        // Connection already exists - refresh status
+        try {
+          const statuses = await getStatuses([id]);
+          setStatus(statuses[id] || "pending");
+          if (statuses[id] === "pending") {
+            toast({ title: "Anfrage bereits gesendet", description: "Die Anfrage wartet bereits auf Bestätigung." });
+          } else if (statuses[id] === "accepted") {
+            toast({ title: "Bereits verbunden", description: "Ihr seid bereits verbunden." });
+          } else {
+            toast({ title: "Anfrage gesendet", description: "Wartet auf Bestätigung." });
+          }
+        } catch (refreshError) {
+          toast({ title: "Fehler", description: "Anfrage konnte nicht gesendet werden.", variant: "destructive" });
+        }
+      } else {
+        toast({ title: "Fehler", description: e?.message || "Anfrage konnte nicht gesendet werden.", variant: "destructive" });
+      }
     }
   };
   const onAccept = async () => {

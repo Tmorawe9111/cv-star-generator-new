@@ -62,12 +62,18 @@ export function CompanyLayout() {
         });
 
         if (!error && companyId) {
-          // Update with plan info and ensure onboarding is not completed
+          // Generate support code
+          const { generateSupportCode } = await import('@/lib/support-code');
+          const supportCode = await generateSupportCode();
+          
+          // Update with plan info, support code, and ensure onboarding is not completed
           await supabase
             .from('companies')
             .update({ 
               selected_plan_id: data.selectedPlan,
-              onboarding_completed: false  // Ensure onboarding is not completed
+              onboarding_completed: false,  // Ensure onboarding is not completed
+              support_code: supportCode,
+              account_status: 'pending' // Set to pending until admin verifies support code
             })
             .eq('id', companyId);
           

@@ -1,5 +1,5 @@
 import React from "react";
-import { Home, Search, Columns3, MessageSquare, Settings as SettingsIcon, Building2, Bell, Users, Briefcase, LogOut, CreditCard, MapPin } from "lucide-react";
+import { Home, Search, Columns3, MessageSquare, Settings as SettingsIcon, Building2, Bell, Users, Briefcase, LogOut, CreditCard, MapPin, BarChart3 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,7 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
       .replace('/candidates/pipeline', '/bewerber/pipeline')
       .replace('/feed', '/feed')
       .replace('/notifications', '/benachrichtigungen')
+      .replace('/analytics', '/analytics')
       .replace('/settings/locations', '/einstellungen/standorte')
       .replace('/billing-v2', '/abrechnung')
       .replace('/settings', '/einstellungen');
@@ -85,6 +86,13 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
       icon: <Columns3 className="h-4 w-4" />,
       active: isActive("/company/candidates/pipeline"),
       onClick: handleNavigate("/unternehmen/bewerber/pipeline"),
+    },
+    {
+      label: "Analytics",
+      href: "/unternehmen/analytics",
+      icon: <BarChart3 className="h-4 w-4" />,
+      active: isActive("/company/analytics"),
+      onClick: handleNavigate("/unternehmen/analytics"),
     },
   ];
 

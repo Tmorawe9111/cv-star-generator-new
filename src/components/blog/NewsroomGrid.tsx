@@ -23,7 +23,7 @@ export function NewsroomGrid({ articles }: NewsroomGridProps) {
   const standardArticles = articles.slice(1);
 
   return (
-    <section className="min-h-screen pb-24 pt-20">
+    <section className="min-h-screen pb-24 pt-0">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         {/* Header - Minimalistisch wie Apple */}
         <div className="py-12 border-b border-gray-100 mb-12">

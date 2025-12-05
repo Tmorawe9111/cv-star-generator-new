@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import CompanySignupFooter from "./CompanySignupFooter";
 import { LocationAutocomplete } from "@/components/Company/LocationAutocomplete";
 import { saveCompanyLocation } from "@/lib/location-utils";
+import { generateSupportCode } from "@/lib/support-code";
 
 function CompanySignup() {
   const navigate = useNavigate();
@@ -133,13 +134,18 @@ function CompanySignup() {
             return;
           }
 
-          // Update company with plan info and save location with coordinates
+          // Update company with plan info, generate support code, and save location with coordinates
           if (companyId) {
+            // Generate support code
+            const supportCode = await generateSupportCode();
+            
             await supabase
               .from('companies')
               .update({
                 selected_plan_id: selectedPlan,
-                onboarding_completed: false  // Ensure onboarding is not completed
+                onboarding_completed: false,  // Ensure onboarding is not completed
+                support_code: supportCode,
+                account_status: 'pending' // Set to pending until admin verifies support code
               })
               .eq('id', companyId);
             

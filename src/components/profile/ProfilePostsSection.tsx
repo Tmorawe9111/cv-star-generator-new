@@ -29,7 +29,6 @@ export function ProfilePostsSection({
   const queryClient = useQueryClient();
   const [sort, setSort] = useState<SortOption>("newest");
   const [filter, setFilter] = useState<FilterOption>("all");
-  const [displayLimit, setDisplayLimit] = useState(10); // Start with 10 posts
 
   // Fetch posts
   const { data: posts, isLoading } = useQuery({
@@ -263,17 +262,8 @@ export function ProfilePostsSection({
     queryClient.invalidateQueries({ queryKey: ["profile-posts", profileId, sort, isCompany] });
   };
 
-  // For own profile: show first 5 horizontally, rest vertically
-  const isOwnProfile = isOwner && !isCompany;
-  const horizontalPosts = isOwnProfile ? (posts?.slice(0, 5) || []) : [];
-  const verticalPosts = isOwnProfile 
-    ? (posts?.slice(5) || []) 
-    : (posts?.slice(0, displayLimit) || []);
-  const hasMore = posts && (
-    isOwnProfile 
-      ? posts.length > 5 
-      : posts.length > displayLimit
-  );
+  // Show ALL posts horizontally (from right to left)
+  const horizontalPosts = posts || [];
 
   if (isLoading) {
     return (
@@ -325,10 +315,10 @@ export function ProfilePostsSection({
         </div>
       </div>
 
-      {/* Horizontal scroll for first 5 posts (own profile only) */}
-      {isOwnProfile && horizontalPosts.length > 0 && (
+      {/* Horizontal scroll for ALL posts (from right to left) */}
+      {horizontalPosts.length > 0 && (
         <div className="w-full">
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory" dir="rtl">
             {horizontalPosts.map((post: any) => {
               const postCardData = {
                 id: post.id,
@@ -356,86 +346,27 @@ export function ProfilePostsSection({
               };
 
               return (
-                <div key={post.id} className="flex-shrink-0 w-[320px] snap-start">
+                <div key={post.id} className="flex-shrink-0 w-[320px] snap-start" dir="ltr">
                   <PostCard post={postCardData} />
+                  {/* Repost button for companies viewing user posts */}
+                  {isCompany && companyId && post.author_type === "user" && !post.isRepost && (
+                    <div className="mt-2 flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRepost(post.id)}
+                        title="Beitrag reposten"
+                        className="text-xs"
+                      >
+                        <Repeat2 className="h-3.5 w-3.5 mr-1" />
+                        Reposten
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
-
-      {/* Posts - Full width like in feed (not grid) */}
-      <div className="space-y-4 w-full">
-        {verticalPosts.map((post: any) => {
-          // Transform post data to match PostCard interface (exactly like in feed)
-          const postCardData = {
-            id: post.id,
-            content: post.content ?? '',
-            image_url: post.image_url ?? null,
-            media: Array.isArray(post.media) ? post.media : [],
-            documents: Array.isArray(post.documents) ? post.documents : [],
-            user_id: post.user_id,
-            author_type: post.author_type === 'company' ? 'company' : 'user',
-            author_id: post.author_id ?? post.user_id,
-            company_id: post.company_id ?? null,
-            like_count: post.like_count ?? 0,
-            comment_count: post.comment_count ?? 0,
-            share_count: post.share_count ?? 0,
-            created_at: post.created_at,
-            post_type: post.post_type ?? 'text',
-            job_id: post.job_id ?? null,
-            applies_enabled: post.applies_enabled ?? false,
-            cta_label: post.cta_label ?? null,
-            cta_url: post.cta_url ?? null,
-            promotion_theme: post.promotion_theme ?? null,
-            author: post.author || null,
-            company: post.company || null,
-            job: post.job || null,
-          };
-
-          return (
-            <div key={post.id} className="w-full">
-              <PostCard post={postCardData} />
-              {/* Repost button for companies viewing user posts */}
-              {isCompany && companyId && post.author_type === "user" && !post.isRepost && (
-                <div className="mt-2 flex justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRepost(post.id)}
-                    title="Beitrag reposten"
-                    className="text-xs"
-                  >
-                    <Repeat2 className="h-3.5 w-3.5 mr-1" />
-                    Reposten
-                  </Button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Load More Button */}
-      {hasMore && (
-        <div className="text-center pt-4">
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (isOwnProfile) {
-                // For own profile, show all remaining posts
-                setDisplayLimit(posts.length);
-              } else {
-                setDisplayLimit(prev => prev + 10);
-              }
-            }}
-          >
-            {isOwnProfile 
-              ? `Weitere anzeigen (${posts.length - 5} weitere)`
-              : `Mehr anzeigen (${posts.length - displayLimit} weitere)`
-            }
-          </Button>
         </div>
       )}
     </div>

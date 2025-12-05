@@ -10,6 +10,8 @@ import { MoreFromSection } from '@/components/blog/MoreFromSection';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { CareerHubHeader } from '@/components/career/CareerHubHeader';
+import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
+import { ArticleStructuredData } from '@/components/seo/StructuredData';
 
 export default function BlogPostDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -36,29 +38,7 @@ export default function BlogPostDetail() {
     return 'KARRIERE';
   };
 
-  useEffect(() => {
-    if (post) {
-      const jsonLd = {
-        '@context': 'https://schema.org',
-        '@type': 'BlogPosting',
-        headline: post.seo_title || post.title,
-        description: post.seo_description || post.excerpt,
-        image: post.featured_image || undefined,
-        datePublished: post.published_at || post.created_at,
-        dateModified: post.updated_at,
-        mainEntityOfPage: {
-          '@type': 'WebPage',
-          '@id': window.location.href,
-        },
-      };
-      const existing = document.getElementById('jsonld-blog') as HTMLScriptElement | null;
-      const script = existing ?? (document.createElement('script') as HTMLScriptElement);
-      script.type = 'application/ld+json';
-      script.id = 'jsonld-blog';
-      if (!existing) document.head.appendChild(script);
-      script.textContent = JSON.stringify(jsonLd);
-    }
-  }, [post]);
+  // Structured data is now handled by ArticleStructuredData component
 
   if (isLoading) {
     return (
@@ -92,12 +72,32 @@ export default function BlogPostDetail() {
   return (
     <>
       <SEOHead {...seoData} />
+      {post && (
+        <ArticleStructuredData
+          title={post.seo_title || post.title}
+          description={post.seo_description || post.excerpt || ''}
+          author={post.author || 'BeVisiblle Redaktion'}
+          publishedAt={post.published_at || post.created_at}
+          updatedAt={post.updated_at}
+          image={post.featured_image}
+          url={`https://bevisiblle.de/blog/${post.slug}`}
+          slug={post.slug}
+          industry={post.industry_sector as 'pflege' | 'handwerk' | 'industrie' | undefined}
+        />
+      )}
       <CareerHubHeader />
       <BaseLayout>
         <main className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen pb-24">
           <article className="pt-20 lg:pt-32">
             {/* Header (Zentriert, schmal) */}
             <div className="max-w-[720px] mx-auto px-6">
+              <div className="mb-6">
+                <Breadcrumbs items={[
+                  { name: 'Home', url: '/' },
+                  { name: 'Blog', url: '/blog' },
+                  { name: post.title, url: `/blog/${post.slug}` }
+                ]} />
+              </div>
               <Button
                 variant="ghost"
                 onClick={() => navigate('/blog')}
@@ -110,6 +110,7 @@ export default function BlogPostDetail() {
                 label={getCategoryLabel()}
                 date={post.published_at}
                 title={post.title}
+                content={post.content}
               />
             </div>
 

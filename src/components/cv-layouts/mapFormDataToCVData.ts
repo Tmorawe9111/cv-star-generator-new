@@ -14,6 +14,7 @@ function sortBerufserfahrung(berufserfahrung: Array<{
   zeitraum_von: string;
   zeitraum_bis: string;
   beschreibung?: string;
+  abschluss?: string;
 }>): Array<{
   titel: string;
   unternehmen: string;
@@ -21,6 +22,7 @@ function sortBerufserfahrung(berufserfahrung: Array<{
   zeitraum_von: string;
   zeitraum_bis: string;
   beschreibung?: string;
+  abschluss?: string;
 }> {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -38,41 +40,93 @@ function sortBerufserfahrung(berufserfahrung: Array<{
     return { year, month: isNaN(month) ? 1 : month };
   };
 
-  // Get sort value for a job (higher = more recent)
+  // Check if a date is in the future (current/ongoing)
+  const isFutureOrCurrent = (dateStr: string): boolean => {
+    if (!dateStr || dateStr === 'heute' || dateStr === '') return true;
+    const date = parseDate(dateStr);
+    if (!date) return false;
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    // If year is in the future, it's current
+    if (date.year > currentYear) return true;
+    // If same year and month is in the future or current, it's current
+    if (date.year === currentYear && date.month >= currentMonth) return true;
+    
+    return false;
+  };
+
+  // Get sort value for a job
+  // For current jobs: lower value = earlier start (will be sorted ascending)
+  // For past jobs: higher value = more recent end (will be sorted descending)
   const getSortValue = (job: {
     zeitraum_von: string;
     zeitraum_bis: string;
-  }): number => {
-    const isCurrent = job.zeitraum_bis === 'heute';
+  }): { isCurrent: boolean; value: number } => {
+    const isCurrent = job.zeitraum_bis === 'heute' || !job.zeitraum_bis || job.zeitraum_bis === '' || isFutureOrCurrent(job.zeitraum_bis);
     const vonDate = parseDate(job.zeitraum_von);
     const bisDate = parseDate(job.zeitraum_bis);
 
     if (isCurrent) {
-      // Current jobs: sort by start date (most recent first)
+      // Current jobs: sort by start date (earlier start = lower value, will be sorted ascending)
       // Add large offset to ensure they come first
       if (vonDate) {
-        return 1000000 + (vonDate.year * 100 + vonDate.month);
+        return { 
+          isCurrent: true, 
+          value: vonDate.year * 10000 + vonDate.month * 100 // Direct value for ascending sort
+        };
       }
-      return 1000000; // If no start date, still prioritize
+      return { isCurrent: true, value: 0 }; // If no start date, still prioritize but at end
     }
 
     // Past jobs: sort by end date (most recent first)
     if (bisDate) {
-      return bisDate.year * 100 + bisDate.month;
+      return { 
+        isCurrent: false, 
+        value: bisDate.year * 10000 + bisDate.month * 100 
+      };
     }
 
     // If no end date, sort by start date
     if (vonDate) {
-      return vonDate.year * 100 + vonDate.month;
+      return { 
+        isCurrent: false, 
+        value: vonDate.year * 10000 + vonDate.month * 100 
+      };
     }
 
-    return 0; // No date info
+    return { isCurrent: false, value: 0 }; // No date info
   };
 
   return [...berufserfahrung].sort((a, b) => {
-    const aValue = getSortValue(a);
-    const bValue = getSortValue(b);
-    return bValue - aValue; // Descending (most recent first)
+    const aSort = getSortValue(a);
+    const bSort = getSortValue(b);
+    
+    // Current jobs always come first
+    if (aSort.isCurrent && !bSort.isCurrent) return -1;
+    if (!aSort.isCurrent && bSort.isCurrent) return 1;
+    
+    // Both current: sort descending (most recent start first)
+    if (aSort.isCurrent && bSort.isCurrent) {
+      // Higher value = more recent start, so descending sort puts most recent first
+      return bSort.value - aSort.value; // Descending: 01.2026 (20260100) comes before 02.2025 (20250200)
+    }
+    
+    // Both past: sort descending (most recent first)
+    // If same end date, sort by start date (earlier start first)
+    if (aSort.value === bSort.value) {
+      const aVon = parseDate(a.zeitraum_von);
+      const bVon = parseDate(b.zeitraum_von);
+      if (aVon && bVon) {
+        const aStartValue = aVon.year * 10000 + aVon.month * 100;
+        const bStartValue = bVon.year * 10000 + bVon.month * 100;
+        return bStartValue - aStartValue; // Descending (more recent start first)
+      }
+    }
+    
+    return bSort.value - aSort.value; // Descending
   });
 }
 
@@ -84,6 +138,7 @@ export function mapFormDataToCVData(formData: CVFormData): CVData {
     zeitraum_von: b.zeitraum_von,
     zeitraum_bis: b.zeitraum_bis,
     beschreibung: b.beschreibung,
+    abschluss: b.abschluss,
   }));
 
   return {

@@ -55,7 +55,9 @@ export default function CompanyAnalytics() {
           .from('subscriptions')
           .select('company_id, plan_key, interval, status');
 
-        if (subsError && subsError.code !== 'PGRST116') throw subsError; // Ignore if table doesn't exist
+        if (subsError && subsError.code !== 'PGRST116') {
+          console.warn('Subscriptions table not found or error:', subsError);
+        }
 
         // Load token transactions
         const { data: tokenTransactions, error: tokensError } = await supabase
@@ -71,7 +73,9 @@ export default function CompanyAnalytics() {
           .from('company_users')
           .select('company_id, accepted_at');
 
-        if (usersError) throw usersError;
+        if (usersError) {
+          console.error('Error loading company users:', usersError);
+        }
 
         // Load locations
         const { data: locations, error: locationsError } = await supabase
@@ -82,14 +86,13 @@ export default function CompanyAnalytics() {
           console.warn('Company locations table not found:', locationsError);
         }
 
-        // Load job posts
+        // Load job posts - use job_posts table (current table name)
         const { data: jobs, error: jobsError } = await supabase
-          .from('job_postings')
-          .select('company_id, status')
-          .or('status.eq.published,status.eq.draft');
+          .from('job_posts')
+          .select('company_id, is_active, is_draft');
 
         if (jobsError && jobsError.code !== 'PGRST116') {
-          console.warn('Job postings table not found:', jobsError);
+          console.warn('Job posts table not found:', jobsError);
         }
 
         // Load posts
@@ -98,7 +101,9 @@ export default function CompanyAnalytics() {
           .select('company_id, author_type')
           .eq('author_type', 'company');
 
-        if (postsError) throw postsError;
+        if (postsError) {
+          console.error('Error loading posts:', postsError);
+        }
 
         // Process data
         const stats: Record<string, CompanyStats> = {};
@@ -116,8 +121,10 @@ export default function CompanyAnalytics() {
           // Count locations
           const locations = locations?.filter((l: any) => l.company_id === companyId).length || 0;
           
-          // Count jobs
-          const jobsCount = jobs?.filter((j: any) => j.company_id === companyId).length || 0;
+          // Count jobs - filter active jobs
+          const jobsCount = jobs?.filter((j: any) => 
+            j.company_id === companyId && (j.is_active === true || j.is_draft === true)
+          ).length || 0;
           
           // Count posts
           const postsCount = posts?.filter((p: any) => p.company_id === companyId).length || 0;
@@ -180,6 +187,9 @@ export default function CompanyAnalytics() {
         setLoading(false);
       } catch (error) {
         console.error('Error loading company stats:', error);
+        // Set empty data instead of crashing
+        setPlanDistribution([]);
+        setCompanyStats({});
         setLoading(false);
       }
     };

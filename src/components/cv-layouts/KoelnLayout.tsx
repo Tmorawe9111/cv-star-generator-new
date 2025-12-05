@@ -1,5 +1,5 @@
 import React from 'react';
-import { CVData, CVLayoutProps, formatDate, ProfileImage } from './CVLayoutBase';
+import { CVData, CVLayoutProps, formatDate, formatMonthYear, ProfileImage } from './CVLayoutBase';
 
 const KoelnLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
   const fullName = `${data.vorname || ''} ${data.nachname || ''}`.trim();
@@ -170,7 +170,7 @@ const KoelnLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                         {arbeit.titel}
                       </h3>
                       <span className="text-xs font-semibold whitespace-nowrap ml-4" style={{ color: 'hsl(210, 15%, 50%)' }}>
-                        {arbeit.zeitraum_von} - {arbeit.zeitraum_bis || 'heute'}
+                        {formatMonthYear(arbeit.zeitraum_von)} - {arbeit.zeitraum_bis ? formatMonthYear(arbeit.zeitraum_bis) : 'heute'}
                       </span>
                     </div>
                     <p className="text-xs font-medium text-gray-600 mb-1">
@@ -202,7 +202,7 @@ const KoelnLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                         {schule.schulform}
                       </h3>
                       <span className="text-xs font-semibold whitespace-nowrap ml-4" style={{ color: 'hsl(210, 15%, 50%)' }}>
-                        {schule.zeitraum_von} - {schule.zeitraum_bis}
+                        {formatMonthYear(schule.zeitraum_von)} - {formatMonthYear(schule.zeitraum_bis)}
                       </span>
                     </div>
                     <p className="text-xs font-medium text-gray-600">

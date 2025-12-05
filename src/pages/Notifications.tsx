@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useJobApplicationInterview } from '@/hooks/useJobApplicationInterview';
+import { JobApplicationInterviewQuestions } from '@/components/jobs/JobApplicationInterviewQuestions';
 
 export default function NotificationsPage() {
   const { profile, user } = useAuth();
@@ -17,6 +19,7 @@ export default function NotificationsPage() {
   const companyId = null;
   const [prefsOpen, setPrefsOpen] = useState(false);
   const queryClient = useQueryClient();
+  const { showModal, applicationId, jobId, companyId: interviewCompanyId, closeModal } = useJobApplicationInterview();
 
   const handleMarkAllRead = () => {
     // Call the function stored by NotificationsList
@@ -25,8 +28,11 @@ export default function NotificationsPage() {
     }
   };
 
-  // Handle follow request actions from notification cards
+  // Handle notification actions from notification cards
   const handleNotificationAction = useCallback(async (notification: any, action: string) => {
+    // Handle interview questions action - will be handled by the hook's openModal
+    // The hook will automatically check and show the modal
+
     if (notification.type !== 'follow_request_received') return;
     
     const followerId = notification.actor_id;
@@ -164,6 +170,21 @@ export default function NotificationsPage() {
                   open={prefsOpen}
                   onOpenChange={setPrefsOpen}
                   userId={profile.id}
+                />
+              )}
+
+              {/* Interview Questions Modal */}
+              {showModal && applicationId && jobId && interviewCompanyId && (
+                <JobApplicationInterviewQuestions
+                  open={showModal}
+                  onOpenChange={closeModal}
+                  applicationId={applicationId}
+                  jobId={jobId}
+                  companyId={interviewCompanyId}
+                  onComplete={() => {
+                    closeModal();
+                    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                  }}
                 />
               )}
             </div>

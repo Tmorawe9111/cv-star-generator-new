@@ -30,7 +30,7 @@ export default function BlogArchivePage() {
                 <p className="text-sm text-gray-500">Lade Archiv...</p>
               </div>
             </div>
-          ) : hasPosts ? (
+          ) : posts && posts.length > 0 ? (
             <BlogArchive articles={posts} />
           ) : (
             <div className="min-h-screen flex items-center justify-center pt-20">

@@ -6,7 +6,6 @@ import { AppSidebar } from "@/components/AppSidebar";
 import BottomNav from "@/components/navigation/BottomNav";
 import NewPostComposer from "@/components/community/NewPostComposer";
 import { VisibilityPrompt } from "@/components/modals/VisibilityPrompt";
-import { AddressConfirmModal } from "@/components/modals/AddressConfirmModal";
 import { VisibilityNudge, VisibilityInfoBanner } from "@/components/modals/VisibilityNudge";
 import { useEntryGates } from "@/hooks/useEntryGates";
 import { cn } from "@/lib/utils";
@@ -43,6 +42,16 @@ export function AuthenticatedLayout() {
     return <Navigate to="/auth" replace />;
   }
 
+  // Check if user has complete CV profile for dashboard access
+  const isDashboardRoute = location.pathname === '/dashboard' || 
+                          location.pathname === '/startseite' ||
+                          location.pathname === '/mein-bereich';
+  
+  if (isDashboardRoute && (!profile || !profile.profile_complete)) {
+    // Redirect to CV generator if profile is incomplete
+    return <Navigate to="/cv-generator" replace />;
+  }
+
   return (
     <div className="min-h-screen flex w-full">
       {/* Sidebar - Mobile als Overlay, Desktop persistent */}
@@ -67,17 +76,7 @@ export function AuthenticatedLayout() {
         <VisibilityPrompt />
         <NewPostComposer />
         
-        {/* Entry Gates */}
-        {entryGates.addressData && (
-          <AddressConfirmModal
-            open={entryGates.showAddressModal}
-            onOpenChange={(open) => {
-              if (!open) entryGates.closeAddressModal();
-            }}
-            initialData={entryGates.addressData}
-            onConfirm={entryGates.saveAddress}
-          />
-        )}
+        {/* Entry Gates - Address confirmation removed */}
         
         <VisibilityNudge
           open={entryGates.showVisibilityModal}

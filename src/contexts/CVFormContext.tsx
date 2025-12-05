@@ -20,6 +20,7 @@ export interface BerufserfahrungEntry {
   zeitraum_von: string;
   zeitraum_bis: string;
   beschreibung?: string;
+  abschluss?: string; // Abschluss bei Ausbildungen (z.B. Gesellenbrief, Facharbeiterbrief)
 }
 
 export interface SprachEntry {
@@ -332,24 +333,13 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         }
         
         if (formData.status === 'azubi') {
-          if (!formData.ausbildungsberuf) errors.ausbildungsberuf = 'Ausbildungsberuf ist erforderlich';
-          if (!formData.ausbildungsbetrieb) errors.ausbildungsbetrieb = 'Ausbildungsbetrieb ist erforderlich';
-          if (!formData.startjahr) errors.startjahr = 'Startjahr ist erforderlich';
-          
-          // Voraussichtliches Ende validation
-          if (!formData.voraussichtliches_ende) {
-            errors.voraussichtliches_ende = 'Voraussichtliches Ende ist erforderlich';
-          } else {
-            const year = parseInt(formData.voraussichtliches_ende);
-            if (year < currentYear - 1 || year > currentYear + 5) {
-              errors.voraussichtliches_ende = 'Das Jahr muss zwischen diesem Jahr -1 und +5 Jahren liegen';
-            }
-          }
+          // Ausbildungsberuf und Abschlussjahr sind nicht mehr Pflichtfelder in Step 2
+          // Sie werden in Step 4 (Berufserfahrung) abgefragt
         }
         
         if (formData.status === 'fachkraft') {
-          if (!formData.ausbildungsberuf) errors.ausbildungsberuf = 'Ausbildungsberuf ist erforderlich';
-          if (!formData.abschlussjahr_fachkraft) errors.abschlussjahr_fachkraft = 'Abschlussjahr ist erforderlich';
+          // Ausbildungsberuf und Abschlussjahr sind nicht mehr Pflichtfelder in Step 2
+          // Sie werden in Step 4 (Berufserfahrung) abgefragt
         }
         break;
       case 3:

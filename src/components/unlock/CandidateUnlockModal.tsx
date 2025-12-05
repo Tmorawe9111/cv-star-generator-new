@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, Info, Coins } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, Info, Coins, MessageSquare, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { TokenDepletedModal } from "@/components/Company/TokenDepletedModal";
 import { useCompany } from "@/hooks/useCompany";
+import { ScheduleInterviewAfterQuestions } from "@/components/jobs/ScheduleInterviewAfterQuestions";
 
 type UnlockType = "bewerbung" | "initiativ";
 type ContextType = "application" | "match" | "none";
@@ -74,6 +75,11 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showTokenDepletedModal, setShowTokenDepletedModal] = useState(false);
   const { company } = useCompany();
+  const [nextAction, setNextAction] = useState<"send_questions" | "direct_interview" | "later">("later");
+  const [hasJobQuestions, setHasJobQuestions] = useState(false);
+  const [companyCandidateId, setCompanyCandidateId] = useState<string | null>(null);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
 
   useEffect(() => {
     if (jobsLoading) return;
@@ -208,6 +214,11 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
     setSelectedJobId(contextApplication?.job_id ?? null);
     setNotes("");
     setAlreadyUnlocked(false);
+    setNextAction("later");
+    setHasJobQuestions(false);
+    setCompanyCandidateId(null);
+    setApplicationId(null);
+    setShowInterviewModal(false);
   }
   function handleOpenChange(next: boolean) {
     if (!next) resetState();
@@ -330,9 +341,9 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
         await supabase.rpc("create_notification", {
           p_recipient_type: "profile",
           p_recipient_id: candidate.user_id,
-          p_type: "candidate_message",
+          p_type: "company_unlocked_you",
           p_title: "Dein Profil wurde freigeschaltet 🎉",
-          p_body: "Ein Unternehmen hat dein Profil auf Ausbildungsbasis freigeschaltet, weil es dich interessant findet – auch ohne konkrete Bewerbung. Du kannst dich jetzt direkt austauschen oder dich für passende Stellen im Unternehmensprofil bewerben.",
+          p_body: "Ein Unternehmen hat dein Profil auf BeVisiblle freigeschaltet, weil es dich interessant findet – auch ohne konkrete Bewerbung. Du kannst dich jetzt direkt austauschen oder dich für passende Stellen im Unternehmensprofil bewerben.",
           p_actor_type: "company",
           p_actor_id: companyId,
           p_payload: { job_id: relatedJobId },
@@ -341,15 +352,38 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
         });
       } else if (unlockType === "bewerbung") {
         // Notify about standard unlock - use user_id
+        // Include application_id and job_id in payload for interview questions
+        // Only send if job has interview questions (optional feature)
+        const jobIdForNotification = selectedJobId || contextApplication?.job_id;
+        
+        // Check if job has interview questions (optional - only notify if questions exist)
+        let hasInterviewQuestions = false;
+        if (jobIdForNotification) {
+          const { data: questions } = await supabase
+            .from('company_interview_questions')
+            .select('id')
+            .eq('role_id', jobIdForNotification)
+            .limit(1);
+          hasInterviewQuestions = (questions?.length || 0) > 0;
+        }
+
+        // Only send notification with interview questions link if questions exist
+        // Otherwise, send standard unlock notification
         await supabase.rpc("create_notification", {
           p_recipient_type: "profile",
           p_recipient_id: candidate.user_id,
-          p_type: "candidate_message",
+          p_type: "company_unlocked_you",
           p_title: "Dein Profil wurde freigeschaltet ✅",
-          p_body: "Das Unternehmen, bei dem du dich beworben hast, hat dein Profil freigeschaltet. Du bist jetzt für das Recruiting-Team sichtbar und kannst direkt kontaktiert werden, wenn du in die engere Auswahl kommst.",
+          p_body: hasInterviewQuestions
+            ? "Das Unternehmen, bei dem du dich beworben hast, hat dein Profil freigeschaltet. Bitte beantworte die Interviewfragen, um dich auf das Gespräch vorzubereiten."
+            : "Das Unternehmen, bei dem du dich beworben hast, hat dein Profil freigeschaltet. Du bist jetzt für das Recruiting-Team sichtbar und kannst direkt kontaktiert werden, wenn du in die engere Auswahl kommst.",
           p_actor_type: "company",
           p_actor_id: companyId,
-          p_payload: { application_id: contextApplication?.id },
+          p_payload: { 
+            application_id: contextApplication?.id,
+            job_id: jobIdForNotification,
+            has_interview_questions: hasInterviewQuestions
+          },
           p_group_key: null,
           p_priority: 5
         });
@@ -387,10 +421,58 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
         }
       });
 
-      // Success - stay on current page
+      // Get company_candidate_id for interview planning
+      const { data: companyCandidate } = await supabase
+        .from("company_candidates")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("candidate_id", candidate.user_id)
+        .maybeSingle();
+
+      if (companyCandidate) {
+        setCompanyCandidateId(companyCandidate.id);
+      }
+
+      // Get application_id if exists
+      if (contextApplication?.id) {
+        setApplicationId(contextApplication.id);
+      } else if (relatedJobId) {
+        // Try to find application by job_id and candidate_id
+        const { data: candidateData } = await supabase
+          .from("candidates")
+          .select("id")
+          .eq("user_id", candidate.user_id)
+          .eq("company_id", companyId)
+          .maybeSingle();
+
+        if (candidateData) {
+          const { data: appData } = await supabase
+            .from("applications")
+            .select("id")
+            .eq("job_id", relatedJobId)
+            .eq("candidate_id", candidateData.id)
+            .maybeSingle();
+
+          if (appData) {
+            setApplicationId(appData.id);
+          }
+        }
+      }
+
+      // Check if job has interview questions
+      if (relatedJobId) {
+        const { data: questions } = await supabase
+          .from('company_interview_questions')
+          .select('id')
+          .eq('role_id', relatedJobId)
+          .limit(1);
+        
+        setHasJobQuestions((questions?.length || 0) > 0);
+      }
+
+      // Success - go to step 4 (next action selection)
       toast.success("Kandidat erfolgreich freigeschaltet");
-      handleOpenChange(false);
-      onSuccess?.();
+      setStep(4);
 
     } catch (e: any) {
       // Rollback tokens if deducted - get current balance and add back
@@ -493,7 +575,9 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
             <div className={`h-[2px] grow ${step > 1 ? "bg-emerald-600" : "bg-border"}`} />
             <StepBadge index={2} active={step === 2} done={step > 2} />
             <div className={`h-[2px] grow ${step > 2 ? "bg-emerald-600" : "bg-border"}`} />
-            <StepBadge index={3} active={step === 3} done={false} />
+            <StepBadge index={3} active={step === 3} done={step > 3} />
+            <div className={`h-[2px] grow ${step > 3 ? "bg-emerald-600" : "bg-border"}`} />
+            <StepBadge index={4} active={step === 4} done={false} />
           </div>
         )}
 
@@ -599,6 +683,65 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
               </div>
             </motion.div>
           )}
+
+          {!alreadyUnlocked && step === 4 && (
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+              <div className="rounded-lg border p-4 space-y-4">
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">Was möchten Sie als Nächstes tun?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Sie haben {candidateName} erfolgreich freigeschaltet. Wählen Sie die nächste Aktion:
+                  </p>
+                </div>
+
+                <RadioGroup 
+                  value={nextAction} 
+                  onValueChange={(v) => setNextAction(v as typeof nextAction)}
+                  className="space-y-3"
+                >
+                  {hasJobQuestions && selectedJobId && (
+                    <div className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="send_questions" id="send_questions" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="send_questions" className="cursor-pointer font-medium flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          Interview-Fragen senden
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Der Kandidat beantwortet die spezifischen Fragen für diese Stelle. Danach können Sie ein Interview planen.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                    <RadioGroupItem value="direct_interview" id="direct_interview" className="mt-1" />
+                    <div className="flex-1">
+                      <Label htmlFor="direct_interview" className="cursor-pointer font-medium flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Direkt Interview einladen
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Die allgemeinen Profil-Fragen passen bereits. Planen Sie direkt einen Interview-Termin.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                    <RadioGroupItem value="later" id="later" className="mt-1" />
+                    <div className="flex-1">
+                      <Label htmlFor="later" className="cursor-pointer font-medium">
+                        Später entscheiden
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Sie können später im Profil des Kandidaten eine Aktion wählen.
+                      </p>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+            </motion.div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
@@ -633,6 +776,71 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
                   {loading ? "Wird freigeschaltet..." : "Freischalten"}
                 </Button>
               )}
+
+              {step === 4 && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      handleOpenChange(false);
+                      onSuccess?.();
+                    }}
+                  >
+                    Überspringen
+                  </Button>
+                  <Button 
+                    onClick={async () => {
+                      if (nextAction === "send_questions") {
+                        // Send notification with link to interview questions
+                        const jobIdForNotification = selectedJobId || contextApplication?.job_id;
+                        if (jobIdForNotification) {
+                          await supabase.rpc("create_notification", {
+                            p_recipient_type: "profile",
+                            p_recipient_id: candidate.user_id,
+                            p_type: "company_unlocked_you",
+                            p_title: "Interviewfragen beantworten 📝",
+                            p_body: "Das Unternehmen hat Sie freigeschaltet und möchte, dass Sie die Interviewfragen für diese Stelle beantworten.",
+                            p_actor_type: "company",
+                            p_actor_id: companyId,
+                            p_payload: { 
+                              application_id: applicationId || null,
+                              job_id: jobIdForNotification,
+                              has_interview_questions: true,
+                              action: "answer_questions"
+                            },
+                            p_group_key: null,
+                            p_priority: 5
+                          });
+                          toast.success("Interview-Fragen wurden an den Kandidaten gesendet.");
+                        } else {
+                          toast.error("Keine Stelle ausgewählt. Bitte wählen Sie eine Stelle aus.");
+                          return;
+                        }
+                        handleOpenChange(false);
+                        onSuccess?.();
+                      } else if (nextAction === "direct_interview") {
+                        // Open interview scheduling modal
+                        // We need at least companyCandidateId - applicationId and jobId are optional
+                        if (companyCandidateId) {
+                          setShowInterviewModal(true);
+                        } else {
+                          toast.error("Fehler: Kandidat-ID nicht gefunden. Bitte versuchen Sie es später im Profil.");
+                          handleOpenChange(false);
+                          onSuccess?.();
+                        }
+                      } else {
+                        // Later - just close
+                        handleOpenChange(false);
+                        onSuccess?.();
+                      }
+                    }}
+                  >
+                    {nextAction === "send_questions" && "Fragen senden"}
+                    {nextAction === "direct_interview" && "Interview planen"}
+                    {nextAction === "later" && "Fertig"}
+                  </Button>
+                </>
+              )}
             </>
           )}
         </DialogFooter>
@@ -644,6 +852,30 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
         companyId={companyId}
         context="unlock"
       />
+
+      {/* Interview Scheduling Modal */}
+      {showInterviewModal && companyCandidateId && (
+        <ScheduleInterviewAfterQuestions
+          open={showInterviewModal}
+          onOpenChange={(open) => {
+            setShowInterviewModal(open);
+            if (!open) {
+              handleOpenChange(false);
+              onSuccess?.();
+            }
+          }}
+          applicationId={applicationId || ""}
+          jobId={selectedJobId || ""}
+          companyId={companyId}
+          candidateName={candidateName}
+          companyCandidateId={companyCandidateId}
+          onComplete={() => {
+            setShowInterviewModal(false);
+            handleOpenChange(false);
+            onSuccess?.();
+          }}
+        />
+      )}
     </Dialog>
   );
 }

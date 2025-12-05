@@ -46,6 +46,10 @@ export const SkillsLanguagesSidebar: React.FC<SkillsLanguagesSidebarProps> = ({
 
   // Skills handlers
   const startEditingSkills = () => {
+    // Close languages editing if open
+    if (editingLanguages) {
+      setEditingLanguages(false);
+    }
     setTempSkills(profile?.faehigkeiten || []);
     setEditingSkills(true);
   };
@@ -56,6 +60,7 @@ export const SkillsLanguagesSidebar: React.FC<SkillsLanguagesSidebarProps> = ({
   };
 
   const saveSkills = async () => {
+    // Skills can be empty, so no validation needed
     try {
       await onProfileUpdate({ faehigkeiten: tempSkills });
       setEditingSkills(false);
@@ -78,6 +83,10 @@ export const SkillsLanguagesSidebar: React.FC<SkillsLanguagesSidebarProps> = ({
 
   // Languages handlers
   const startEditingLanguages = () => {
+    // Close skills editing if open
+    if (editingSkills) {
+      setEditingSkills(false);
+    }
     setTempLanguages(profile?.sprachen || []);
     setEditingLanguages(true);
   };
@@ -88,6 +97,7 @@ export const SkillsLanguagesSidebar: React.FC<SkillsLanguagesSidebarProps> = ({
   };
 
   const saveLanguages = async () => {
+    // Languages can be empty, so no validation needed
     try {
       await onProfileUpdate({ sprachen: tempLanguages });
       setEditingLanguages(false);

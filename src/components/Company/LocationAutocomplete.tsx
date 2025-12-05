@@ -35,17 +35,65 @@ export function LocationAutocomplete({
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isValidLocation, setIsValidLocation] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Prüfe ob aktueller Wert ein gültiger Standort aus der DB ist
+  useEffect(() => {
+    const validateLocation = async () => {
+      const query = value.trim();
+      
+      // Wenn leer, nicht gültig
+      if (!query) {
+        setIsValidLocation(false);
+        return;
+      }
+
+      // Nur für Deutschland prüfen
+      if (country !== 'DE') {
+        setIsValidLocation(false);
+        return;
+      }
+
+      // Prüfe Format: "PLZ Ort" (z.B. "10115 Berlin")
+      const plzOrtMatch = query.match(/^(\d{5})\s+(.+)$/);
+      if (plzOrtMatch) {
+        const [, plz, ort] = plzOrtMatch;
+        try {
+          // Prüfe ob diese Kombination in der DB existiert
+          const { data, error } = await supabase
+            .from('postal_codes')
+            .select('plz, ort')
+            .eq('plz', plz)
+            .ilike('ort', ort.trim())
+            .limit(1)
+            .maybeSingle();
+
+          if (!error && data) {
+            setIsValidLocation(true);
+            return;
+          }
+        } catch (error) {
+          console.error('Error validating location:', error);
+        }
+      }
+
+      setIsValidLocation(false);
+    };
+
+    validateLocation();
+  }, [value, country]);
 
   // Lade Vorschläge basierend auf Eingabe
   useEffect(() => {
     const loadSuggestions = async () => {
       const query = value.trim();
       
-      // Nur für Deutschland: PLZ-Autocomplete nach 3 Ziffern
+      // Nur für Deutschland: PLZ-Autocomplete nach mindestens 3 Ziffern für PLZ-Suche
+      // Für Städte: mindestens 2 Zeichen
       // Für andere Länder: normale Suche nach 2 Zeichen
-      const minLength = country === 'DE' ? 3 : 2;
+      const minLength = country === 'DE' ? 2 : 2;
       
       if (query.length < minLength) {
         setSuggestions([]);
@@ -62,8 +110,16 @@ export function LocationAutocomplete({
 
       setLoading(true);
       try {
-        // Prüfe ob es eine PLZ ist (3-5 Ziffern)
+        // Prüfe ob es eine PLZ ist (nur Ziffern, 3-5 Zeichen)
         const isPLZ = /^\d{3,5}$/.test(query);
+        
+        // Für PLZ-Suche: Mindestens 3 Ziffern erforderlich
+        if (isPLZ && query.length < 3) {
+          setSuggestions([]);
+          setIsOpen(false);
+          setLoading(false);
+          return;
+        }
         
         let queryBuilder = supabase
           .from('postal_codes')
@@ -74,7 +130,13 @@ export function LocationAutocomplete({
           // Suche nach PLZ (beginnt mit eingegebenen Ziffern)
           queryBuilder = queryBuilder.ilike('plz', `${query}%`);
         } else {
-          // Suche nach Stadt
+          // Suche nach Stadt (mindestens 2 Zeichen)
+          if (query.length < 2) {
+            setSuggestions([]);
+            setIsOpen(false);
+            setLoading(false);
+            return;
+          }
           queryBuilder = queryBuilder.ilike('ort', `%${query}%`);
         }
 
@@ -92,7 +154,8 @@ export function LocationAutocomplete({
         }));
 
         setSuggestions(formatted);
-        setIsOpen(formatted.length > 0);
+        // Nur öffnen wenn der Benutzer aktiv tippt (nicht beim Focus ohne Eingabe)
+        setIsOpen(formatted.length > 0 && query.length >= minLength);
         setSelectedIndex(-1);
       } catch (error) {
         console.error('Error loading location suggestions:', error);
@@ -106,10 +169,10 @@ export function LocationAutocomplete({
     // Debounce: Warte 300ms nach letzter Eingabe
     const timeoutId = setTimeout(loadSuggestions, 300);
     return () => clearTimeout(timeoutId);
-  }, [value]);
+  }, [value, country]);
 
   const handleSelect = (suggestion: LocationSuggestion) => {
-    // Setze Format: "PLZ Ort" oder nur "Ort" wenn keine PLZ
+    // Setze Format: "PLZ Ort" (immer mit PLZ für Validierung)
     const displayValue = suggestion.plz 
       ? `${suggestion.plz} ${suggestion.ort}`
       : suggestion.ort;
@@ -117,6 +180,7 @@ export function LocationAutocomplete({
     onChange(displayValue);
     setIsOpen(false);
     setSuggestions([]);
+    setIsValidLocation(true); // Markiere als gültig nach Auswahl
     inputRef.current?.blur();
   };
 
@@ -148,9 +212,8 @@ export function LocationAutocomplete({
   };
 
   const handleFocus = () => {
-    if (suggestions.length > 0) {
-      setIsOpen(true);
-    }
+    // Keine automatische Öffnung beim Focus - nur wenn der Benutzer bereits etwas eingegeben hat
+    // Vorschläge werden nur beim Tippen geladen
   };
 
   const handleBlur = () => {
@@ -168,13 +231,14 @@ export function LocationAutocomplete({
   };
 
   return (
-    <div className={cn('relative', className)}>
+    <div className="relative w-full">
       <div className="relative">
-        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
         <Input
           ref={inputRef}
-          id={id}
+          id={id || `location-input-${Math.random().toString(36).substr(2, 9)}`}
           type="text"
+          name={`location-${Math.random().toString(36).substr(2, 9)}`}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -182,10 +246,15 @@ export function LocationAutocomplete({
           onBlur={handleBlur}
           placeholder={placeholder}
           className={cn(
-            'pl-10 pr-10',
+            className,
+            'pl-10 pr-10 w-full',
             isOpen && suggestions.length > 0 && 'rounded-b-none border-b-0'
           )}
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck="false"
+          data-form-type="other"
           disabled={disabled}
         />
         {value && (
@@ -208,7 +277,7 @@ export function LocationAutocomplete({
       {isOpen && suggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          className="absolute z-50 w-full mt-0 bg-popover border border-t-0 rounded-b-md shadow-lg max-h-60 overflow-auto"
+          className="absolute z-[100] w-full mt-0 bg-popover border border-t-0 rounded-b-md shadow-lg max-h-60 overflow-auto"
         >
           <div className="p-1">
             {suggestions.map((suggestion, index) => (
@@ -241,14 +310,19 @@ export function LocationAutocomplete({
         </div>
       )}
 
-      {/* Info Text */}
-      {country === 'DE' && value && value.length >= 3 && !loading && suggestions.length === 0 && (
-        <p className="absolute top-full left-0 mt-1 text-xs text-muted-foreground px-1">
-          Keine Vorschläge gefunden. Du kannst trotzdem suchen.
+      {/* Info Text - Nur anzeigen wenn kein gültiger Standort ausgewählt wurde */}
+      {country === 'DE' && 
+       value && 
+       value.length >= 3 && 
+       !loading && 
+       suggestions.length === 0 && 
+       !isValidLocation && (
+        <p className="absolute top-full left-0 mt-1 mb-6 text-xs text-muted-foreground px-1">
+          Keine Vorschläge gefunden. Bitte wähle einen Standort aus der Datenbank.
         </p>
       )}
       {country !== 'DE' && (
-        <p className="absolute top-full left-0 mt-1 text-xs text-muted-foreground px-1">
+        <p className="absolute top-full left-0 mt-1 mb-6 text-xs text-muted-foreground px-1">
           Bitte Stadt manuell eingeben (PLZ-Autocomplete nur für Deutschland verfügbar).
         </p>
       )}

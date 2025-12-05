@@ -14,6 +14,7 @@ import { CompanyPostsTab } from "@/components/Company/profile/tabs/CompanyPostsT
 import { CompanyLocationsTab } from "@/components/Company/profile/tabs/CompanyLocationsTab";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
+import { LocalBusinessStructuredData } from "@/components/seo/StructuredData";
 
 type Company = {
   id: string;
@@ -130,6 +131,19 @@ export default function PublicCompanyViewNew() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Structured Data for Company Profile */}
+      {company && (
+        <LocalBusinessStructuredData
+          address={{
+            streetAddress: company.main_location || undefined,
+            addressLocality: company.main_location?.split(',')[1]?.trim() || undefined,
+            postalCode: company.main_location?.split(',')[0]?.trim() || undefined,
+            addressRegion: company.main_location?.split(',')[2]?.trim() || undefined,
+            addressCountry: company.country || 'DE',
+          }}
+        />
+      )}
+      
       {/* Back to Job Button */}
       {fromJobId && (
         <div className="border-b bg-card">

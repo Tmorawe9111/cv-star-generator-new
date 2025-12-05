@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import SmartInteractions from '@/components/landing/SmartInteractions';
 import { trackCalendlyClick, trackPageView } from '@/lib/telemetry';
 import { motion } from 'framer-motion';
+import { WebSiteStructuredData, OrganizationStructuredData, LocalBusinessStructuredData } from '@/components/seo/StructuredData';
 
 const heroVariants = [
   {
@@ -67,7 +68,11 @@ export default function BeVisiblleLandingPage() {
   }, []);
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen">
+    <>
+      <WebSiteStructuredData />
+      <OrganizationStructuredData />
+      <LocalBusinessStructuredData />
+      <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen">
       {/* Header */}
       <header className="fixed top-4 left-0 right-0 z-50">
         <nav className="mx-auto max-w-5xl px-4">
@@ -500,5 +505,6 @@ export default function BeVisiblleLandingPage() {
       </footer>
 
     </div>
+    </>
   );
 }

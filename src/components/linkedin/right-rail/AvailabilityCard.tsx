@@ -45,13 +45,20 @@ export function AvailabilityCard({
   const [availabilityType, setAvailabilityType] = useState<'immediate' | 'custom'>('immediate');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<string>('');
+  const [isInvisible, setIsInvisible] = useState(false);
 
   React.useEffect(() => {
-    if (jobSearchPreferences && Array.isArray(jobSearchPreferences)) {
+    // Check if user is invisible
+    const isCurrentlyInvisible = visibilityMode === 'invisible' || (!jobSearchPreferences || jobSearchPreferences.length === 0);
+    setIsInvisible(isCurrentlyInvisible);
+    
+    if (jobSearchPreferences && Array.isArray(jobSearchPreferences) && jobSearchPreferences.length > 0) {
       setSelected(jobSearchPreferences.filter(v => JOB_OPTIONS.some(o => o.value === v)) as JobOption[]);
+    } else {
+      setSelected([]);
     }
     
-    if (availableFrom) {
+    if (availableFrom && !isCurrentlyInvisible) {
       setAvailabilityType('custom');
       const [year, month] = availableFrom.split('-');
       setSelectedYear(year || '');
@@ -59,7 +66,7 @@ export function AvailabilityCard({
     } else {
       setAvailabilityType('immediate');
     }
-  }, [jobSearchPreferences, availableFrom]);
+  }, [jobSearchPreferences, availableFrom, visibilityMode]);
 
   const allowedOptions = React.useMemo<JobOption[]>(() => {
     switch (profileStatus) {
@@ -109,31 +116,62 @@ export function AvailabilityCard({
 
   const getAvailableMonths = (year?: string): typeof allMonthOptions => {
     const yearToCheck = year || selectedYear;
-    if (!yearToCheck) return allMonthOptions;
+    if (!yearToCheck) {
+      // If no year selected, return only future months from next month
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth() + 1;
+      const nextMonth = currentMonth + 1;
+      
+      // If we're in December or later, only show months from next year
+      if (currentMonth >= 12) {
+        return allMonthOptions; // All months of next year
+      }
+      
+      // Otherwise show months from next month onwards
+      return allMonthOptions.filter(month => parseInt(month.value) > currentMonth);
+    }
     
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth() + 1;
     const selectedYearNum = parseInt(yearToCheck);
 
+    // If selected year is current year, only show future months
     if (selectedYearNum === currentYear) {
       return allMonthOptions.filter(month => parseInt(month.value) > currentMonth);
     }
 
-    if (selectedYearNum === currentYear + 1) {
+    // If selected year is future year, show all months
+    if (selectedYearNum > currentYear) {
       return allMonthOptions;
     }
 
-    return allMonthOptions;
+    // Past years: return empty (shouldn't happen with yearOptions filter)
+    return [];
   };
 
   const yearOptions = React.useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const maxYear = currentYear + 1;
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+    
+    // If we're in December or later, only show next year
+    // Otherwise show current year (if future months available) and next year
     const years: Array<{ value: string; label: string }> = [];
-    for (let y = currentYear; y <= maxYear; y++) {
-      years.push({ value: String(y), label: String(y) });
+    
+    if (currentMonth >= 12) {
+      // December or later: only show next year
+      years.push({ value: String(currentYear + 1), label: String(currentYear + 1) });
+    } else {
+      // Before December: show current year (if future months available) and next year
+      // Current year is only valid if there are future months
+      if (currentMonth < 12) {
+        years.push({ value: String(currentYear), label: String(currentYear) });
+      }
+      years.push({ value: String(currentYear + 1), label: String(currentYear + 1) });
     }
+    
     return years;
   }, []);
 
@@ -178,13 +216,46 @@ export function AvailabilityCard({
   const handleSave = async () => {
     if (!profileId) return;
 
+    // If invisible, clear everything
+    if (isInvisible) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ 
+          visibility_mode: 'invisible',
+          job_search_preferences: [],
+          available_from: null,
+          profile_published: false
+        })
+        .eq("id", profileId);
+
+      if (error) {
+        toast({
+          title: "Fehler",
+          description: "Einstellungen konnten nicht gespeichert werden.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Gespeichert",
+        description: "Du bist jetzt unsichtbar für Unternehmen.",
+      });
+
+      setIsEditing(false);
+      if (onUpdate) {
+        onUpdate();
+      }
+      return;
+    }
+
+    // If visible, save preferences and availability
     const availableFromValue = getAvailableFrom();
-    const newVisibilityMode = selected.length > 0 ? 'visible' : 'invisible';
 
     const { error } = await supabase
       .from("profiles")
       .update({ 
-        visibility_mode: newVisibilityMode,
+        visibility_mode: 'visible',
         job_search_preferences: selected,
         available_from: availableFromValue,
         profile_published: selected.length > 0
@@ -264,27 +335,33 @@ export function AvailabilityCard({
             {getStatusBadge()}
           </div>
           
-          {jobSearchPreferences && jobSearchPreferences.length > 0 && (
-            <div className="space-y-1">
-              <span className="text-sm text-muted-foreground">Art der Suche</span>
-              <div className="flex flex-wrap gap-1">
-                {jobSearchPreferences.map((pref, idx) => (
-                  <Badge key={idx} variant="outline" className="text-xs">
-                    {pref}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
+          {visibilityMode === 'invisible' ? (
+            <p className="text-sm text-muted-foreground">Du bist unsichtbar für Unternehmen.</p>
+          ) : (
+            <>
+              {jobSearchPreferences && jobSearchPreferences.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-sm text-muted-foreground">Art der Suche</span>
+                  <div className="flex flex-wrap gap-1">
+                    {jobSearchPreferences.map((pref, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs">
+                        {pref}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {availableFrom && (
-            <div className="space-y-1">
-              <span className="text-sm text-muted-foreground">Verfügbar ab</span>
-              <p className="text-sm font-medium">{formatDate(availableFrom)}</p>
-            </div>
-          )}
-          {!availableFrom && visibilityMode === 'visible' && (
-            <p className="text-xs text-muted-foreground">Ab sofort verfügbar</p>
+              {availableFrom && (
+                <div className="space-y-1">
+                  <span className="text-sm text-muted-foreground">Verfügbar ab</span>
+                  <p className="text-sm font-medium">{formatDate(availableFrom)}</p>
+                </div>
+              )}
+              {!availableFrom && visibilityMode === 'visible' && (
+                <p className="text-xs text-muted-foreground">Ab sofort verfügbar</p>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -299,26 +376,51 @@ export function AvailabilityCard({
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Was suchst du? (Mehrfachauswahl nur bei Praktikum & Ausbildung)</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {allowedOptions.map((value) => {
-                  const opt = JOB_OPTIONS.find(o => o.value === value)!;
-                  return (
-                    <label key={opt.value} className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-accent/40">
-                      <Checkbox
-                        checked={selected.includes(opt.value)}
-                        onCheckedChange={() => toggle(opt.value)}
-                        aria-label={opt.label}
-                      />
-                      <span className="text-sm">{opt.label}</span>
-                    </label>
-                  );
-                })}
+            <div className="space-y-3 border-b pb-4">
+              <Label>Status</Label>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="invisible"
+                  checked={isInvisible}
+                  onCheckedChange={(checked) => {
+                    setIsInvisible(checked as boolean);
+                    if (checked) {
+                      setSelected([]);
+                    }
+                  }}
+                />
+                <Label htmlFor="invisible" className="cursor-pointer font-normal flex items-center gap-2">
+                  <EyeOff className="h-4 w-4" />
+                  Unsichtbar für Unternehmen
+                </Label>
               </div>
+              <p className="text-xs text-muted-foreground ml-6">
+                Wenn du unsichtbar bist, werden deine Verfügbarkeit und Suchpräferenzen nicht angezeigt.
+              </p>
             </div>
 
-            {selected.length > 0 && (
+            {!isInvisible && (
+              <>
+                <div className="space-y-2">
+                  <Label>Was suchst du? (Mehrfachauswahl nur bei Praktikum & Ausbildung)</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {allowedOptions.map((value) => {
+                      const opt = JOB_OPTIONS.find(o => o.value === value)!;
+                      return (
+                        <label key={opt.value} className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-accent/40">
+                          <Checkbox
+                            checked={selected.includes(opt.value)}
+                            onCheckedChange={() => toggle(opt.value)}
+                            aria-label={opt.label}
+                          />
+                          <span className="text-sm">{opt.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {selected.length > 0 && (
               <div className="space-y-3 border-t pt-4">
                 <Label>Ab wann bist du verfügbar?</Label>
                 <RadioGroup value={availabilityType} onValueChange={(value) => setAvailabilityType(value as 'immediate' | 'custom')}>
@@ -384,12 +486,14 @@ export function AvailabilityCard({
                   </div>
                 )}
               </div>
+                )}
+              </>
             )}
           </div>
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setIsEditing(false)}>Abbrechen</Button>
-            <Button onClick={handleSave} disabled={selected.length === 0}>
+            <Button onClick={handleSave} disabled={!isInvisible && selected.length === 0}>
               Speichern
             </Button>
           </DialogFooter>

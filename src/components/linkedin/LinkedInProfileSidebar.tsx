@@ -4,6 +4,9 @@ import { CVPreviewCard } from '@/components/CVPreviewCard';
 import { WeitereDokumenteSection } from '@/components/linkedin/right-rail/WeitereDokumenteSection';
 import WeitereDokumenteWidget from '@/components/profile/WeitereDokumenteWidget';
 import { AvailabilityCard } from '@/components/linkedin/right-rail/AvailabilityCard';
+import { ValuesAndInterviewCard } from '@/components/linkedin/right-rail/ValuesAndInterviewCard';
+import { ValuesAndInterviewSection } from '@/components/recruiter/ValuesAndInterviewSection';
+import { ProfileCommonalities } from '@/components/linkedin/right-rail/ProfileCommonalities';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,6 +21,8 @@ interface LinkedInProfileSidebarProps {
   showLanguagesAndSkills?: boolean;
   showLicenseAndStats?: boolean;
   showCVSection?: boolean;
+  showValuesAndInterview?: boolean;
+  profileId?: string;
   onEditingChange?: (isEditing: boolean) => void;
 }
 
@@ -58,6 +63,8 @@ export function LinkedInProfileSidebar({
   showLanguagesAndSkills = true,
   showLicenseAndStats = true,
   showCVSection = true,
+  showValuesAndInterview = false,
+  profileId,
   onEditingChange
 }: LinkedInProfileSidebarProps) {
   const [isDocumentWidgetOpen, setIsDocumentWidgetOpen] = useState(false);
@@ -158,7 +165,12 @@ export function LinkedInProfileSidebar({
 
   return (
     <div className="space-y-3 sm:space-y-4">
-      {/* CV Download Section - First */}
+      {/* Profile Commonalities - First (only when viewing other profiles) */}
+      {readOnly && profileId && (
+        <ProfileCommonalities profileId={profileId} />
+      )}
+
+      {/* CV Download Section */}
       {showCVSection && profile && (
         <CVPreviewCard
           profile={profile}
@@ -359,6 +371,16 @@ export function LinkedInProfileSidebar({
           </CardContent>
         </Card>
       )}
+
+      {/* Values & Interview Section - For recruiter view (readOnly) or own profile */}
+      {showValuesAndInterview && profileId && readOnly ? (
+        <ValuesAndInterviewSection profileId={profileId} />
+      ) : !readOnly ? (
+        <ValuesAndInterviewCard
+          profileId={profile?.id}
+          isEditing={true}
+        />
+      ) : null}
 
       {/* Availability Section - After Languages */}
       <AvailabilityCard 

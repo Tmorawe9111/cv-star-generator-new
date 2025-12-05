@@ -52,7 +52,7 @@ const initialFormData: JobFormData = {
   title: '',
   industry: '',
   city: '',
-  employment_type: 'fulltime',
+  employment_type: 'full-time',
   start_date: '',
   skills: [],
   required_languages: [],

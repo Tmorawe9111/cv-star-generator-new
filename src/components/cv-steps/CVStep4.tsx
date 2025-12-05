@@ -399,12 +399,34 @@ const CVStep4 = () => {
       ort: '',
       zeitraum_von: '',
       zeitraum_bis: '',
-      beschreibung: ''
+      beschreibung: '',
+      abschluss: ''
     };
     
     const berufserfahrung = formData.berufserfahrung || [];
     updateFormData({ berufserfahrung: [...berufserfahrung, newEntry] });
   };
+
+  // Check if an experience entry is an apprenticeship
+  const isAusbildung = (arbeit: BerufserfahrungEntry) => {
+    const titelLower = arbeit.titel?.toLowerCase() || '';
+    return titelLower.includes('ausbildung') || 
+           titelLower.includes('azubi') || 
+           titelLower.includes('lehrling') ||
+           formData.status === 'azubi';
+  };
+
+  // Common apprenticeship completion certificates
+  const abschlussOptions = [
+    'Gesellenbrief',
+    'Facharbeiterbrief',
+    'Kaufmännische Abschlussprüfung',
+    'Berufsabschluss',
+    'IHK-Abschluss',
+    'HWK-Abschluss',
+    'Ausbildung',
+    'Andere'
+  ];
 
   const updateBerufserfahrungEntry = (index: number, field: keyof BerufserfahrungEntry, value: string) => {
     const berufserfahrung = formData.berufserfahrung || [];
@@ -482,7 +504,7 @@ const CVStep4 = () => {
   const hasMinimumSchulbildung = (formData.schulbildung?.length || 0) > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-2">Schulische & Praktische Erfahrungen</h2>
         <p className="text-muted-foreground mb-6">
@@ -688,6 +710,38 @@ const CVStep4 = () => {
                     onBlur={(e) => handleDynamicInputBlur('berufs', index, 'unternehmen', e.target.value)}
                   />
                 </div>
+                {isAusbildung(arbeit) && (
+                  <div>
+                    <Label htmlFor={`abschluss-${index}`}>Abschluss (optional)</Label>
+                    <Select 
+                      value={arbeit.abschluss || ''} 
+                      onValueChange={(value) => {
+                        if (value === 'Andere') {
+                          // Allow free text input
+                          const input = prompt('Bitte geben Sie den Abschluss ein:');
+                          if (input) {
+                            handleDynamicInputChange('berufs', index, 'abschluss', input);
+                            handleDynamicInputBlur('berufs', index, 'abschluss', input);
+                          }
+                        } else {
+                          handleDynamicInputChange('berufs', index, 'abschluss', value);
+                          handleDynamicInputBlur('berufs', index, 'abschluss', value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Abschluss wählen" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border shadow-lg z-50">
+                        {abschlussOptions.map((option) => (
+                          <SelectItem key={option} value={option} className="hover:bg-muted">
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <Label htmlFor={`arbeit-plz-${index}`}>PLZ</Label>
