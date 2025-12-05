@@ -97,9 +97,9 @@ export function CompanyRoleExpectations({
   return (
     <div className="w-full space-y-4">
       <Card className="p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold mb-4">
-          Erwartungen an neue Mitarbeitende
-        </p>
+          <h3 className="text-base sm:text-lg font-semibold mb-4">
+            Erwartungen an neue Mitarbeitende
+          </h3>
         <p className="text-sm text-muted-foreground mb-6">
           Diese Angaben helfen Bewerbern zu verstehen, was Sie von neuen Mitarbeitenden erwarten.
         </p>
