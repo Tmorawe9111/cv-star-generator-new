@@ -38,6 +38,33 @@ export function CompanyLayout() {
   const [showTokenDepletedModal, setShowTokenDepletedModal] = useState(false);
   const [showAppleOnboarding, setShowAppleOnboarding] = useState(false);
 
+  // Flush pending Slack company signup notification once we are authenticated.
+  // This handles the case where password-signup creates no session yet (email confirmation enabled),
+  // so the initial slack-signup-notify call returns 401.
+  useEffect(() => {
+    const flushPendingCompanySlackNotify = async () => {
+      if (!user) return;
+      const pending = localStorage.getItem('pending_company_slack_notify');
+      if (!pending) return;
+
+      try {
+        const payload = JSON.parse(pending);
+        const { error } = await supabase.functions.invoke('slack-signup-notify', { body: payload });
+        if (!error) {
+          localStorage.removeItem('pending_company_slack_notify');
+        } else {
+          // Keep it for later retries (e.g. temporary network error)
+          console.warn('Pending company Slack notify failed:', error);
+        }
+      } catch (err) {
+        console.warn('Invalid pending_company_slack_notify payload, removing.', err);
+        localStorage.removeItem('pending_company_slack_notify');
+      }
+    };
+
+    void flushPendingCompanySlackNotify();
+  }, [user]);
+
   // Check for pending company signup from magic link
   useEffect(() => {
     const processPendingSignup = async () => {
@@ -79,7 +106,7 @@ export function CompanyLayout() {
 
           // Fire-and-forget Slack notification (magic link signup completion)
           try {
-            void supabase.functions.invoke('slack-signup-notify', {
+            const { error: slackErr } = await supabase.functions.invoke('slack-signup-notify', {
               body: {
                 kind: 'company',
                 test: false,
@@ -101,6 +128,9 @@ export function CompanyLayout() {
                 },
               },
             });
+            if (slackErr) {
+              console.warn('Slack notify failed for pending company signup:', slackErr);
+            }
           } catch {
             // ignore
           }

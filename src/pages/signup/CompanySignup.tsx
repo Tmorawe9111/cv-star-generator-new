@@ -161,7 +161,7 @@ function CompanySignup() {
 
             // Fire-and-forget Slack notification (never block signup UX)
             try {
-              void supabase.functions.invoke('slack-signup-notify', {
+              const { error: slackErr } = await supabase.functions.invoke('slack-signup-notify', {
                 body: {
                   kind: 'company',
                   test: false,
@@ -182,6 +182,32 @@ function CompanySignup() {
                   },
                 },
               });
+              // If email-confirmation is enabled, signUp might not create a session yet → Slack call is unauthenticated.
+              // In that case, store payload and re-send once the user is authenticated in CompanyLayout.
+              if (slackErr && String((slackErr as any).message || '').toLowerCase().includes('not authenticated')) {
+                localStorage.setItem(
+                  'pending_company_slack_notify',
+                  JSON.stringify({
+                    kind: 'company',
+                    test: false,
+                    source: 'CompanySignup.password.pending',
+                    company: {
+                      companyName: form.companyName,
+                      industry: form.industry,
+                      zip: null,
+                      city: form.city,
+                      employeeCount: form.size,
+                      website: form.website || null,
+                      contactPerson: {
+                        firstName: form.adminFirst,
+                        lastName: form.adminLast,
+                        email: form.email,
+                        phone: form.phone,
+                      },
+                    },
+                  }),
+                );
+              }
             } catch {
               // ignore
             }
