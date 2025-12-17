@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useCVForm } from '@/contexts/CVFormContext';
 import { Progress } from '@/components/ui/progress';
@@ -21,7 +21,8 @@ const CVGeneratorContent = () => {
     isLayoutEditMode,
     setLayoutEditMode,
     validateStep,
-    validationErrors
+    validationErrors,
+    getStepErrors
   } = useCVForm();
   const navigate = useNavigate();
   const location = useLocation();
@@ -94,6 +95,36 @@ const CVGeneratorContent = () => {
         return <CVStep0 />;
     }
   };
+
+  const stepErrors = useMemo(() => {
+    if (currentStep === 0 || currentStep === 7) return {};
+    return getStepErrors(currentStep);
+  }, [currentStep, getStepErrors]);
+
+  const isNextBlocked = useMemo(() => {
+    if (currentStep === 0 || currentStep === 7) return false;
+    if (isLayoutEditMode) {
+      // In layout edit mode, only step 5 requires validation
+      return currentStep === 5 && Object.keys(stepErrors).length > 0;
+    }
+    return Object.keys(stepErrors).length > 0;
+  }, [currentStep, isLayoutEditMode, stepErrors]);
+
+  const scrollToFirstInvalid = () => {
+    const root = stepContentRef.current;
+    if (!root) return;
+    const firstInvalid =
+      (root.querySelector('.border-destructive') as HTMLElement | null) ||
+      (root.querySelector('[aria-invalid="true"]') as HTMLElement | null) ||
+      (root.querySelector('[data-invalid="true"]') as HTMLElement | null) ||
+      (document.getElementById('profilbild-input') as HTMLElement | null) ||
+      (document.getElementById('vorname') as HTMLElement | null) ||
+      (document.getElementById('nachname') as HTMLElement | null);
+
+    if (!firstInvalid) return;
+    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    (firstInvalid as any)?.focus?.();
+  };
   const handleNext = () => {
     if (isLayoutEditMode) {
       // In layout edit mode, only allow step 5 -> 6
@@ -136,31 +167,7 @@ const CVGeneratorContent = () => {
         });
 
         // Apple-like UX: jump user to the first invalid field (after validationErrors render)
-        window.setTimeout(() => {
-          const root = stepContentRef.current;
-          if (!root) return;
-          const firstInvalid =
-            (root.querySelector('.border-destructive') as HTMLElement | null) ||
-            (root.querySelector('[aria-invalid="true"]') as HTMLElement | null) ||
-            (root.querySelector('[data-invalid="true"]') as HTMLElement | null);
-          if (!firstInvalid) return;
-
-          firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // focus inputs/buttons if possible
-          if (
-            firstInvalid instanceof HTMLInputElement ||
-            firstInvalid instanceof HTMLTextAreaElement ||
-            firstInvalid instanceof HTMLButtonElement ||
-            firstInvalid instanceof HTMLSelectElement
-          ) {
-            firstInvalid.focus();
-          } else {
-            const focusable = firstInvalid.querySelector(
-              'input, textarea, button, select, [tabindex]:not([tabindex="-1"])'
-            ) as HTMLElement | null;
-            focusable?.focus();
-          }
-        }, 80);
+        window.setTimeout(scrollToFirstInvalid, 80);
       }
     }
   };
@@ -255,13 +262,24 @@ const CVGeneratorContent = () => {
         {currentStep > 0 && currentStep !== 7 && (
           <div className="flex-shrink-0 border-t bg-background/90 backdrop-blur px-3 md:px-4 py-3 md:py-4">
             {/* Validation Errors (always visible, above the buttons) */}
-            {Object.keys(validationErrors).length > 0 && (
+            {Object.keys(stepErrors).length > 0 && (
               <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 p-2">
-                <div className="text-xs font-semibold text-destructive">
-                  Bitte fülle die markierten Pflichtfelder aus
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-xs font-semibold text-destructive">
+                    Bitte fülle die Pflichtfelder aus (sonst kannst du nicht weiter).
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={scrollToFirstInvalid}
+                    className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                  >
+                    Zum Feld
+                  </Button>
                 </div>
                 <ul className="mt-1 max-h-20 overflow-y-auto text-[11px] text-destructive space-y-0.5">
-                  {Object.values(validationErrors).map((error, index) => (
+                  {Object.values(stepErrors).map((error, index) => (
                     <li key={index}>• {error}</li>
                   ))}
                 </ul>
@@ -282,6 +300,7 @@ const CVGeneratorContent = () => {
                 <Button
                   onClick={handleNext}
                   className="h-12 flex-1 rounded-full text-sm font-semibold bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] shadow-md hover:shadow-lg"
+                  disabled={isNextBlocked}
                 >
                   <span>
                     {currentStep === 5

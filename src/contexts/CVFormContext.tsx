@@ -135,6 +135,7 @@ interface CVFormContextType {
   syncToProfile: () => Promise<void>;
   setAutoSyncEnabled: (enabled: boolean) => void;
   validationErrors: Record<string, string>;
+  getStepErrors: (step: number) => Record<string, string>;
   validateStep: (step: number) => boolean;
   clearValidationErrors: () => void;
 }
@@ -242,23 +243,23 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('cvLayoutEditMode');
   };
 
-  const validateStep = (step: number): boolean => {
+  const computeStepErrors = (step: number, data: CVFormData): Record<string, string> => {
     const errors: Record<string, string> = {};
     
     switch (step) {
       case 1:
-        if (!formData.branche) errors.branche = 'Branche ist erforderlich';
-        if (!formData.status) errors.status = 'Status ist erforderlich';
+        if (!data.branche) errors.branche = 'Branche ist erforderlich';
+        if (!data.status) errors.status = 'Status ist erforderlich';
         break;
       case 2:
-        if (!formData.vorname) errors.vorname = 'Vorname ist erforderlich';
-        if (!formData.nachname) errors.nachname = 'Nachname ist erforderlich';
+        if (!data.vorname) errors.vorname = 'Vorname ist erforderlich';
+        if (!data.nachname) errors.nachname = 'Nachname ist erforderlich';
         
         // Geburtsdatum validation - mindestens 16 Jahre alt
-        if (!formData.geburtsdatum) {
+        if (!data.geburtsdatum) {
           errors.geburtsdatum = 'Geburtsdatum ist erforderlich';
         } else {
-          const birthDate = new Date(formData.geburtsdatum);
+          const birthDate = new Date(data.geburtsdatum);
           const today = new Date();
           const age = today.getFullYear() - birthDate.getFullYear();
           const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -271,46 +272,46 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
           }
         }
         
-        if (!formData.strasse) errors.strasse = 'Straße ist erforderlich';
+        if (!data.strasse) errors.strasse = 'Straße ist erforderlich';
         
         // Hausnummer validation - mindestens 1 Zahl
-        if (!formData.hausnummer) {
+        if (!data.hausnummer) {
           errors.hausnummer = 'Hausnummer ist erforderlich';
-        } else if (!/\d/.test(formData.hausnummer)) {
+        } else if (!/\d/.test(data.hausnummer)) {
           errors.hausnummer = 'Hausnummer muss mindestens eine Zahl enthalten';
         }
         
         // PLZ validation - nur Zahlen
-        if (!formData.plz) {
+        if (!data.plz) {
           errors.plz = 'PLZ ist erforderlich';
-        } else if (!/^\d+$/.test(formData.plz)) {
+        } else if (!/^\d+$/.test(data.plz)) {
           errors.plz = 'PLZ darf nur aus Zahlen bestehen';
         }
         
-        if (!formData.ort) errors.ort = 'Ort ist erforderlich';
+        if (!data.ort) errors.ort = 'Ort ist erforderlich';
         
         // Telefonnummer validation - DACH Format
-        if (!formData.telefon) {
+        if (!data.telefon) {
           errors.telefon = 'Telefonnummer ist erforderlich';
         } else {
           const phoneRegex = /^(\+?(49|41|43)[- ]?\d{1,4}[- ]?\d{3,}[- ]?\d{4,}|0\d{2,5}[- ]?\d{3,}[- ]?\d{4,})$/;
-          if (!phoneRegex.test(formData.telefon.replace(/\s/g, ''))) {
+          if (!phoneRegex.test(data.telefon.replace(/\s/g, ''))) {
             errors.telefon = 'Bitte gib eine gültige Telefonnummer ein (z.B. +49 123 456789)';
           }
         }
         
         // E-Mail validation - muss @ und . enthalten
-        if (!formData.email) {
+        if (!data.email) {
           errors.email = 'E-Mail ist erforderlich';
-        } else if (!formData.email.includes('@') || !formData.email.includes('.')) {
+        } else if (!data.email.includes('@') || !data.email.includes('.')) {
           errors.email = 'Bitte gib eine gültige E-Mail-Adresse ein';
         }
         
-        if (!formData.profilbild && !formData.avatar_url) errors.profilbild = 'Profilbild ist erforderlich';
-        if (formData.has_drivers_license === undefined || formData.has_drivers_license === null) {
+        if (!data.profilbild && !data.avatar_url) errors.profilbild = 'Profilbild ist erforderlich';
+        if (data.has_drivers_license === undefined || data.has_drivers_license === null) {
           errors.has_drivers_license = 'Führerschein-Angabe ist erforderlich';
         }
-        if (formData.has_drivers_license && !formData.driver_license_class) {
+        if (data.has_drivers_license && !data.driver_license_class) {
           errors.driver_license_class = 'Führerscheinklasse ist erforderlich';
         }
         
@@ -318,26 +319,26 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         break;
       case 3:
         // Step 3: Beruflicher Werdegang & Ausbildung
-        if (formData.status === 'schueler') {
+        if (data.status === 'schueler') {
           const currentYear = new Date().getFullYear();
-          if (!formData.schule) errors.schule = 'Schule ist erforderlich';
-          if (!formData.geplanter_abschluss) errors.geplanter_abschluss = 'Geplanter Abschluss ist erforderlich';
+          if (!data.schule) errors.schule = 'Schule ist erforderlich';
+          if (!data.geplanter_abschluss) errors.geplanter_abschluss = 'Geplanter Abschluss ist erforderlich';
 
-          if (!formData.abschlussjahr) {
+          if (!data.abschlussjahr) {
             errors.abschlussjahr = 'Abschlussjahr ist erforderlich';
           } else {
-            const year = parseInt(formData.abschlussjahr);
+            const year = parseInt(data.abschlussjahr);
             if (Number.isNaN(year) || year < currentYear - 1 || year > currentYear + 5) {
               errors.abschlussjahr = 'Abschlussjahr muss zwischen diesem Jahr -1 und +5 Jahren liegen';
             }
           }
         }
 
-        if (!formData.schulbildung || formData.schulbildung.length === 0) {
+        if (!data.schulbildung || data.schulbildung.length === 0) {
           errors.schulbildung = 'Mindestens ein Schulbildungs-Eintrag ist erforderlich';
         }
         // Validate each schulbildung entry
-        formData.schulbildung?.forEach((schule, index) => {
+        data.schulbildung?.forEach((schule, index) => {
           if (!schule.schulform) errors[`schulbildung_${index}_schulform`] = 'Schulform ist erforderlich';
           if (!schule.name) errors[`schulbildung_${index}_name`] = 'Name der Institution ist erforderlich';
           if (!schule.ort) errors[`schulbildung_${index}_ort`] = 'Ort ist erforderlich';
@@ -345,7 +346,7 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
           if (!schule.zeitraum_bis) errors[`schulbildung_${index}_zeitraum_bis`] = 'End-Jahr ist erforderlich';
         });
         // Validate each berufserfahrung entry
-        formData.berufserfahrung?.forEach((arbeit, index) => {
+        data.berufserfahrung?.forEach((arbeit, index) => {
           if (!arbeit.titel) errors[`berufserfahrung_${index}_titel`] = 'Position ist erforderlich';
           if (!arbeit.unternehmen) errors[`berufserfahrung_${index}_unternehmen`] = 'Unternehmen ist erforderlich';
           if (!arbeit.ort) errors[`berufserfahrung_${index}_ort`] = 'Ort ist erforderlich';
@@ -354,25 +355,32 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         break;
       case 4:
         // Step 4: Kenntnisse, Skills & Motivation
-        if (!formData.sprachen || formData.sprachen.length === 0) {
+        if (!data.sprachen || data.sprachen.length === 0) {
           errors.sprachen = 'Mindestens eine Sprache ist erforderlich';
         }
         // Skills are required for azubi and fachkraft
-        if ((formData.status === 'azubi' || formData.status === 'fachkraft') && 
-            (!formData.faehigkeiten || formData.faehigkeiten.length === 0)) {
+        if ((data.status === 'azubi' || data.status === 'fachkraft') && 
+            (!data.faehigkeiten || data.faehigkeiten.length === 0)) {
           errors.faehigkeiten = 'Mindestens eine Fähigkeit ist erforderlich';
         }
         // Motivation fields are optional - no validation needed
         break;
       case 5:
-        if (!formData.layout) errors.layout = 'Layout-Auswahl ist erforderlich';
+        if (!data.layout) errors.layout = 'Layout-Auswahl ist erforderlich';
         break;
       case 7:
-        if (!formData.datenschutz_akzeptiert) errors.datenschutz_akzeptiert = 'Datenschutzerklärung muss akzeptiert werden';
-        if (!formData.agb_akzeptiert) errors.agb_akzeptiert = 'AGBs müssen akzeptiert werden';
+        if (!data.datenschutz_akzeptiert) errors.datenschutz_akzeptiert = 'Datenschutzerklärung muss akzeptiert werden';
+        if (!data.agb_akzeptiert) errors.agb_akzeptiert = 'AGBs müssen akzeptiert werden';
         break;
     }
     
+    return errors;
+  };
+
+  const getStepErrors = (step: number) => computeStepErrors(step, formData);
+
+  const validateStep = (step: number): boolean => {
+    const errors = computeStepErrors(step, formData);
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -404,6 +412,7 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
       syncToProfile,
       setAutoSyncEnabled,
       validationErrors,
+      getStepErrors,
       validateStep,
       clearValidationErrors
     }}>
