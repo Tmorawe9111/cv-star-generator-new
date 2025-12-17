@@ -245,6 +245,7 @@ const CVStep4 = () => {
   const addSchulbildungEntry = () => {
     const newEntry: SchulbildungEntry = {
       schulform: '',
+      abschluss: '',
       name: '',
       ort: '',
       zeitraum_von: '',
@@ -495,6 +496,34 @@ const CVStep4 = () => {
 
 
   const hasMinimumSchulbildung = (formData.schulbildung?.length || 0) > 0;
+  const schulabschlussOptions = [
+    'Ohne Abschluss',
+    'Hauptschulabschluss',
+    'Realschulabschluss / Mittlere Reife',
+    'Fachhochschulreife',
+    'Abitur',
+    'Berufsabschluss (IHK/HWK)',
+    'Bachelor',
+    'Master',
+    'Andere'
+  ];
+
+  const latestSchoolIndex = (() => {
+    const schools = formData.schulbildung || [];
+    let idx = schools.length ? 0 : -1;
+    let best = Number.NEGATIVE_INFINITY;
+    for (let i = 0; i < schools.length; i++) {
+      const s = schools[i];
+      const bis = parseInt((s.zeitraum_bis || '').toString(), 10);
+      const von = parseInt((s.zeitraum_von || '').toString(), 10);
+      const candidate = Number.isFinite(bis) ? bis : (Number.isFinite(von) ? von : Number.NEGATIVE_INFINITY);
+      if (candidate > best) {
+        best = candidate;
+        idx = i;
+      }
+    }
+    return idx;
+  })();
 
   return (
     <div
@@ -627,6 +656,43 @@ const CVStep4 = () => {
                           onChange={(e) => handleDynamicInputChange('schul', index, 'name', e.target.value)}
                           onBlur={(e) => handleDynamicInputBlur('schul', index, 'name', e.target.value)}
                         />
+                      </div>
+                      <div>
+                        <Label htmlFor={`schulabschluss-${index}`}>
+                          Abschluss {index === latestSchoolIndex ? '*' : '(optional)'}
+                        </Label>
+                        <Select
+                          value={schule.abschluss || ''}
+                          onValueChange={(value) => {
+                            if (value === 'Andere') {
+                              const input = prompt('Bitte gib deinen Abschluss ein:');
+                              if (input) updateSchulbildungEntry(index, 'abschluss', input);
+                            } else {
+                              updateSchulbildungEntry(index, 'abschluss', value);
+                            }
+                          }}
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              'bg-background',
+                              validationErrors[`schulbildung_${index}_abschluss`] ? 'border-destructive' : ''
+                            )}
+                          >
+                            <SelectValue placeholder="Abschluss wählen" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-lg z-50">
+                            {schulabschlussOptions.map((option) => (
+                              <SelectItem key={option} value={option} className="hover:bg-muted">
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {validationErrors[`schulbildung_${index}_abschluss`] && (
+                          <p className="mt-1 text-sm text-destructive font-medium">
+                            {validationErrors[`schulbildung_${index}_abschluss`]}
+                          </p>
+                        )}
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         <div>

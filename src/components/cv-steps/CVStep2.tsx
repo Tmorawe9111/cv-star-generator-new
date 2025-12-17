@@ -31,6 +31,15 @@ const CVStep2 = () => {
   // Auto-Save
   useAutoSave(formData, 'cv-form-data-step2', 1000);
 
+  // If user already has an avatar_url (or a saved profilbild URL), show it as preview
+  useEffect(() => {
+    if (previewUrl) return;
+    const fromAvatar = typeof formData.avatar_url === 'string' ? formData.avatar_url.trim() : '';
+    const fromProfilbild = typeof formData.profilbild === 'string' ? formData.profilbild.trim() : '';
+    const url = fromAvatar || fromProfilbild;
+    if (url) setPreviewUrl(url);
+  }, [formData.avatar_url, formData.profilbild, previewUrl]);
+
   // Zeige Erfolgsnachricht nach Upload
   useEffect(() => {
     if (previewUrl && formData.profilbild) {
@@ -247,7 +256,7 @@ const CVStep2 = () => {
                     </div>
                   )}
                 </div>
-                {!previewUrl && (
+                {!previewUrl && !(typeof formData.avatar_url === 'string' && formData.avatar_url.trim().length > 0) && (
                   <p className="text-[9px] md:text-[10px] text-red-600 font-medium text-center md:text-left max-w-[140px] md:max-w-none">
                     Profilbild ist erforderlich *
                   </p>

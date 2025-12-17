@@ -4,6 +4,7 @@ import { useAuthForCV } from '@/hooks/useAuthForCV';
 
 export interface SchulbildungEntry {
   schulform: string;
+  abschluss?: string; // Abschluss (z.B. Realschulabschluss, Abitur) – relevant für den letzten/höchsten Eintrag
   name: string;
   ort: string;
   plz?: string;
@@ -166,8 +167,17 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
     if (savedData) {
       try {
         const parsedData = JSON.parse(savedData);
+        // Sanitize non-serializable fields (Files become `{}` in JSON, which must NOT be treated as valid)
+        const sanitized: any = { ...parsedData };
+        if (sanitized.profilbild && typeof sanitized.profilbild !== 'string') {
+          delete sanitized.profilbild;
+        }
+        if (sanitized.cover_image && typeof sanitized.cover_image !== 'string') {
+          delete sanitized.cover_image;
+        }
+        localStorage.setItem('cvFormData', JSON.stringify(sanitized));
         console.log('Lebenslauf Generator: Loading saved CV data from localStorage:', parsedData);
-        setFormData(parsedData);
+        setFormData(sanitized);
       } catch (error) {
         console.error('Lebenslauf Generator: Error parsing saved CV data:', error);
         localStorage.removeItem('cvFormData');
@@ -319,7 +329,11 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
           errors.email = 'Bitte gib eine gültige E-Mail-Adresse ein';
         }
         
-        if (!data.profilbild && !data.avatar_url) errors.profilbild = 'Profilbild ist erforderlich';
+        const hasValidProfilbild =
+          data.profilbild instanceof File ||
+          (typeof data.profilbild === 'string' && data.profilbild.trim().length > 0);
+        const hasValidAvatarUrl = typeof data.avatar_url === 'string' && data.avatar_url.trim().length > 0;
+        if (!hasValidProfilbild && !hasValidAvatarUrl) errors.profilbild = 'Profilbild ist erforderlich';
         if (data.has_drivers_license === undefined || data.has_drivers_license === null) {
           errors.has_drivers_license = 'Führerschein-Angabe ist erforderlich';
         }
@@ -335,6 +349,21 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
           errors.schulbildung = 'Mindestens ein Schulbildungs-Eintrag ist erforderlich';
         }
 
+        // Require "Abschluss" for the latest/most recent school entry (highest/last)
+        const schools = data.schulbildung || [];
+        let requiredAbschlussIndex = -1;
+        let bestYear = Number.NEGATIVE_INFINITY;
+        for (let i = 0; i < schools.length; i++) {
+          const s = schools[i];
+          const bis = parseInt((s.zeitraum_bis || '').toString(), 10);
+          const von = parseInt((s.zeitraum_von || '').toString(), 10);
+          const candidate = Number.isFinite(bis) ? bis : (Number.isFinite(von) ? von : Number.NEGATIVE_INFINITY);
+          if (candidate > bestYear) {
+            bestYear = candidate;
+            requiredAbschlussIndex = i;
+          }
+        }
+
         // For Azubi/Fachkraft at least one work/practical experience is required
         if ((data.status === 'azubi' || data.status === 'fachkraft') && (!data.berufserfahrung || data.berufserfahrung.length === 0)) {
           errors.berufserfahrung = 'Mindestens eine Berufserfahrung ist erforderlich';
@@ -343,6 +372,9 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         // Validate each schulbildung entry
         data.schulbildung?.forEach((schule, index) => {
           if (!schule.schulform) errors[`schulbildung_${index}_schulform`] = 'Schulform ist erforderlich';
+          if (index === requiredAbschlussIndex && !schule.abschluss) {
+            errors[`schulbildung_${index}_abschluss`] = 'Abschluss ist erforderlich';
+          }
           if (!schule.name) errors[`schulbildung_${index}_name`] = 'Name der Institution ist erforderlich';
           if (!schule.ort) errors[`schulbildung_${index}_ort`] = 'Ort ist erforderlich';
           if (!schule.zeitraum_von) errors[`schulbildung_${index}_zeitraum_von`] = 'Start-Jahr ist erforderlich';
