@@ -374,7 +374,7 @@ export function VisibilityPrompt() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-xl max-h-[85vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
             <DialogTitle>Vorschau: Für Unternehmen sichtbar werden</DialogTitle>
             <DialogDescription>
@@ -494,10 +494,10 @@ export function VisibilityPrompt() {
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)}>Später</Button>
-          <Button variant="outline" onClick={stayHidden}>Nicht sichtbar bleiben</Button>
-          <Button onClick={makeVisibleNow} disabled={selected.length === 0}>Jetzt sichtbar machen</Button>
+        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
+          <Button className="w-full sm:w-auto" variant="outline" onClick={() => setOpen(false)}>Später</Button>
+          <Button className="w-full sm:w-auto" variant="outline" onClick={stayHidden}>Nicht sichtbar bleiben</Button>
+          <Button className="w-full sm:w-auto" onClick={makeVisibleNow} disabled={selected.length === 0}>Jetzt sichtbar machen</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

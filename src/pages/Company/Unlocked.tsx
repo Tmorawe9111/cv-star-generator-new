@@ -1287,11 +1287,11 @@ export default function CompanyUnlocked() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <Button size="sm" variant="outline" onClick={() => handlePreview(p)} className="text-xs px-2">
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
+                                  <Button size="sm" variant="outline" onClick={() => handlePreview(p)} className="text-xs px-2 w-full sm:w-auto">
                                     Profil
                                   </Button>
-                                  <Button size="sm" variant="outline" onClick={() => handleOpenCv(p.id)} className="text-xs px-2">
+                                  <Button size="sm" variant="outline" onClick={() => handleOpenCv(p.id)} className="text-xs px-2 w-full sm:w-auto">
                                     CV
                                   </Button>
                                 </div>
