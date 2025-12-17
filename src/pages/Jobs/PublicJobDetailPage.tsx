@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, MapPin, Briefcase, Clock, Building2, Calendar, Share2, Bookmark, BookmarkCheck, FileText, Users, Languages, Award, CheckCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Briefcase, Clock, Building2, Calendar, Share2, Bookmark, BookmarkCheck, FileText, Users, Languages, Award, CheckCircle, AlertCircle, ChevronRight } from "lucide-react";
 import { DocumentUploadPrompt } from "@/components/jobs/DocumentUploadPrompt";
 import { DOCUMENT_TYPE_LABELS, type DocType } from "@/lib/document-types";
 import { JobPostingStructuredData } from "@/components/seo/StructuredData";
@@ -433,7 +433,18 @@ export default function PublicJobDetailPage() {
                 </>
               ) : (
                 <div className="space-y-3">
-                  <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setApplicationStatusOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setApplicationStatusOpen(true);
+                      }
+                    }}
+                    className="rounded-2xl border border-green-200 bg-gradient-to-b from-green-50 to-white p-4 shadow-sm transition-shadow hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-300"
+                  >
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-green-600 text-white">
                         <CheckCircle className="h-5 w-5" />
@@ -470,14 +481,9 @@ export default function PublicJobDetailPage() {
                         {statusLabel((myApplication as any)?.status)}
                       </Badge>
                     </div>
-                    <div className="mt-3">
-                      <Button
-                        variant="outline"
-                        className="w-full border-green-200 bg-white hover:bg-white"
-                        onClick={() => setApplicationStatusOpen(true)}
-                      >
-                        Bewerbungsstatus öffnen
-                      </Button>
+                    <div className="mt-4 flex items-center justify-between rounded-xl border border-green-100 bg-white/70 px-3 py-2">
+                      <span className="text-sm font-medium text-green-900/80">Bewerbungsstatus ansehen</span>
+                      <ChevronRight className="h-4 w-4 text-green-800/60" />
                     </div>
                   </div>
                 </div>

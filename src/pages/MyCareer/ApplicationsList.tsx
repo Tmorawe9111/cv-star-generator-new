@@ -19,8 +19,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreVertical, Eye, XCircle, CheckCircle, Clock, AlertCircle, Calendar } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
+import { MoreVertical, Eye, XCircle, CheckCircle, Clock, AlertCircle, Calendar, ChevronRight } from "lucide-react";
+import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 
@@ -228,8 +228,14 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
 
       {/* Applications List */}
       {filteredApplications.length === 0 ? (
-        <Card className="p-12 text-center">
-          <p className="text-muted-foreground">Keine Bewerbungen gefunden</p>
+        <Card className="p-10 text-center rounded-2xl">
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+            <Clock className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="font-semibold">Keine Bewerbungen gefunden</div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Sobald du dich bewirbst, erscheint hier der Status mit Datum.
+          </p>
         </Card>
       ) : (
         <div className="space-y-4">
@@ -240,7 +246,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
             return (
               <Card
                 key={application.id}
-                className="p-6 hover:shadow-md transition-shadow cursor-pointer"
+                className="group p-6 rounded-2xl border bg-card/70 backdrop-blur-sm shadow-sm hover:shadow-md transition-all cursor-pointer"
                 onClick={() => openDetails(application)}
               >
                 <div className="flex items-start gap-4">
@@ -256,7 +262,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1 hover:text-primary">
+                        <h3 className="font-semibold text-[17px] leading-snug mb-1 group-hover:text-primary transition-colors">
                           {application.job?.title}
                         </h3>
                         <p className="text-sm text-muted-foreground">
@@ -267,8 +273,8 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                         </p>
 
                         {/* Status banner (Apple-style) */}
-                        <div className={`mt-3 rounded-xl border p-3 ${statusConfig.banner}`}>
-                          <div className="flex items-start justify-between gap-3">
+                        <div className={`mt-4 rounded-2xl border p-4 ${statusConfig.banner}`}>
+                          <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <div className="text-sm font-semibold flex items-center gap-2">
                                 <StatusIcon className="h-4 w-4" />
@@ -294,9 +300,12 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                                 </div>
                               )}
                             </div>
-                            <Badge variant="outline" className="bg-white/60">
-                              Status
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="bg-white/60">
+                                Status
+                              </Badge>
+                              <ChevronRight className="h-4 w-4 opacity-60" />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -341,44 +350,6 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </div>
-
-                    {/* Status and Date */}
-                    <div className="flex items-center gap-3 mt-3">
-                      <Badge variant={statusConfig.variant} className="flex items-center gap-1">
-                        <StatusIcon className="h-3 w-3" />
-                        {statusConfig.label}
-                      </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      Beworben{" "}
-                      {formatDistanceToNow(new Date(application.created_at), {
-                        locale: de,
-                        addSuffix: true,
-                      })}
-                      {" "}
-                      · {format(new Date(application.created_at), "dd.MM.yyyy", { locale: de })}
-                    </span>
-                    {application.unlocked_at && (
-                      <Badge variant="outline" className="text-xs">
-                        Freigeschaltet am{" "}
-                        {format(new Date(application.unlocked_at), "dd.MM.yyyy", { locale: de })}
-                      </Badge>
-                    )}
-                    {application.status === "rejected" && getRejectionReason(application) && (
-                      <Badge variant="outline" className="text-xs border-red-200 text-red-700 bg-red-50">
-                        Grund: {getRejectionReason(application)}
-                      </Badge>
-                    )}
-                      {application.status === "archived" && getRejectionReason(application) && (
-                        <Badge variant="outline" className="text-xs border-orange-200 text-orange-700 bg-orange-50">
-                          Abgesagt: {getRejectionReason(application)}
-                        </Badge>
-                      )}
-                      {application.is_new && (
-                        <Badge variant="outline" className="text-xs">
-                          Neu
-                        </Badge>
-                      )}
                     </div>
 
                   </div>
