@@ -11,7 +11,11 @@ export type MyApplication = {
   status: ApplicationStatus;
   created_at: string;
   unlocked_at?: string;
+  updated_at?: string;
   is_new?: boolean;
+  reason_short?: string | null;
+  reason_custom?: string | null;
+  rejection_reason?: string | null;
   job: {
     id: string;
     title: string;
@@ -39,14 +43,18 @@ export function useMyApplications() {
           job_id,
           status,
           created_at,
+          updated_at,
           unlocked_at,
           is_new,
+          reason_short,
+          reason_custom,
+          rejection_reason,
           job:job_posts!job_id (
             id,
             title,
             city,
             employment_type,
-            company:companies!company_id (
+            company:companies!job_posts_company_id_fkey (
               id,
               name,
               logo_url

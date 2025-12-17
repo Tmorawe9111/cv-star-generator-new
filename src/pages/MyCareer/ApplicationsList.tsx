@@ -34,6 +34,15 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
 
+  const getRejectionReason = (application: any) => {
+    return (
+      application?.reason_custom ||
+      application?.rejection_reason ||
+      application?.reason_short ||
+      null
+    );
+  };
+
   const filteredApplications = useMemo(() => {
     if (!applications) return [];
 
@@ -270,9 +279,26 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                         <StatusIcon className="h-3 w-3" />
                         {statusConfig.label}
                       </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        vor {formatDistanceToNow(new Date(application.created_at), { locale: de })}
-                      </span>
+                    <span className="text-sm text-muted-foreground">
+                      Beworben{" "}
+                      {formatDistanceToNow(new Date(application.created_at), {
+                        locale: de,
+                        addSuffix: true,
+                      })}
+                      {" "}
+                      · {format(new Date(application.created_at), "dd.MM.yyyy", { locale: de })}
+                    </span>
+                    {application.unlocked_at && (
+                      <Badge variant="outline" className="text-xs">
+                        Freigeschaltet am{" "}
+                        {format(new Date(application.unlocked_at), "dd.MM.yyyy", { locale: de })}
+                      </Badge>
+                    )}
+                    {application.status === "rejected" && getRejectionReason(application) && (
+                      <Badge variant="outline" className="text-xs border-red-200 text-red-700 bg-red-50">
+                        Grund: {getRejectionReason(application)}
+                      </Badge>
+                    )}
                       {application.is_new && (
                         <Badge variant="outline" className="text-xs">
                           Neu
