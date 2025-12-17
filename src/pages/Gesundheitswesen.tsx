@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { trackPageView, trackButtonClick } from '@/lib/telemetry';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Check } from 'lucide-react';
+import { Check, Shield, Lock, Users } from 'lucide-react';
 
 export default function Gesundheitswesen() {
   const navigate = useNavigate();
@@ -113,11 +113,21 @@ export default function Gesundheitswesen() {
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-12 md:py-16">
-        <div className="w-full max-w-[640px] mx-auto text-center space-y-8">
-          {/* Headline */}
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
-            Jobwechsel ohne echte Einblicke ist ein Risiko.
-          </h1>
+        <div className="w-full max-w-[640px] mx-auto">
+          {/* Image Section - Top */}
+          <div className="mb-8 md:mb-12">
+            <img 
+              src="/assets/Cluster1.png" 
+              alt="Pflegekräfte bei BeVisiblle - Community" 
+              className="w-full h-auto rounded-2xl shadow-lg object-cover max-h-[300px] md:max-h-[400px]"
+            />
+          </div>
+
+          <div className="text-center space-y-8">
+            {/* Headline */}
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+              Jobwechsel ohne echte Einblicke ist ein Risiko.
+            </h1>
 
           {/* Subheadline */}
           <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
@@ -152,8 +162,25 @@ export default function Gesundheitswesen() {
             </div>
           </div>
 
+          {/* Social Proof - Avatar Cluster */}
+          <div className="flex items-center justify-center gap-3 pt-4">
+            <div className="flex -space-x-2">
+              {[1, 2, 3, 4].map((i) => (
+                <img
+                  key={i}
+                  src={`https://i.pravatar.cc/40?img=${i + 10}`}
+                  alt={`Profil ${i}`}
+                  className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover"
+                />
+              ))}
+            </div>
+            <span className="text-sm font-medium text-gray-700">
+              Über 500 Pfleger bereits dabei
+            </span>
+          </div>
+
           {/* Primary CTA */}
-          <div className="space-y-3 pt-4">
+          <div className="space-y-4 pt-6">
             <Button
               onClick={handleCTAClick}
               size="lg"
@@ -163,6 +190,22 @@ export default function Gesundheitswesen() {
             >
               Kurzes Profil erstellen (5 Minuten)
             </Button>
+            
+            {/* Trust Badges */}
+            <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-600">
+              <div className="flex items-center gap-1.5">
+                <Shield className="h-4 w-4 text-green-600" />
+                <span>DSGVO-konform</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Lock className="h-4 w-4 text-blue-600" />
+                <span>Deine Daten bleiben privat</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Users className="h-4 w-4 text-purple-600" />
+                <span>Keine Weitergabe</span>
+              </div>
+            </div>
             
             {/* Trust line */}
             <p className="text-sm text-gray-500">
