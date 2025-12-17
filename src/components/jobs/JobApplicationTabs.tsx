@@ -82,26 +82,31 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
   const { data: applications, isLoading, refetch } = useQuery({
     queryKey: ["job-applications", jobId],
     queryFn: async () => {
-      // First, load applications with candidates
+      // Canonical model:
+      // applications.candidate_id = profiles.id (= auth.uid()).
+      // We enrich each application with:
+      // - company_candidates unlock info (batched)
+      // - profile preview (direct select where allowed, fallback via get_profiles_for_applications for applicants)
       const { data: appsData, error: appsError } = await supabase
         .from("applications")
-        .select(`
-          *,
+        .select(
+          `
+          id,
+          candidate_id,
+          job_id,
+          company_id,
+          source,
+          status,
+          created_at,
+          updated_at,
           unlocked_at,
-          candidates (
-            id,
-            user_id,
-            full_name,
-            email,
-            phone,
-            city,
-            country,
-            skills,
-            profile_image,
-            experience_years,
-            bio_short
-          )
-        `)
+          is_new,
+          match_score,
+          reason_short,
+          reason_custom,
+          rejection_reason
+        `,
+        )
         .eq("job_id", jobId)
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
@@ -109,50 +114,103 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
       if (appsError) throw appsError;
       if (!appsData) return [];
 
-      // For each application, check if candidate is already unlocked in company_candidates
-      // AND load profile data if unlocked
-      const applicationsWithUnlockStatus = await Promise.all(
-        appsData.map(async (app: any) => {
-          const candidate = app.candidates;
-          const userId = candidate?.user_id;
-          
-          if (userId) {
-            // Check if candidate is already unlocked in company_candidates
-            const { data: companyCandidate } = await supabase
-              .from("company_candidates")
-              .select("id, unlocked_at, candidate_id")
-              .eq("company_id", companyId)
-              .eq("candidate_id", userId)
-              .not("unlocked_at", "is", null)
-              .maybeSingle();
+      const candidateIds = Array.from(
+        new Set(
+          (appsData as any[])
+            .map((a) => a.candidate_id)
+            .filter(Boolean),
+        ),
+      ) as string[];
 
-            // If unlocked, also load profile data for full name
-            let profileData = null;
-            if (companyCandidate) {
-              const { data: profile } = await supabase
-                .from("profiles")
-                .select("id, vorname, nachname, avatar_url, email, telefon, ort")
-                .eq("id", userId)
-                .maybeSingle();
-              profileData = profile;
-            }
+      // 1) Unlock state from company_candidates (batched)
+      const { data: unlockedRows } = candidateIds.length
+        ? await supabase
+            .from("company_candidates")
+            .select("candidate_id, unlocked_at")
+            .eq("company_id", companyId)
+            .in("candidate_id", candidateIds)
+            .not("unlocked_at", "is", null)
+        : { data: [] as any[] };
 
-            return {
-              ...app,
-              company_candidates: companyCandidate ? [companyCandidate] : null,
-              profile_data: profileData, // Add profile data if unlocked
-            };
-          }
-          
-          return {
-            ...app,
-            company_candidates: null,
-            profile_data: null,
-          };
-        })
-      );
+      const unlockedMap = new Map<string, string>();
+      (unlockedRows || []).forEach((row: any) => {
+        if (row?.candidate_id && row?.unlocked_at) unlockedMap.set(row.candidate_id, row.unlocked_at);
+      });
 
-      return applicationsWithUnlockStatus;
+      // 2) Try direct profile select (may be filtered by RLS for invisible profiles)
+      const { data: directProfiles } = candidateIds.length
+        ? await supabase
+            .from("profiles")
+            .select("id, vorname, nachname, avatar_url, email, telefon, ort, headline, branche, job_search_preferences")
+            .in("id", candidateIds)
+        : { data: [] as any[] };
+
+      const profileMap = new Map<string, any>();
+      (directProfiles || []).forEach((p: any) => {
+        if (p?.id) profileMap.set(p.id, p);
+      });
+
+      // 3) For missing profiles that are applicants, fetch via SECURITY DEFINER RPC
+      const missingProfileIds = candidateIds.filter((id) => !profileMap.has(id));
+      if (missingProfileIds.length) {
+        const { data: rpcProfiles, error: rpcError } = await supabase.rpc("get_profiles_for_applications", {
+          p_company_id: companyId,
+          p_profile_ids: missingProfileIds,
+        });
+
+        if (!rpcError && rpcProfiles) {
+          (rpcProfiles as any[]).forEach((p: any) => {
+            if (p?.id && !profileMap.has(p.id)) profileMap.set(p.id, p);
+          });
+        }
+      }
+
+      // 4) Merge into application shape expected by the rest of the component
+      return (appsData as any[]).map((app) => {
+        const profileId = app.candidate_id as string;
+        const profile = profileMap.get(profileId) || null;
+        const fullName = profile
+          ? `${profile.vorname ?? ""} ${profile.nachname ?? ""}`.trim() || (profile.vorname ?? "Kandidat")
+          : "Kandidat";
+
+        const companyCandidateUnlockedAt = unlockedMap.get(profileId) || null;
+        const companyCandidate = companyCandidateUnlockedAt
+          ? { candidate_id: profileId, unlocked_at: companyCandidateUnlockedAt }
+          : null;
+
+        return {
+          ...app,
+          // Keep compatibility: some code expects candidates.* and profile_data.*
+          candidates: {
+            id: profileId,
+            user_id: profileId,
+            full_name: fullName,
+            email: profile?.email ?? null,
+            phone: profile?.telefon ?? null,
+            city: profile?.ort ?? null,
+            country: null,
+            skills: [],
+            profile_image: profile?.avatar_url ?? null,
+            experience_years: null,
+            bio_short: profile?.headline ?? profile?.branche ?? null,
+          },
+          profile_data: profile
+            ? {
+                id: profile.id,
+                vorname: profile.vorname ?? null,
+                nachname: profile.nachname ?? null,
+                avatar_url: profile.avatar_url ?? null,
+                email: profile.email ?? null,
+                telefon: profile.telefon ?? null,
+                ort: profile.ort ?? null,
+                headline: profile.headline ?? null,
+                branche: profile.branche ?? null,
+                job_search_preferences: profile.job_search_preferences ?? null,
+              }
+            : null,
+          company_candidates: companyCandidate ? [companyCandidate] : null,
+        };
+      });
     },
   });
 
@@ -278,8 +336,11 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
   const openPreview = async (application: any) => {
     const candidate = application.candidates;
     const candidateId = candidate?.id || application.candidate_id;
-    // Check unlocked_at - if set, candidate is unlocked (fully visible)
-    const isUnlocked = !!application.unlocked_at;
+    // Check unlocked_at - unlocked if set in applications OR company_candidates
+    const companyCandidate = Array.isArray(application.company_candidates)
+      ? application.company_candidates[0]
+      : application.company_candidates;
+    const isUnlocked = !!application.unlocked_at || !!companyCandidate?.unlocked_at;
 
     setPreviewOpen(true);
     setLoadingPreview(true);
@@ -328,9 +389,8 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
     if (!application.id || !companyId || !jobId) return;
     
     try {
-      const candidate = application.candidates || {};
-      // Use user_id (profiles.id) for company_candidates, not candidates.id
-      const userId = candidate?.user_id;
+      // Canonical: candidate_id is profiles.id
+      const userId = application.candidate_id || application.candidates?.user_id;
       
       if (!userId) {
         toast({
