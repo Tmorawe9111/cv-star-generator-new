@@ -23,6 +23,7 @@ const BeVisiblleLandingPage = lazy(() => import("@/components/landing/BeVisiblle
 const AboutUs = lazy(() => import("./pages/AboutUs"));
 const CompanyLanding = lazy(() => import("./pages/CompanyLanding"));
 const Analytics = lazy(() => import("./pages/Analytics"));
+const Gesundheitswesen = lazy(() => import("./pages/Gesundheitswesen"));
 
 // CV Creation Flows
 const CVFlowSelector = lazy(() => import("@/components/cv-creation/CVFlowSelector"));
@@ -386,6 +387,9 @@ const App = () => {
             <Routes>
               {/* Landing Page */}
               <Route path="/" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BeVisiblleLandingPage /></Suspense>} />
+              
+              {/* Marketing Landing Pages */}
+              <Route path="/Gesundheitswesen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Gesundheitswesen /></Suspense>} />
               
               {/* Auth - German routes */}
               <Route path="/auth" element={<Auth />} />
