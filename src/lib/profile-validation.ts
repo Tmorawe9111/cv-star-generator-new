@@ -78,3 +78,33 @@ export async function checkProfileUniqueness(
   return { emailExists, phoneExists };
 }
 
+/**
+ * Pre-signup uniqueness check (works without an auth session).
+ * Requires DB function: public.check_profile_uniqueness_public(email, phone)
+ */
+export async function checkProfileUniquenessPublic(
+  email?: string,
+  telefon?: string
+): Promise<{ emailExists: boolean; phoneExists: boolean }> {
+  try {
+    const { data, error } = await supabase.rpc('check_profile_uniqueness_public', {
+      p_email: email ?? null,
+      p_phone: telefon ?? null,
+    });
+
+    if (error) {
+      console.error('Error checking profile uniqueness (public):', error);
+      return { emailExists: false, phoneExists: false };
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+      emailExists: !!row?.email_exists,
+      phoneExists: !!row?.phone_exists,
+    };
+  } catch (e) {
+    console.error('Unexpected error in checkProfileUniquenessPublic:', e);
+    return { emailExists: false, phoneExists: false };
+  }
+}
+

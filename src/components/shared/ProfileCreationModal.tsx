@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCVForm } from '@/contexts/CVFormContext';
 import { useAuth } from '@/hooks/useAuth';
-import { checkProfileUniqueness } from '@/lib/profile-validation';
+import { checkProfileUniqueness, checkProfileUniquenessPublic } from '@/lib/profile-validation';
 import { isPrivateEmail } from "@/lib/email-policy";
 
 interface ProfileCreationModalProps {
@@ -159,6 +159,21 @@ export const ProfileCreationModal = ({
       return;
     }
 
+    // ✅ IMPORTANT: pre-check uniqueness BEFORE auth.signUp (prevents "logged-in but no profile")
+    const precheckPhone = effectiveFormData?.telefon;
+    const { emailExists: emailTaken, phoneExists: phoneTaken } = await checkProfileUniquenessPublic(
+      email,
+      precheckPhone,
+    );
+    if (emailTaken) {
+      showToast.error('Diese E-Mail-Adresse wird bereits von einem anderen Benutzer verwendet.');
+      return;
+    }
+    if (phoneTaken) {
+      showToast.error('Diese Telefonnummer wird bereits von einem anderen Benutzer verwendet.');
+      return;
+    }
+
     console.log(`[${new Date().toISOString()}] ProfileCreationModal: Starting profile creation process`);
     
     // Disable auto-sync during profile creation to prevent race conditions
@@ -226,27 +241,6 @@ export const ProfileCreationModal = ({
         if (authData.user) {
           console.log('New user created:', authData.user.id);
           var user = authData.user;
-
-          // Fire-and-forget Slack notification (only for true new signups)
-          try {
-            void supabase.functions.invoke('slack-signup-notify', {
-              body: {
-                kind: 'user',
-                test: false,
-                source: 'ProfileCreationModal.signUp',
-                user: {
-                  firstName: effectiveFormData?.vorname,
-                  lastName: effectiveFormData?.nachname,
-                  industry: effectiveFormData?.branche,
-                  zip: effectiveFormData?.plz,
-                  city: effectiveFormData?.ort,
-                  status: effectiveFormData?.status,
-                },
-              },
-            });
-          } catch {
-            // Never block signup UX on Slack failures
-          }
           
           // If user is not confirmed, show message but continue
           if (!authData.session) {
@@ -272,11 +266,21 @@ export const ProfileCreationModal = ({
         
         if (emailExists) {
           showToast.error('Diese E-Mail-Adresse wird bereits von einem anderen Benutzer verwendet.');
+          // Avoid leaving the user "logged in without profile"
+          try {
+            await supabase.auth.signOut({ scope: 'global' });
+          } catch {}
+          cleanupAuthState();
           return;
         }
         
         if (phoneExists) {
           showToast.error('Diese Telefonnummer wird bereits von einem anderen Benutzer verwendet.');
+          // Avoid leaving the user "logged in without profile"
+          try {
+            await supabase.auth.signOut({ scope: 'global' });
+          } catch {}
+          cleanupAuthState();
           return;
         }
         
@@ -468,6 +472,27 @@ export const ProfileCreationModal = ({
             localStorage.removeItem('creating-profile');
             
             showToast.success("Profil erfolgreich erstellt!");
+
+            // Fire-and-forget Slack notification AFTER profile exists
+            try {
+              void supabase.functions.invoke('slack-signup-notify', {
+                body: {
+                  kind: 'user',
+                  test: false,
+                  source: 'ProfileCreationModal.profileCreated',
+                  user: {
+                    firstName: profileData.vorname,
+                    lastName: profileData.nachname,
+                    industry: profileData.branche,
+                    zip: profileData.plz,
+                    city: profileData.ort,
+                    status: profileData.status,
+                  },
+                },
+              });
+            } catch {
+              // Never block signup UX on Slack failures
+            }
             
             // Refresh the profile in auth context and navigate
             await refetchProfile();
