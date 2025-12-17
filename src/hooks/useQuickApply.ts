@@ -27,7 +27,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
     queryFn: async () => {
       const { data, error } = await supabase
         .from("applications")
-        .select("id, status, created_at, updated_at, unlocked_at, reason_short, reason_custom, rejection_reason")
+        .select("id, status, created_at, updated_at, unlocked_at, reason_short, reason_custom")
         .eq("job_id", jobId)
         .eq("candidate_id", user!.id)
         .maybeSingle();
@@ -194,7 +194,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
       const candidateIdsToCheck = [user.id, candidateId].filter(Boolean);
       const { data: existingApplication } = await supabase
         .from("applications")
-        .select("id, status, created_at, reason_short, reason_custom, rejection_reason")
+        .select("id, status, created_at, reason_short, reason_custom")
         .eq("company_id", job.company_id)
         .eq("job_id", jobId)
         .eq("candidate_id", user.id)
@@ -203,7 +203,6 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
       if (existingApplication) {
         const reason =
           (existingApplication as any).reason_custom ||
-          (existingApplication as any).rejection_reason ||
           (existingApplication as any).reason_short ||
           null;
         setCompanyHistory({
@@ -230,7 +229,6 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
             created_at,
             reason_short,
             reason_custom,
-            rejection_reason,
             job:job_posts!job_id(title)
           `)
           .eq("company_id", job.company_id)
@@ -242,7 +240,6 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
         if (lastCompanyApp) {
           const reason =
             (lastCompanyApp as any).reason_custom ||
-            (lastCompanyApp as any).rejection_reason ||
             (lastCompanyApp as any).reason_short ||
             null;
           setCompanyHistory({
@@ -287,7 +284,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
           // Load existing application details and show the already-applied dialog
           const { data: existingNow } = await supabase
             .from("applications")
-            .select("id, status, created_at, reason_short, reason_custom, rejection_reason")
+            .select("id, status, created_at, reason_short, reason_custom")
             .eq("company_id", job.company_id)
             .eq("job_id", jobId)
             .eq("candidate_id", user.id)
@@ -295,7 +292,6 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
 
           const reason =
             (existingNow as any)?.reason_custom ||
-            (existingNow as any)?.rejection_reason ||
             (existingNow as any)?.reason_short ||
             null;
 
@@ -356,7 +352,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
 
           const { data: existingNow } = await supabase
             .from("applications")
-            .select("id, status, created_at, reason_short, reason_custom, rejection_reason")
+            .select("id, status, created_at, reason_short, reason_custom")
             .eq("company_id", job.company_id)
             .eq("job_id", jobId)
             .eq("candidate_id", user.id)
@@ -364,7 +360,6 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
 
           const reason =
             (existingNow as any)?.reason_custom ||
-            (existingNow as any)?.rejection_reason ||
             (existingNow as any)?.reason_short ||
             null;
 

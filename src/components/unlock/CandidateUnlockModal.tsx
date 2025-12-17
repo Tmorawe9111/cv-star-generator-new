@@ -314,8 +314,8 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
           .from("applications")
           .update({
             status: "rejected",
-            company_response_at: new Date().toISOString(),
-            rejection_reason: "Für andere Position berücksichtigt"
+            reason_short: "reassigned",
+            reason_custom: "Für andere Position berücksichtigt"
           })
           .eq("id", contextApplication.id);
 

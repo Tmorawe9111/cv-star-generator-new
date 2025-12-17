@@ -103,8 +103,7 @@ export function JobApplicationTabs({ jobId, companyId, job }: JobApplicationTabs
           is_new,
           match_score,
           reason_short,
-          reason_custom,
-          rejection_reason
+          reason_custom
         `,
         )
         .eq("job_id", jobId)

@@ -16,7 +16,6 @@ export type MyApplication = {
   is_new?: boolean;
   reason_short?: string | null;
   reason_custom?: string | null;
-  rejection_reason?: string | null;
   job?: {
     id: string;
     title: string;
@@ -44,7 +43,7 @@ export function useMyApplications() {
       const { data: apps, error: appsError } = await supabase
         .from("applications")
         .select(
-          "id, job_id, company_id, status, created_at, updated_at, unlocked_at, is_new, reason_short, reason_custom, rejection_reason"
+          "id, job_id, company_id, status, created_at, updated_at, unlocked_at, is_new, reason_short, reason_custom"
         )
         .eq("candidate_id", user!.id)
         .order("created_at", { ascending: false });

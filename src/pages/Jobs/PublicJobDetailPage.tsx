@@ -960,13 +960,11 @@ export default function PublicJobDetailPage() {
               </div>
 
               {((myApplication as any)?.reason_custom ||
-                (myApplication as any)?.rejection_reason ||
                 (myApplication as any)?.reason_short) && (
                 <div className="rounded-lg bg-muted/30 p-3 text-sm">
                   <div className="text-muted-foreground mb-1">Grund</div>
                   <div className="font-medium break-words">
                     {(myApplication as any)?.reason_custom ||
-                      (myApplication as any)?.rejection_reason ||
                       (myApplication as any)?.reason_short}
                   </div>
                 </div>

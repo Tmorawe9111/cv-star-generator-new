@@ -45,7 +45,6 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
   const getRejectionReason = (application: any) => {
     return (
       application?.reason_custom ||
-      application?.rejection_reason ||
       application?.reason_short ||
       null
     );
