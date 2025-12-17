@@ -109,6 +109,20 @@ const parseJsonField = (field: any) => {
   return field;
 };
 
+// Calculate distance between two coordinates using Haversine formula
+// Returns distance in kilometers
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 export default function CompanySearch() {
   const { company } = useCompany();
   const { user } = useAuth();
@@ -269,7 +283,7 @@ export default function CompanySearch() {
       // Note: Use correct column names: faehigkeiten (not skills), sprachen (not languages), schulbildung (not education), berufserfahrung (not experience)
       let query = supabase
         .from('profiles')
-        .select('id, vorname, nachname, avatar_url, headline, ort, plz, branche, status, aktueller_beruf, job_search_preferences, faehigkeiten, sprachen, schulbildung, berufserfahrung, visibility_mode, created_at, updated_at', { count: 'exact' })
+        .select('id, vorname, nachname, avatar_url, headline, ort, plz, branche, status, aktueller_beruf, job_search_preferences, faehigkeiten, sprachen, schulbildung, berufserfahrung, visibility_mode, regional_visibility, latitude, longitude, created_at, updated_at', { count: 'exact' })
         .eq('profile_published', true)
         .eq('visibility_mode', 'visible'); // Only show visible profiles
 
@@ -385,6 +399,32 @@ export default function CompanySearch() {
         job_search_preferences: parseJsonField(profile.job_search_preferences),
         schulbildung: parseJsonField(profile.schulbildung),
       }));
+
+      // Apply regional visibility filter: If profile has regional_visibility = true,
+      // only show it if company is within 50km
+      if (company?.latitude && company?.longitude) {
+        parsedProfiles = parsedProfiles.filter((profile: any) => {
+          // If profile doesn't have regional visibility enabled, show it
+          if (!profile.regional_visibility) {
+            return true;
+          }
+          
+          // If profile has regional visibility, check distance
+          if (profile.latitude && profile.longitude) {
+            const distance = calculateDistance(
+              company.latitude,
+              company.longitude,
+              profile.latitude,
+              profile.longitude
+            );
+            // Only show if within 50km
+            return distance <= 50;
+          }
+          
+          // If profile has regional visibility but no coordinates, hide it
+          return false;
+        });
+      }
 
       // Apply abschluss filter in memory (check geplanter_abschluss and schulbildung array)
       if (filters.abschluss && filters.abschluss.length > 0) {

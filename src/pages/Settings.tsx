@@ -37,8 +37,7 @@ const Settings = () => {
     profile_views: true,
     weekly_summary: true,
     marketplace_updates: false,
-    regional_visibility: true,
-    visibility_industry: [] as string[],
+    regional_visibility: false,
     job_search_preferences: [] as string[],
   });
   const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
@@ -52,7 +51,7 @@ const Settings = () => {
       setSettings(prev => ({
         ...prev,
         profile_published: profile.profile_published || false,
-        visibility_industry: profile.visibility_industry || [],
+        regional_visibility: (profile as any).regional_visibility || false,
         job_search_preferences: (profile as any).job_search_preferences || [],
       }));
       // Initialize selected job options from profile
@@ -89,14 +88,6 @@ const Settings = () => {
     }
   };
 
-  const toggleIndustryVisibility = (industry: string) => {
-    const currentIndustries = settings.visibility_industry;
-    const newIndustries = currentIndustries.includes(industry)
-      ? currentIndustries.filter(i => i !== industry)
-      : [...currentIndustries, industry];
-    
-    updateSetting('visibility_industry', newIndustries);
-  };
 
   const allowedOptions = useMemo(() => {
     const status = (profile as any)?.status;
@@ -382,33 +373,15 @@ const Settings = () => {
 
                 <Separator />
 
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium">Branchen-Sichtbarkeit</h4>
-                  {['IT', 'Handwerk', 'Gesundheit', 'Handel', 'Industrie'].map((branch) => (
-                    <div key={branch} className="flex items-center justify-between">
-                      <Label htmlFor={`branch-${branch}`} className="text-sm">
-                        {branch}
-                      </Label>
-                      <Switch 
-                        id={`branch-${branch}`} 
-                        checked={settings.visibility_industry.includes(branch)}
-                        onCheckedChange={() => toggleIndustryVisibility(branch)}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                <Separator />
-
                 <div className="space-y-2">
                   <Label htmlFor="regional-visibility">Regionale Sichtbarkeit</Label>
                   <p className="text-sm text-muted-foreground">
-                    Nur für Unternehmen in deiner Region sichtbar
+                    Dein Profil ist nur für Unternehmen im Umkreis von 50 km sichtbar. Du kannst dich trotzdem überall bewerben.
                   </p>
                   <Switch 
                     id="regional-visibility" 
                     checked={settings.regional_visibility}
-                    onCheckedChange={(checked) => setSettings(prev => ({ ...prev, regional_visibility: checked }))}
+                    onCheckedChange={(checked) => updateSetting('regional_visibility', checked)}
                   />
                 </div>
               </CardContent>
