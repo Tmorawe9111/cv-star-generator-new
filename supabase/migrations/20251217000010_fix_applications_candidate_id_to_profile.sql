@@ -7,6 +7,11 @@ DROP TRIGGER IF EXISTS application_rejection_sync ON public.applications;
 DROP FUNCTION IF EXISTS public.sync_application_rejection();
 DROP FUNCTION IF EXISTS sync_application_rejection();
 
+-- Also drop legacy withdrawn notification trigger/function that referenced invalid enum values
+DROP TRIGGER IF EXISTS trigger_application_withdrawn ON public.applications;
+DROP FUNCTION IF EXISTS public.notify_application_withdrawn();
+DROP FUNCTION IF EXISTS notify_application_withdrawn();
+
 -- IMPORTANT:
 -- In older schemas, applications.candidate_id had a FK to candidates(id), so converting it to profiles(id)
 -- would fail unless we drop that FK first.
