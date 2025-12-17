@@ -18,9 +18,10 @@ import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { FormFieldError } from '@/components/ui/form-field-error';
 
 const CVStep4 = () => {
-  const { formData, updateFormData } = useCVForm();
+  const { formData, updateFormData, validationErrors } = useCVForm();
   const { toast } = useToast();
   
   // Local states for dynamic entry inputs to prevent focus loss
@@ -151,6 +152,20 @@ const CVStep4 = () => {
     'Hochschule/Universität',
     'Andere'
   ];
+
+  // Schüler-spezifische Abschlussoptionen (aus Step 2, jetzt in Step 3/Werdegang)
+  const studentAbschlussOptions = [
+    'Hauptschulabschluss',
+    'Realschulabschluss / Mittlere Reife',
+    'Fachhochschulreife',
+    'Abitur',
+    'Ohne Abschluss'
+  ];
+
+  const schoolTitleOptions = formData.status === 'schueler' ? studentAbschlussOptions : schulformOptions;
+
+  const currentYearForStudent = new Date().getFullYear();
+  const studentYearOptions = Array.from({ length: 7 }, (_, i) => (currentYearForStudent - 1 + i).toString());
 
   // Auto-add entry for students, apprentices and graduates
   React.useEffect(() => {
@@ -529,6 +544,68 @@ const CVStep4 = () => {
                 </Button>
               </div>
 
+              {formData.status === 'schueler' && (
+                <div className="mt-3 rounded-lg border bg-muted/10 p-3">
+                  <div className="text-xs font-semibold text-foreground mb-2">Schüler:in Angaben</div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div className="md:col-span-2">
+                      <Label className="text-xs">Schule *</Label>
+                      <FormFieldError error={validationErrors.schule}>
+                        <Input
+                          placeholder="z.B. Friedrich-Schiller-Gymnasium"
+                          value={formData.schule || ''}
+                          onChange={(e) => updateFormData({ schule: e.target.value })}
+                        />
+                      </FormFieldError>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Abschlussjahr *</Label>
+                      <FormFieldError error={validationErrors.abschlussjahr}>
+                        <Select
+                          value={formData.abschlussjahr || ''}
+                          onValueChange={(value) => updateFormData({ abschlussjahr: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Jahr" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {studentYearOptions.map((y) => (
+                              <SelectItem key={y} value={y}>
+                                {y}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormFieldError>
+                    </div>
+                    <div className="md:col-span-3">
+                      <Label className="text-xs">Geplanter Abschluss *</Label>
+                      {/* FormFieldError doesn't work cleanly with Select wrappers; show error text manually */}
+                      <Select
+                        value={formData.geplanter_abschluss || ''}
+                        onValueChange={(value) => updateFormData({ geplanter_abschluss: value })}
+                      >
+                        <SelectTrigger className={validationErrors.geplanter_abschluss ? 'border-destructive' : ''}>
+                          <SelectValue placeholder="Abschluss wählen" />
+                        </SelectTrigger>
+                        <SelectContent className="z-50">
+                          {studentAbschlussOptions.map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {validationErrors.geplanter_abschluss && (
+                        <p className="mt-1 text-sm text-destructive font-medium">
+                          {validationErrors.geplanter_abschluss}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
                 {!formData.schulbildung?.length && (
                   <div className="rounded-lg bg-muted/20 p-3 text-sm text-muted-foreground">
@@ -561,7 +638,7 @@ const CVStep4 = () => {
                             <SelectValue placeholder="Schulform wählen" />
                           </SelectTrigger>
                           <SelectContent className="bg-background border shadow-lg z-50">
-                            {schulformOptions.map((option) => (
+                            {schoolTitleOptions.map((option) => (
                               <SelectItem key={option} value={option} className="hover:bg-muted">
                                 {option}
                               </SelectItem>

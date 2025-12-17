@@ -314,36 +314,25 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
           errors.driver_license_class = 'Führerscheinklasse ist erforderlich';
         }
         
-        const currentYear = new Date().getFullYear();
-        
-        // Status-specific validations with year ranges
+        // Status-specific fields are handled later in the Werdegang step (Step 3).
+        break;
+      case 3:
+        // Step 3: Beruflicher Werdegang & Ausbildung
         if (formData.status === 'schueler') {
+          const currentYear = new Date().getFullYear();
           if (!formData.schule) errors.schule = 'Schule ist erforderlich';
           if (!formData.geplanter_abschluss) errors.geplanter_abschluss = 'Geplanter Abschluss ist erforderlich';
-          
-          // Abschlussjahr validation
+
           if (!formData.abschlussjahr) {
             errors.abschlussjahr = 'Abschlussjahr ist erforderlich';
           } else {
             const year = parseInt(formData.abschlussjahr);
-            if (year < currentYear - 1 || year > currentYear + 5) {
+            if (Number.isNaN(year) || year < currentYear - 1 || year > currentYear + 5) {
               errors.abschlussjahr = 'Abschlussjahr muss zwischen diesem Jahr -1 und +5 Jahren liegen';
             }
           }
         }
-        
-        if (formData.status === 'azubi') {
-          // Ausbildungsberuf und Abschlussjahr sind nicht mehr Pflichtfelder in Step 2
-          // Sie werden in Step 4 (Berufserfahrung) abgefragt
-        }
-        
-        if (formData.status === 'fachkraft') {
-          // Ausbildungsberuf und Abschlussjahr sind nicht mehr Pflichtfelder in Step 2
-          // Sie werden in Step 4 (Berufserfahrung) abgefragt
-        }
-        break;
-      case 3:
-        // Step 3: Beruflicher Werdegang & Ausbildung
+
         if (!formData.schulbildung || formData.schulbildung.length === 0) {
           errors.schulbildung = 'Mindestens ein Schulbildungs-Eintrag ist erforderlich';
         }
