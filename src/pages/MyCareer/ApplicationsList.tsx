@@ -1,11 +1,14 @@
 import { useState, useMemo } from "react";
-import { useMyApplications, useWithdrawApplication, ApplicationStatus } from "@/hooks/useMyApplications";
-import { useConfirmContact } from "@/hooks/useConfirmContact";
+import { useMyApplications, ApplicationStatus } from "@/hooks/useMyApplications";
+import { useCandidateWithdrawAllApplications, useCandidateWithdrawApplication } from "@/hooks/useCandidateWithdrawApplications";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,12 +30,17 @@ interface ApplicationsListProps {
 
 export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
   const { data: applications, isLoading } = useMyApplications();
-  const withdrawMutation = useWithdrawApplication();
-  const confirmContact = useConfirmContact();
+  const withdrawOne = useCandidateWithdrawApplication();
+  const withdrawAll = useCandidateWithdrawAllApplications();
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all");
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState<any>(null);
+  const [withdrawReason, setWithdrawReason] = useState("");
+  const [withdrawSetInvisible, setWithdrawSetInvisible] = useState(true);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkReason, setBulkReason] = useState("");
+  const [bulkSetInvisible, setBulkSetInvisible] = useState(true);
 
   const getRejectionReason = (application: any) => {
     return (
@@ -121,12 +129,11 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
     }
   };
 
-  const handleConfirmContact = () => {
-    if (selectedApplicationId) {
-      confirmContact.mutate(selectedApplicationId);
-      setConfirmDialogOpen(false);
-      setSelectedApplicationId(null);
-    }
+  const openDetails = (application: any) => {
+    setSelectedApplication(application);
+    setDetailsOpen(true);
+    setWithdrawReason("");
+    setWithdrawSetInvisible(true);
   };
 
   if (isLoading) {
@@ -135,6 +142,21 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
 
   return (
     <div className="space-y-6">
+      {/* Bulk action */}
+      {applications && applications.some((a) => !["archived", "rejected", "hired"].includes(a.status)) && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border bg-muted/20 p-4">
+          <div className="min-w-0">
+            <div className="font-semibold">Neuen Job gefunden?</div>
+            <div className="text-sm text-muted-foreground">
+              Du kannst alle offenen Bewerbungen absagen und dein Profil direkt unsichtbar schalten.
+            </div>
+          </div>
+          <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => setBulkDialogOpen(true)}>
+            Alle Bewerbungen absagen
+          </Button>
+        </div>
+      )}
+
       {/* Status Filter */}
       <div className="flex gap-2 flex-wrap">
         <Button
@@ -202,7 +224,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
               <Card
                 key={application.id}
                 className="p-6 hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => navigate(`/jobs/${application.job_id}`)}
+                onClick={() => openDetails(application)}
               >
                 <div className="flex items-start gap-4">
                   {/* Company Logo */}
@@ -245,28 +267,25 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                             <Eye className="h-4 w-4 mr-2" />
                             Job ansehen
                           </DropdownMenuItem>
-                          {application.status === "interview" && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDetails(application);
+                            }}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Bewerbungsstatus
+                          </DropdownMenuItem>
+                          {!["archived", "rejected", "hired"].includes(application.status) && (
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedApplicationId(application.id);
-                                setConfirmDialogOpen(true);
-                              }}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Details ansehen
-                            </DropdownMenuItem>
-                          )}
-                          {application.status === "new" && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                withdrawMutation.mutate(application.id);
+                                openDetails(application);
                               }}
                               className="text-destructive"
                             >
                               <XCircle className="h-4 w-4 mr-2" />
-                              Bewerbung zurückziehen
+                              Bewerbung absagen
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -299,6 +318,11 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                         Grund: {getRejectionReason(application)}
                       </Badge>
                     )}
+                      {application.status === "archived" && getRejectionReason(application) && (
+                        <Badge variant="outline" className="text-xs border-orange-200 text-orange-700 bg-orange-50">
+                          Abgesagt: {getRejectionReason(application)}
+                        </Badge>
+                      )}
                       {application.is_new && (
                         <Badge variant="outline" className="text-xs">
                           Neu
@@ -314,19 +338,130 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
         </div>
       )}
 
-      {/* Confirmation Dialog */}
-      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+      {/* Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Bewerbungsstatus</DialogTitle>
+          </DialogHeader>
+          {selectedApplication ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <div className="text-sm text-muted-foreground">Stelle</div>
+                <div className="font-semibold">{selectedApplication.job?.title}</div>
+                <div className="text-sm text-muted-foreground">{selectedApplication.job?.company?.name}</div>
+              </div>
+
+              <div className="rounded-xl border p-4 space-y-2 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="font-medium">{getStatusConfig(selectedApplication.status).label}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Beworben am</span>
+                  <span className="font-medium">
+                    {format(new Date(selectedApplication.created_at), "dd.MM.yyyy HH:mm", { locale: de })}
+                  </span>
+                </div>
+                {selectedApplication.unlocked_at && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Freigeschaltet am</span>
+                    <span className="font-medium">
+                      {format(new Date(selectedApplication.unlocked_at), "dd.MM.yyyy HH:mm", { locale: de })}
+                    </span>
+                  </div>
+                )}
+                {selectedApplication.updated_at && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Zuletzt aktualisiert</span>
+                    <span className="font-medium">
+                      {format(new Date(selectedApplication.updated_at), "dd.MM.yyyy HH:mm", { locale: de })}
+                    </span>
+                  </div>
+                )}
+                {getRejectionReason(selectedApplication) && (
+                  <div className="rounded-lg bg-muted/30 p-3 mt-2">
+                    <div className="text-muted-foreground mb-1">Grund</div>
+                    <div className="font-medium break-words">{getRejectionReason(selectedApplication)}</div>
+                  </div>
+                )}
+              </div>
+
+              {!["archived", "rejected", "hired"].includes(selectedApplication.status) && (
+                <div className="rounded-xl border p-4 space-y-3">
+                  <div className="font-semibold">Bewerbung absagen</div>
+                  <Textarea
+                    value={withdrawReason}
+                    onChange={(e) => setWithdrawReason(e.target.value)}
+                    placeholder="Optionaler Grund (z.B. bereits neuen Job gefunden)…"
+                  />
+                  <div className="flex items-center justify-between gap-3 rounded-lg bg-muted/20 p-3">
+                    <div className="text-sm">
+                      <div className="font-medium">Profil unsichtbar schalten</div>
+                      <div className="text-muted-foreground text-xs">Damit du nicht weiter angeschrieben wirst.</div>
+                    </div>
+                    <Switch checked={withdrawSetInvisible} onCheckedChange={setWithdrawSetInvisible} />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setDetailsOpen(false)}>
+                      Schließen
+                    </Button>
+                    <Button
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                      disabled={withdrawOne.isPending}
+                      onClick={() => {
+                        withdrawOne.mutate(
+                          {
+                            applicationId: selectedApplication.id,
+                            reason: withdrawReason || undefined,
+                            setInvisible: withdrawSetInvisible,
+                          },
+                          { onSuccess: () => setDetailsOpen(false) }
+                        );
+                      }}
+                    >
+                      {withdrawOne.isPending ? "Wird gespeichert..." : "Bewerbung absagen"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk withdraw confirm */}
+      <AlertDialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Kontakt bestätigen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Hast du bereits Kontakt vom Unternehmen erhalten bezüglich des Interview-Termins?
+            <AlertDialogTitle>Alle Bewerbungen absagen?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Wir sagen alle offenen Bewerbungen ab und informieren die Unternehmen mit deinem Grund.
+              </p>
+              <Textarea
+                value={bulkReason}
+                onChange={(e) => setBulkReason(e.target.value)}
+                placeholder="Optionaler Grund (z.B. bereits neuen Job gefunden)…"
+              />
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-muted/20 p-3">
+                <div className="text-sm">
+                  <div className="font-medium">Profil unsichtbar schalten</div>
+                  <div className="text-muted-foreground text-xs">Empfohlen, wenn du nicht mehr suchst.</div>
+                </div>
+                <Switch checked={bulkSetInvisible} onCheckedChange={setBulkSetInvisible} />
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmContact}>
-              Ja, ich wurde kontaktiert
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                withdrawAll.mutate({ reason: bulkReason || undefined, setInvisible: bulkSetInvisible });
+              }}
+            >
+              Bestätigen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -21,7 +21,7 @@ export default function MatchesPage() {
         .select(`
           *,
           candidate:candidates(id, full_name, email),
-          job:job_id(title, company:companies(name))
+          job:job_id(title, company:companies!job_posts_company_id_fkey(name))
         `)
         .order("score", { ascending: false })
         .limit(50);

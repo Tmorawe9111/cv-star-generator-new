@@ -32,7 +32,7 @@ export default function JobsPage() {
         .from("job_posts")
         .select(`
           *,
-          company:companies(name, logo_url)
+          company:companies!job_posts_company_id_fkey(name, logo_url)
         `)
         .order("created_at", { ascending: false });
 

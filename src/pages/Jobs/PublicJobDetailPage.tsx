@@ -5,8 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useJobSave } from "@/hooks/useJobSave";
 import { useQuickApply } from "@/hooks/useQuickApply";
+import { useCandidateWithdrawApplication } from "@/hooks/useCandidateWithdrawApplications";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,10 +46,14 @@ export default function PublicJobDetailPage() {
   const [interviewQuestionsOpen, setInterviewQuestionsOpen] = useState(false);
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [showScheduleInterview, setShowScheduleInterview] = useState(false);
+  const [applicationStatusOpen, setApplicationStatusOpen] = useState(false);
+  const [withdrawReason, setWithdrawReason] = useState("");
+  const [withdrawSetInvisible, setWithdrawSetInvisible] = useState(true);
   
   const { isSaved, toggleSave, isToggling } = useJobSave(id || "");
-  const { hasApplied, applyToJob, isApplying, isLoading: isCheckingApply, canApply, profileStatus, companyHistory, clearCompanyHistory } =
+  const { hasApplied, myApplication, applyToJob, isApplying, isLoading: isCheckingApply, canApply, profileStatus, companyHistory, clearCompanyHistory } =
     useQuickApply(id || "");
+  const withdrawApplication = useCandidateWithdrawApplication();
 
   const { data: job, isLoading } = useQuery({
     queryKey: ["public-job-detail", id],
@@ -124,6 +132,36 @@ export default function PublicJobDetailPage() {
   
   // Show LandingHeader only if user is NOT authenticated (public view)
   const showLandingHeader = !user;
+
+  const statusLabel = (status?: string | null) => {
+    switch (status) {
+      case "new":
+        return "Beworben";
+      case "unlocked":
+        return "Freigeschaltet";
+      case "interview":
+        return "Im Gespräch";
+      case "offer":
+        return "Angebot";
+      case "hired":
+        return "Eingestellt";
+      case "rejected":
+        return "Abgelehnt";
+      case "archived":
+        return "Abgesagt";
+      default:
+        return "—";
+    }
+  };
+
+  const formatDateTime = (iso?: string | null) => {
+    if (!iso) return "—";
+    try {
+      return new Date(iso).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+    } catch {
+      return "—";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -397,14 +435,44 @@ export default function PublicJobDetailPage() {
                   <Button 
                     className="w-full bg-green-600 hover:bg-green-700 text-white" 
                     size="lg"
-                    disabled
+                    onClick={() => setApplicationStatusOpen(true)}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Bereits beworben
+                    {String((myApplication as any)?.status) === "archived"
+                      ? "Bewerbung abgesagt"
+                      : String((myApplication as any)?.status) === "rejected"
+                      ? "Bewerbung abgelehnt"
+                      : "Bereits beworben"}
                   </Button>
-                  <p className="text-xs text-center text-muted-foreground">
-                    Du kannst den Status deiner Bewerbung unter "Meine Karriere" einsehen
-                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setApplicationStatusOpen(true)}
+                  >
+                    Bewerbungsstatus ansehen
+                  </Button>
+                  <div className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between gap-3">
+                      <span>Status</span>
+                      <span className="font-medium text-foreground">{statusLabel((myApplication as any)?.status)}</span>
+                    </div>
+                    {(myApplication as any)?.unlocked_at ? (
+                      <div className="flex items-center justify-between gap-3 mt-1">
+                        <span>Freigeschaltet</span>
+                        <span className="font-medium text-foreground">
+                          {formatDateTime((myApplication as any)?.unlocked_at)}
+                        </span>
+                      </div>
+                    ) : null}
+                    {(myApplication as any)?.updated_at ? (
+                      <div className="flex items-center justify-between gap-3 mt-1">
+                        <span>Aktualisiert</span>
+                        <span className="font-medium text-foreground">
+                          {formatDateTime((myApplication as any)?.updated_at)}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               )}
               
@@ -835,6 +903,119 @@ export default function PublicJobDetailPage() {
           }}
         />
       )}
+
+      {/* Application Status Modal */}
+      <Dialog
+        open={applicationStatusOpen}
+        onOpenChange={(open) => {
+          setApplicationStatusOpen(open);
+          if (!open) {
+            setWithdrawReason("");
+            setWithdrawSetInvisible(true);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Bewerbungsstatus</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <div className="text-sm text-muted-foreground">Stelle</div>
+              <div className="font-semibold">{job.title}</div>
+              <div className="text-sm text-muted-foreground">{job.company?.name}</div>
+            </div>
+
+            <div className="rounded-xl border p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">Aktueller Status</div>
+                <Badge>{statusLabel((myApplication as any)?.status)}</Badge>
+              </div>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Beworben am</span>
+                  <span className="font-medium">{formatDateTime((myApplication as any)?.created_at)}</span>
+                </div>
+                {(myApplication as any)?.unlocked_at && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Freigeschaltet am</span>
+                    <span className="font-medium">{formatDateTime((myApplication as any)?.unlocked_at)}</span>
+                  </div>
+                )}
+                {(myApplication as any)?.updated_at && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Zuletzt aktualisiert</span>
+                    <span className="font-medium">{formatDateTime((myApplication as any)?.updated_at)}</span>
+                  </div>
+                )}
+              </div>
+
+              {((myApplication as any)?.reason_custom ||
+                (myApplication as any)?.rejection_reason ||
+                (myApplication as any)?.reason_short) && (
+                <div className="rounded-lg bg-muted/30 p-3 text-sm">
+                  <div className="text-muted-foreground mb-1">Grund</div>
+                  <div className="font-medium break-words">
+                    {(myApplication as any)?.reason_custom ||
+                      (myApplication as any)?.rejection_reason ||
+                      (myApplication as any)?.reason_short}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {myApplication &&
+              !["archived", "rejected", "hired"].includes(String((myApplication as any)?.status)) && (
+                <div className="rounded-xl border p-4 space-y-3">
+                  <div className="font-semibold">Bewerbung absagen</div>
+                  <div className="text-sm text-muted-foreground">
+                    Wenn du bereits einen neuen Job hast oder nicht mehr suchst, kannst du hier absagen – damit das Unternehmen
+                    dich nicht mehr weiter kontaktiert.
+                  </div>
+
+                  <Textarea
+                    value={withdrawReason}
+                    onChange={(e) => setWithdrawReason(e.target.value)}
+                    placeholder="Optionaler Grund (z.B. bereits neuen Job gefunden)…"
+                  />
+
+                  <div className="flex items-center justify-between gap-3 rounded-lg bg-muted/20 p-3">
+                    <div className="text-sm">
+                      <div className="font-medium">Profil unsichtbar schalten</div>
+                      <div className="text-muted-foreground text-xs">Damit du nicht weiter angeschrieben wirst.</div>
+                    </div>
+                    <Switch checked={withdrawSetInvisible} onCheckedChange={setWithdrawSetInvisible} />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setApplicationStatusOpen(false)}>
+                      Schließen
+                    </Button>
+                    <Button
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                      disabled={withdrawApplication.isPending}
+                      onClick={() => {
+                        if (!(myApplication as any)?.id) return;
+                        withdrawApplication.mutate(
+                          {
+                            applicationId: (myApplication as any).id,
+                            reason: withdrawReason || undefined,
+                            setInvisible: withdrawSetInvisible,
+                          },
+                          { onSuccess: () => setApplicationStatusOpen(false) }
+                        );
+                      }}
+                    >
+                      {withdrawApplication.isPending ? "Wird gespeichert..." : "Bewerbung absagen"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

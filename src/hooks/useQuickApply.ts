@@ -21,20 +21,18 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
     reason?: string | null;
   }>(null);
 
-  const { data: hasApplied, isLoading } = useQuery({
-    queryKey: ["application-status", jobId, user?.id],
+  const { data: myApplication, isLoading: isLoadingApplication } = useQuery({
+    queryKey: ["my-application", jobId, user?.id],
     enabled: !!user?.id && !!jobId,
     queryFn: async () => {
-      // New canonical model: applications.candidate_id = profiles.id (= auth.uid())
       const { data, error } = await supabase
         .from("applications")
-        .select("id")
+        .select("id, status, created_at, updated_at, unlocked_at, reason_short, reason_custom, rejection_reason")
         .eq("job_id", jobId)
         .eq("candidate_id", user!.id)
         .maybeSingle();
-
       if (error) throw error;
-      return !!data;
+      return data as any;
     },
   });
 
@@ -136,7 +134,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
       // Get job details
       const { data: job, error: jobError } = await supabase
         .from("job_posts")
-        .select("company_id, title, company:companies(name)")
+        .select("company_id, title, company:companies!job_posts_company_id_fkey(name)")
         .eq("id", jobId)
         .single();
 
@@ -313,7 +311,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
           });
 
           // Ensure UI refreshes the disabled state
-          queryClient.invalidateQueries({ queryKey: ["application-status", jobId, user?.id] });
+          queryClient.invalidateQueries({ queryKey: ["my-application", jobId, user?.id] });
           queryClient.invalidateQueries({ queryKey: ["my-applications", user?.id] });
 
           throw new Error("COMPANY_HISTORY_DUPLICATE_JOB");
@@ -329,7 +327,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
       trackJobApplication(jobId, job.company_id, user.id, jobMetadata || {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["application-status", jobId, user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["my-application", jobId, user?.id] });
       queryClient.invalidateQueries({ queryKey: ["my-applications", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["applications-count", jobId] });
       toast.success("Bewerbung erfolgreich versendet!");
@@ -351,7 +349,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
           if (!user?.id || !jobId) return;
           const { data: job } = await supabase
             .from("job_posts")
-            .select("company_id, title, company:companies(name)")
+            .select("company_id, title, company:companies!job_posts_company_id_fkey(name)")
             .eq("id", jobId)
             .maybeSingle();
           if (!job?.company_id) return;
@@ -381,7 +379,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
             reason,
           });
 
-          queryClient.invalidateQueries({ queryKey: ["application-status", jobId, user?.id] });
+          queryClient.invalidateQueries({ queryKey: ["my-application", jobId, user?.id] });
           queryClient.invalidateQueries({ queryKey: ["my-applications", user?.id] });
         })();
         return;
@@ -397,8 +395,9 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
   });
 
   return {
-    hasApplied: hasApplied ?? false,
-    isLoading: isLoading || isLoadingProfile,
+    hasApplied: !!myApplication,
+    myApplication,
+    isLoading: isLoadingApplication || isLoadingProfile,
     applyToJob: applyToJob.mutate,
     isApplying: applyToJob.isPending,
     canApply: (profileStatus?.hasProfile && (!profileStatus?.missingDocuments || profileStatus.missingDocuments.length === 0)) ?? false,

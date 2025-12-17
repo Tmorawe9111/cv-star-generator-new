@@ -42,7 +42,7 @@ export function useMyEmploymentRequests() {
           company_id, 
           status, 
           created_at, 
-          companies(name, logo_url)
+          companies!company_employment_requests_company_id_fkey(name, logo_url)
         `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
