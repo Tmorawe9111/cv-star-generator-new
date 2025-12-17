@@ -109,20 +109,6 @@ const parseJsonField = (field: any) => {
   return field;
 };
 
-// Calculate distance between two coordinates using Haversine formula
-// Returns distance in kilometers
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
-
 export default function CompanySearch() {
   const { company } = useCompany();
   const { user } = useAuth();
@@ -292,6 +278,35 @@ export default function CompanySearch() {
         query = query.not('id', 'in', `(${unlockedIds.map(id => `"${id}"`).join(',')})`);
       }
 
+      // Apply regional visibility filter in database (50km radius)
+      // This ensures profiles with regional_visibility=true are only shown if company is within 50km
+      if (company?.latitude && company?.longitude) {
+        try {
+          const { data: regionalFilteredIds, error: regionalError } = await supabase.rpc(
+            'filter_profiles_by_regional_visibility',
+            {
+              p_company_latitude: company.latitude,
+              p_company_longitude: company.longitude,
+              p_profile_ids: null // Check all profiles
+            }
+          );
+
+          if (!regionalError && regionalFilteredIds && regionalFilteredIds.length > 0) {
+            // Only show profiles that pass the regional visibility filter
+            query = query.in('id', regionalFilteredIds.map((r: any) => r.profile_id));
+          } else if (!regionalError && regionalFilteredIds && regionalFilteredIds.length === 0) {
+            // No profiles pass the filter, return empty results
+            setProfiles([]);
+            setTotalCount(0);
+            return;
+          }
+          // If error, continue without regional filter (fallback)
+        } catch (error) {
+          console.error('Regional visibility filter error:', error);
+          // Continue without regional filter if RPC fails
+        }
+      }
+
       // Apply filters including need-based matching
       if (selectedNeedId) {
         // If a specific need is selected, get matches from need_matches table
@@ -400,31 +415,8 @@ export default function CompanySearch() {
         schulbildung: parseJsonField(profile.schulbildung),
       }));
 
-      // Apply regional visibility filter: If profile has regional_visibility = true,
-      // only show it if company is within 50km
-      if (company?.latitude && company?.longitude) {
-        parsedProfiles = parsedProfiles.filter((profile: any) => {
-          // If profile doesn't have regional visibility enabled, show it
-          if (!profile.regional_visibility) {
-            return true;
-          }
-          
-          // If profile has regional visibility, check distance
-          if (profile.latitude && profile.longitude) {
-            const distance = calculateDistance(
-              company.latitude,
-              company.longitude,
-              profile.latitude,
-              profile.longitude
-            );
-            // Only show if within 50km
-            return distance <= 50;
-          }
-          
-          // If profile has regional visibility but no coordinates, hide it
-          return false;
-        });
-      }
+      // Regional visibility filter is now applied in database via RPC function
+      // No need to filter in memory anymore
 
       // Apply abschluss filter in memory (check geplanter_abschluss and schulbildung array)
       if (filters.abschluss && filters.abschluss.length > 0) {
@@ -448,16 +440,11 @@ export default function CompanySearch() {
       setProfiles(parsedProfiles as Profile[]);
       // For abschluss filter, we need to get total count from all profiles, not just this page
       if (filters.abschluss && filters.abschluss.length > 0) {
-        // Get all profiles to count properly
-        const { count: totalCount } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('profile_published', true)
-          .eq('visibility_mode', 'visible');
-        // Apply same filters and count
+        // Get all profiles to count properly (regional visibility is already applied in query)
         // For now, use the filtered length as approximation
         setTotalCount(parsedProfiles.length);
       } else {
+        // Count already includes regional visibility filter (applied via RPC before query)
         setTotalCount(count || 0);
       }
     } catch (error) {
