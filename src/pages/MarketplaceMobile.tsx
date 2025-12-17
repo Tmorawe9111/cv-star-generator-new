@@ -598,6 +598,7 @@ export default function MarketplaceMobile() {
   const [pullDistance, setPullDistance] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
+  const startX = useRef(0);
   
   // Online status
   const isOnline = useOnlineStatus();
@@ -783,17 +784,35 @@ export default function MarketplaceMobile() {
 
   // Pull-to-refresh handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const target = e.target as unknown as HTMLElement;
+    // If touch starts inside a horizontal scroller, never start pull-to-refresh
+    if (target?.closest?.('[data-hscroll="true"]')) return;
+
     if (containerRef.current?.scrollTop === 0) {
       startY.current = e.touches[0].clientY;
+      startX.current = e.touches[0].clientX;
     }
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const target = e.target as unknown as HTMLElement;
+    // If touch is happening inside a horizontal scroller, let it scroll horizontally
+    if (target?.closest?.('[data-hscroll="true"]')) return;
+
     if (containerRef.current?.scrollTop === 0 && !isRefreshing) {
       const currentY = e.touches[0].clientY;
-      const diff = currentY - startY.current;
-      if (diff > 0 && diff < 150) {
-        setPullDistance(diff);
+      const currentX = e.touches[0].clientX;
+
+      const dy = currentY - startY.current;
+      const dx = currentX - startX.current;
+
+      // If user is swiping horizontally, do not trigger pull-to-refresh
+      if (Math.abs(dx) > Math.abs(dy) + 6) return;
+
+      if (dy > 0 && dy < 150) {
+        // small deadzone to reduce accidental pulls while swiping
+        if (dy < 6) return;
+        setPullDistance(dy);
       }
     }
   }, [isRefreshing]);
@@ -976,7 +995,11 @@ export default function MarketplaceMobile() {
           onSeeAll={() => {}}
           seeAllText="Weitere"
         />
-        <div className="overflow-x-auto no-scrollbar scroll-smooth">
+        <div
+          data-hscroll="true"
+          className="overflow-x-auto no-scrollbar scroll-smooth"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+        >
           <div className="flex gap-3 px-4 pb-2">
             {forYouItems.length > 0 ? forYouItems.map(({ item, type }, index) => (
               <div 
@@ -1008,7 +1031,11 @@ export default function MarketplaceMobile() {
             icon={<Building2 className="h-5 w-5 text-blue-500" />}
             onSeeAll={() => {}}
           />
-          <div className="overflow-x-auto no-scrollbar scroll-smooth">
+          <div
+            data-hscroll="true"
+            className="overflow-x-auto no-scrollbar scroll-smooth"
+            style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+          >
             <div className="flex gap-3 px-4 pb-2">
               {allCompanies.slice(0, 8).map((company, idx) => (
                 <div 
@@ -1035,8 +1062,9 @@ export default function MarketplaceMobile() {
             {/* Swipeable Container */}
             <div 
               ref={postsScrollRef}
+              data-hscroll="true"
               className="overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth"
-              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
             >
               <div className="flex gap-3" style={{ width: `${posts.slice(0, 5).length * 296}px` }}>
                 {posts.slice(0, 5).map((post, idx) => (
@@ -1086,7 +1114,11 @@ export default function MarketplaceMobile() {
           onSeeAll={() => {}}
           seeAllText="Alle Jobs"
         />
-        <div className="overflow-x-auto no-scrollbar">
+        <div
+          data-hscroll="true"
+          className="overflow-x-auto no-scrollbar"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+        >
           <div className="flex gap-3 px-4 pb-2">
             {(jobs.length > 0 ? jobs : DUMMY_JOBS).slice(0, 6).map((job) => (
               <JobCard 
@@ -1109,7 +1141,11 @@ export default function MarketplaceMobile() {
           icon={<Users className="h-5 w-5 text-pink-500" />}
           onSeeAll={() => {}}
         />
-        <div className="overflow-x-auto no-scrollbar">
+        <div
+          data-hscroll="true"
+          className="overflow-x-auto no-scrollbar"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+        >
           <div className="flex gap-3 px-4 pb-2">
             {peopleQuery.isLoading ? (
               [1,2,3,4].map(i => (
