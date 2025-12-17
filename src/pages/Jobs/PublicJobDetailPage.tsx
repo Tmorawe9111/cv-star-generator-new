@@ -44,7 +44,8 @@ export default function PublicJobDetailPage() {
   const [showScheduleInterview, setShowScheduleInterview] = useState(false);
   
   const { isSaved, toggleSave, isToggling } = useJobSave(id || "");
-  const { hasApplied, applyToJob, isApplying, canApply, profileStatus, companyHistory, clearCompanyHistory } = useQuickApply(id || "");
+  const { hasApplied, applyToJob, isApplying, isLoading: isCheckingApply, canApply, profileStatus, companyHistory, clearCompanyHistory } =
+    useQuickApply(id || "");
 
   const { data: job, isLoading } = useQuery({
     queryKey: ["public-job-detail", id],
@@ -342,9 +343,13 @@ export default function PublicJobDetailPage() {
                       setJobLocation(job.city || job.state || "");
                       setConfirmDialogOpen(true);
                     }}
-                    disabled={isApplying || (!canApply && profileStatus?.missingFields && profileStatus.missingFields.length > 0)}
+                    disabled={
+                      isApplying ||
+                      isCheckingApply ||
+                      (!canApply && profileStatus?.missingFields && profileStatus.missingFields.length > 0)
+                    }
                   >
-                    {isApplying ? "Wird gesendet..." : "Jetzt bewerben"}
+                    {isCheckingApply ? "Prüfe..." : isApplying ? "Wird gesendet..." : "Jetzt bewerben"}
                   </Button>
                   
                   {/* Document Status Indicator */}

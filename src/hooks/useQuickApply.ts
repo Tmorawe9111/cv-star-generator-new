@@ -191,14 +191,15 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
 
       // Prevent duplicate applications for same job
       // Canonical: applications.candidate_id = profiles.id (= auth.uid()).
-      // For safety during migration, also check legacy rows where candidate_id referenced candidates.id.
+      // NOTE: The unique constraint is also on (job_id, candidate_id) where candidate_id is the profile id.
+      // So we must check with candidate_id = user.id to avoid false negatives / maybeSingle edge cases.
       const candidateIdsToCheck = [user.id, candidateId].filter(Boolean);
       const { data: existingApplication } = await supabase
         .from("applications")
         .select("id, status, created_at, reason_short, reason_custom, rejection_reason")
         .eq("company_id", job.company_id)
         .eq("job_id", jobId)
-        .in("candidate_id", candidateIdsToCheck as any)
+        .eq("candidate_id", user.id)
         .maybeSingle();
 
       if (existingApplication) {
@@ -337,6 +338,52 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
       console.error("Application error:", error);
       if (error.message === "COMPANY_HISTORY" || error.message === "COMPANY_HISTORY_DUPLICATE_JOB") {
         // UI handles the modal
+        return;
+      }
+      // Last-resort: if the backend returns a unique-constraint error as a string, convert it into the already-applied UX
+      const msg = String(error?.message || "");
+      if (
+        msg.toLowerCase().includes("duplicate key") ||
+        msg.includes("applications_unique_per_job_idx") ||
+        msg.toLowerCase().includes("unique constraint")
+      ) {
+        void (async () => {
+          if (!user?.id || !jobId) return;
+          const { data: job } = await supabase
+            .from("job_posts")
+            .select("company_id, title, company:companies(name)")
+            .eq("id", jobId)
+            .maybeSingle();
+          if (!job?.company_id) return;
+
+          const { data: existingNow } = await supabase
+            .from("applications")
+            .select("id, status, created_at, reason_short, reason_custom, rejection_reason")
+            .eq("company_id", job.company_id)
+            .eq("job_id", jobId)
+            .eq("candidate_id", user.id)
+            .maybeSingle();
+
+          const reason =
+            (existingNow as any)?.reason_custom ||
+            (existingNow as any)?.rejection_reason ||
+            (existingNow as any)?.reason_short ||
+            null;
+
+          setCompanyHistory({
+            kind: "same_job",
+            companyId: job.company_id,
+            companyName: (job as any)?.company?.name ?? null,
+            previousJobId: jobId,
+            previousJobTitle: (job as any)?.title ?? null,
+            status: (existingNow as any)?.status ?? null,
+            appliedAt: (existingNow as any)?.created_at ?? null,
+            reason,
+          });
+
+          queryClient.invalidateQueries({ queryKey: ["application-status", jobId, user?.id] });
+          queryClient.invalidateQueries({ queryKey: ["my-applications", user?.id] });
+        })();
         return;
       }
       if (error.message.includes("Bitte lade folgende Dokumente hoch")) {
