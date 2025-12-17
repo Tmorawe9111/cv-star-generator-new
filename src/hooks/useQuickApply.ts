@@ -143,31 +143,38 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
       if (existingCandidate) {
         candidateId = existingCandidate.id;
       } else {
-        // Get profile data
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("vorname, nachname, email, cv_url, ort")
-          .eq("id", user.id)
-          .single();
-
-        // Create candidate entry
+        // ✅ Create minimal candidate link only (no snapshot fields; profiles is source of truth)
         const { data: newCandidate, error: candidateError } = await supabase
           .from("candidates")
           .insert({
             company_id: job.company_id,
             user_id: user.id,
-            vorname: profile?.vorname,
-            nachname: profile?.nachname,
-            full_name: `${profile?.vorname || ''} ${profile?.nachname || ''}`.trim(),
-            email: profile?.email || user.email,
-            cv_url: profile?.cv_url,
-            city: profile?.ort,
           })
           .select("id")
           .single();
 
-        if (candidateError) throw candidateError;
-        candidateId = newCandidate.id;
+        // If a race condition caused a unique conflict, refetch
+        if (candidateError) {
+          const msg = (candidateError as any)?.message || "";
+          const code = (candidateError as any)?.code || "";
+          if (code === "23505" || msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")) {
+            const { data: existingAfter } = await supabase
+              .from("candidates")
+              .select("id")
+              .eq("user_id", user.id)
+              .eq("company_id", job.company_id)
+              .maybeSingle();
+            if (existingAfter?.id) {
+              candidateId = existingAfter.id;
+            } else {
+              throw candidateError;
+            }
+          } else {
+            throw candidateError;
+          }
+        } else {
+          candidateId = newCandidate.id;
+        }
       }
 
       // Prevent duplicate applications for same job

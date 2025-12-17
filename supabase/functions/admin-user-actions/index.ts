@@ -85,7 +85,8 @@ serve(async (req) => {
         .eq("user_id", caller?.id ?? "");
       if (rolesErr) throw rolesErr;
 
-      const allowed = (roles || []).some((r: any) => [
+      const callerRoles = (roles || []).map((r: any) => String(r.role).toLowerCase());
+      const allowedAnyAdmin = callerRoles.some((r: string) => [
         "admin",
         "superadmin",
         "support",
@@ -93,8 +94,17 @@ serve(async (req) => {
         "editor",
       ].includes(String(r.role).toLowerCase()));
 
-      if (!allowed) {
+      if (!allowedAnyAdmin) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Restrict sensitive actions
+      const isHighPriv = callerRoles.some((r: string) => ["admin", "superadmin", "support", "supportagent"].includes(r));
+      if (action === "impersonate" && !isHighPriv) {
+        return new Response(JSON.stringify({ error: "Forbidden: impersonate requires SuperAdmin/Support" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -109,26 +119,49 @@ serve(async (req) => {
     }
 
     if (action === "impersonate") {
-      const { userId } = body || {};
-      if (!userId) {
-        return new Response(JSON.stringify({ error: "Missing userId" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      const { userId, email: emailFromBody, redirectTo } = body || {};
+
+      let email = (emailFromBody ? String(emailFromBody) : "").trim().toLowerCase();
+      const redirect_to = redirectTo ? String(redirectTo).trim() : "";
+
+      // If caller passed an email (used for seed accounts), ensure it exists in seed_user_keys to avoid accidentally creating users.
+      if (email) {
+        const { data: seedKey, error: seedErr } = await adminClient
+          .from("seed_user_keys")
+          .select("email")
+          .eq("email", email)
+          .maybeSingle();
+        if (seedErr) throw seedErr;
+        if (!seedKey) {
+          return new Response(JSON.stringify({ error: "Seed user not found for email" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } else {
+        // Backward compatible path: impersonate by userId (regular Admin Users drawer)
+        if (!userId) {
+          return new Response(JSON.stringify({ error: "Missing userId or email" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { data: targetUser, error: targetErr } = await adminClient.auth.admin.getUserById(userId);
+        if (targetErr) throw targetErr;
+        email = String(targetUser?.user?.email || "").trim().toLowerCase();
       }
-      // Get target email
-      const { data: targetUser, error: targetErr } = await adminClient.auth.admin.getUserById(userId);
-      if (targetErr) throw targetErr;
-      const email = targetUser?.user?.email;
+
       if (!email) {
         return new Response(JSON.stringify({ error: "Target user email not found" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
       const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
         type: "magiclink",
         email,
+        options: redirect_to ? { redirectTo: redirect_to } : undefined,
       } as any);
       if (linkErr) throw linkErr;
       const url = (linkData as any)?.properties?.action_link || (linkData as any)?.action_link;

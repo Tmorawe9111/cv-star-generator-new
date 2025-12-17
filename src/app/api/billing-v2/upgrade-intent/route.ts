@@ -60,8 +60,8 @@ export async function POST(request: Request) {
         },
       ],
       allow_promotion_codes: true,
-      success_url: `${process.env.APP_URL}/company/billing-v2?upgrade=success`,
-      cancel_url: `${process.env.APP_URL}/company/billing-v2?upgrade=cancel`,
+      success_url: `${process.env.APP_URL}/unternehmen/abrechnung?upgrade=success`,
+      cancel_url: `${process.env.APP_URL}/unternehmen/abrechnung?upgrade=cancel`,
       metadata: { kind: "plan", companyId, plan, interval },
     });
 

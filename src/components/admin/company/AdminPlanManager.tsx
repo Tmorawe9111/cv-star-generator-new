@@ -32,16 +32,21 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
   const [notes, setNotes] = useState<string>("");
 
   // Fetch available plans (Free, Base, Pro, Custom)
-  const { data: plans } = useQuery({
+  const { data: plans, isLoading: plansLoading, error: plansError } = useQuery({
     queryKey: ["subscription-plans"],
     queryFn: async () => {
+      console.log("[AdminPlanManager] Fetching subscription plans...");
       const { data, error } = await supabase
         .from("subscription_plans")
         .select("*")
         .eq("active", true)
         .order("price_monthly_cents");
       
-      if (error) throw error;
+      if (error) {
+        console.error("[AdminPlanManager] Error fetching plans:", error);
+        throw error;
+      }
+      console.log("[AdminPlanManager] Plans loaded:", data);
       return data;
     },
   });
@@ -60,34 +65,110 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
 
   const assignPlanMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc("admin_assign_plan", {
-        p_company_id: companyId,
-        p_plan_id: selectedPlanId,
-        p_custom_price_monthly_cents: customPriceMonthly ? parseInt(customPriceMonthly) : null,
-        p_custom_price_yearly_cents: customPriceYearly ? parseInt(customPriceYearly) : null,
-        p_custom_tokens: customTokens ? parseInt(customTokens) : null,
-        p_custom_jobs: customJobs ? parseInt(customJobs) : null,
-        p_custom_seats: customSeats ? parseInt(customSeats) : null,
-        p_custom_locations: customLocations ? parseInt(customLocations) : null,
-        p_custom_token_price_cents: customTokenPrice ? parseInt(customTokenPrice) : null,
-        p_custom_max_additional_tokens_per_month: customMaxAdditionalTokens ? parseInt(customMaxAdditionalTokens) : null,
-        p_billing_cycle: billingCycle,
-        p_valid_from: new Date().toISOString(),
-        p_valid_until: validUntil ? new Date(validUntil).toISOString() : null,
-        p_notes: notes || null,
+      console.log("[AdminPlanManager] Starting plan assignment:", {
+        companyId,
+        selectedPlanId,
+        customPriceMonthly,
+        customPriceYearly,
+        customTokens,
+        customJobs,
+        customSeats,
+        customLocations,
+        billingCycle,
       });
 
-      if (error) throw error;
+      if (!selectedPlanId) {
+        throw new Error("Bitte wählen Sie einen Plan aus");
+      }
+
+      if (!companyId) {
+        throw new Error("Keine Company ID vorhanden");
+      }
+
+      // Prepare parameters - only include non-empty values
+      const params: any = {
+        p_company_id: companyId,
+        p_plan_id: selectedPlanId,
+        p_billing_cycle: billingCycle,
+        p_valid_from: new Date().toISOString(),
+      };
+
+      // Add optional parameters only if they have values
+      if (customPriceMonthly) params.p_custom_price_monthly_cents = parseInt(customPriceMonthly);
+      if (customPriceYearly) params.p_custom_price_yearly_cents = parseInt(customPriceYearly);
+      if (customTokens) params.p_custom_tokens = parseInt(customTokens);
+      if (customJobs) params.p_custom_jobs = parseInt(customJobs);
+      if (customSeats) params.p_custom_seats = parseInt(customSeats);
+      if (customLocations) params.p_custom_locations = parseInt(customLocations);
+      if (customTokenPrice) params.p_custom_token_price_cents = parseInt(customTokenPrice);
+      if (customMaxAdditionalTokens) params.p_custom_max_additional_tokens_per_month = parseInt(customMaxAdditionalTokens);
+      if (validUntil) params.p_valid_until = new Date(validUntil).toISOString();
+      if (notes) params.p_notes = notes;
+
+      console.log("[AdminPlanManager] Calling RPC with params:", JSON.stringify(params, null, 2));
+
+      const { data, error } = await supabase.rpc("admin_assign_plan", params);
+
+      console.log("[AdminPlanManager] RPC response:", { 
+        data, 
+        error: error ? {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        } : null
+      });
+
+      if (error) {
+        console.error("[AdminPlanManager] RPC error details:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: error
+        });
+        
+        // Provide more helpful error messages
+        let errorMessage = error.message || "Fehler beim Zuweisen des Plans";
+        if (error.code === "42883") {
+          errorMessage = "Die Funktion admin_assign_plan existiert nicht oder hat falsche Parameter. Bitte Migration ausführen.";
+        } else if (error.code === "42501") {
+          errorMessage = "Keine Berechtigung. Bitte als Admin einloggen.";
+        } else if (error.details) {
+          errorMessage = `${errorMessage}\nDetails: ${error.details}`;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      if (!data) {
+        console.warn("[AdminPlanManager] RPC returned no data");
+      }
+
       return data;
     },
     onSuccess: () => {
+      console.log("[AdminPlanManager] Plan assignment successful");
+      // Invalidate all company-related queries to force refresh
       queryClient.invalidateQueries({ queryKey: ["active-company-plan", companyId] });
       queryClient.invalidateQueries({ queryKey: ["admin-company", companyId] });
-      toast({ title: "Erfolg", description: "Plan erfolgreich zugewiesen" });
+      queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+      queryClient.invalidateQueries({ queryKey: ["job-limits", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["company-locations", companyId] });
+      // Force company data refresh by invalidating company_users query
+      queryClient.invalidateQueries({ queryKey: ["company-users"] });
+      // Also trigger a window event to force useCompany to refetch
+      window.dispatchEvent(new CustomEvent('company-data-updated', { detail: { companyId } }));
+      toast({ title: "Erfolg", description: "Plan erfolgreich zugewiesen. Die Änderungen werden in Kürze sichtbar." });
       resetForm();
     },
     onError: (error: Error) => {
-      toast({ title: "Fehler", description: error.message, variant: "destructive" });
+      console.error("[AdminPlanManager] Mutation error:", error);
+      toast({ 
+        title: "Fehler", 
+        description: error.message || "Plan konnte nicht zugewiesen werden", 
+        variant: "destructive" 
+      });
     },
   });
 
@@ -206,26 +287,67 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Neuen Plan zuweisen</CardTitle>
+          <CardTitle>Plan-Upgrade & Limits anpassen</CardTitle>
           <CardDescription>
-            Weise dem Unternehmen einen Plan mit individuellen Anpassungen zu
+            Weise dem Unternehmen einen Plan zu oder passe Limits direkt an. Kostenlose Upgrades möglich (Preis auf 0 setzen).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="plan">Basis-Plan</Label>
-            <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Plan auswählen" />
-              </SelectTrigger>
-              <SelectContent>
-                {plans?.map((plan) => (
-                  <SelectItem key={plan.id} value={plan.id}>
-                    {plan.name} - {formatCents(plan.price_monthly_cents)}/Monat
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {plansLoading ? (
+              <div className="text-sm text-muted-foreground">Lade Pläne...</div>
+            ) : plansError ? (
+              <div className="text-sm text-destructive">
+                Fehler beim Laden der Pläne: {plansError instanceof Error ? plansError.message : "Unbekannter Fehler"}
+              </div>
+            ) : !plans || plans.length === 0 ? (
+              <div className="text-sm text-muted-foreground">
+                Keine Pläne verfügbar. Bitte erstelle zuerst Pläne im Admin-Panel.
+              </div>
+            ) : (
+              <>
+                <select
+                  id="plan-select"
+                  value={selectedPlanId || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    console.log("[AdminPlanManager] Plan selected:", value);
+                    setSelectedPlanId(value);
+                  }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Plan auswählen</option>
+                  {plans.map((plan) => {
+                    console.log("[AdminPlanManager] Rendering plan:", plan.id, plan.name);
+                    return (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name} - {formatCents(plan.price_monthly_cents)}/Monat
+                      </option>
+                    );
+                  })}
+                </select>
+                <div className="text-xs text-muted-foreground space-y-1 mt-2">
+                  {selectedPlanId ? (
+                    <p className="text-green-600 dark:text-green-400">
+                      ✅ Ausgewählt: {plans.find(p => p.id === selectedPlanId)?.name}
+                    </p>
+                  ) : (
+                    <p className="text-yellow-600 dark:text-yellow-400">
+                      ⚠️ Bitte wählen Sie einen Plan aus
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+            <p className="text-xs text-muted-foreground">
+              💡 Tipp: Für kostenloses Upgrade setze den Preis auf 0 (siehe unten)
+            </p>
+            {plans && plans.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {plans.length} Plan{plans.length !== 1 ? "e" : ""} verfügbar
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -309,25 +431,42 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="customPriceMonthly">Custom Preis Monat (Cents)</Label>
+              <Label htmlFor="customPriceMonthly">
+                Custom Preis Monat (Cents)
+                <span className="text-xs text-muted-foreground ml-2">(0 = kostenlos)</span>
+              </Label>
               <Input
                 id="customPriceMonthly"
                 type="number"
                 value={customPriceMonthly}
                 onChange={(e) => setCustomPriceMonthly(e.target.value)}
-                placeholder="Standard verwenden"
+                placeholder="0 für kostenlos oder Standard verwenden"
+                min="0"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="customPriceYearly">Custom Preis Jahr (Cents)</Label>
+              <Label htmlFor="customPriceYearly">
+                Custom Preis Jahr (Cents)
+                <span className="text-xs text-muted-foreground ml-2">(0 = kostenlos)</span>
+              </Label>
               <Input
                 id="customPriceYearly"
                 type="number"
                 value={customPriceYearly}
                 onChange={(e) => setCustomPriceYearly(e.target.value)}
-                placeholder="Standard verwenden"
+                placeholder="0 für kostenlos oder Standard verwenden"
+                min="0"
               />
             </div>
+          </div>
+          
+          <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
+              ⚡ Schnelle Limit-Anpassungen
+            </p>
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              Passe die Limits direkt an, ohne den gesamten Plan zu ändern. Leere Felder verwenden die Standardwerte des Plans.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -353,15 +492,54 @@ export function AdminPlanManager({ companyId }: AdminPlanManagerProps) {
 
           <div className="flex gap-2">
             <Button
-              onClick={() => assignPlanMutation.mutate()}
+              onClick={() => {
+                console.log("[AdminPlanManager] Button clicked:", { selectedPlanId, customPriceMonthly, customPriceYearly });
+                if (!selectedPlanId) {
+                  toast({ 
+                    title: "Fehler", 
+                    description: "Bitte wählen Sie zuerst einen Plan aus.", 
+                    variant: "destructive" 
+                  });
+                  return;
+                }
+                assignPlanMutation.mutate();
+              }}
               disabled={!selectedPlanId || assignPlanMutation.isPending}
+              className="flex-1"
             >
-              {assignPlanMutation.isPending ? "Wird zugewiesen..." : "Plan zuweisen"}
+              {assignPlanMutation.isPending ? "Wird zugewiesen..." : 
+               (customPriceMonthly === "0" || customPriceYearly === "0")
+                 ? "Kostenloses Upgrade durchführen" 
+                 : "Plan zuweisen"}
             </Button>
             <Button variant="outline" onClick={resetForm}>
               Zurücksetzen
             </Button>
           </div>
+          
+          {!selectedPlanId && (
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                ⚠️ Bitte wählen Sie zuerst einen Plan aus dem Dropdown aus.
+              </p>
+            </div>
+          )}
+          
+          {selectedPlanId && (
+            <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+              <p className="text-sm text-green-800 dark:text-green-200">
+                ✅ Plan ausgewählt: {plans?.find(p => p.id === selectedPlanId)?.name || selectedPlanId}
+              </p>
+            </div>
+          )}
+          
+          {(customPriceMonthly === "0" || customPriceYearly === "0") && (
+            <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+              <p className="text-sm text-green-800 dark:text-green-200">
+                ✅ Kostenloses Upgrade wird durchgeführt. Das Unternehmen erhält alle Features ohne Zahlung.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

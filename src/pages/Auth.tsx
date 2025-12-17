@@ -10,12 +10,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Eye, EyeOff, LogIn, UserPlus, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { isPrivateEmail } from "@/lib/email-policy";
 
 const Auth = () => {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
+  const companyInviteToken = searchParams.get('company_invite');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -28,6 +30,36 @@ const Auth = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (user && !isLoading) {
+      // Accept company invite token if present
+      const acceptInviteIfPresent = async () => {
+        if (!companyInviteToken) return false;
+        try {
+          const { data, error } = await supabase.rpc("accept_company_invite", {
+            p_invite_token: companyInviteToken,
+          });
+          if (error) throw error;
+          if ((data as any)?.success) {
+            toast({
+              title: "Einladung angenommen",
+              description: "Sie wurden dem Unternehmen hinzugefügt.",
+            });
+            return true;
+          }
+          toast({
+            title: "Einladung konnte nicht angenommen werden",
+            description: (data as any)?.message || "Bitte prüfen Sie den Link.",
+            variant: "destructive",
+          });
+        } catch (e: any) {
+          toast({
+            title: "Einladung fehlgeschlagen",
+            description: e?.message || "Bitte versuchen Sie es erneut.",
+            variant: "destructive",
+          });
+        }
+        return false;
+      };
+
       // Check if there's a returnTo parameter
       if (returnTo) {
         const decodedReturnTo = decodeURIComponent(returnTo);
@@ -38,6 +70,9 @@ const Auth = () => {
       // Check if user is a company user and redirect accordingly
       const checkUserTypeAndRedirect = async () => {
         try {
+          // If invite token present, accept first (then membership exists)
+          await acceptInviteIfPresent();
+
           const { data: companyUsers } = await supabase
             .from('company_users')
             .select('company_id')
@@ -239,6 +274,26 @@ const Auth = () => {
       return;
     }
 
+    // Enforce email type by role:
+    // - Applicants must use a private email
+    // - Companies must use a work email
+    if (role === "applicant" && !isPrivateEmail(email)) {
+      toast({
+        title: "Bitte private E‑Mail nutzen",
+        description: "Bewerber-Profile dürfen nur mit privaten E‑Mail-Adressen erstellt werden (z.B. gmail, web.de, gmx). Firmen-E-Mails sind für Unternehmensaccounts reserviert.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (role === "company" && isPrivateEmail(email)) {
+      toast({
+        title: "Bitte Firmen‑E‑Mail nutzen",
+        description: "Unternehmensaccounts müssen mit einer Firmen‑E‑Mail registriert werden (keine @gmail.com/@web.de etc.).",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!validatePassword(password)) {
       toast({
         title: "Passwort zu schwach",
@@ -276,7 +331,8 @@ const Auth = () => {
         options: {
           emailRedirectTo: `${window.location.origin}/profile`,
           data: {
-            role: role
+            role: role,
+            is_company: role === "company",
           }
         }
       });

@@ -222,16 +222,47 @@ export function JobApplicationInterviewQuestions({
 
       // Insert new answers
       if (answersToSave.length > 0) {
-        const { error: insertError } = await supabase
+        const { data: insertedAnswers, error: insertError } = await supabase
           .from('job_application_interview_answers')
-          .insert(answersToSave);
+          .insert(answersToSave)
+          .select();
 
         if (insertError) throw insertError;
+
+        // Trigger matching for each answer (async, don't wait)
+        if (insertedAnswers) {
+          for (const answer of insertedAnswers) {
+            // Get expected answer for this question
+            const { data: expectedAnswer } = await supabase
+              .from('company_interview_question_expected_answers')
+              .select('*')
+              .eq('question_id', answer.question_id)
+              .maybeSingle();
+
+            if (expectedAnswer) {
+              // Call matching Edge Function asynchronously
+              supabase.functions.invoke('ai-match-interview-answers', {
+                body: {
+                  applicationAnswerId: answer.id,
+                  applicationId: applicationId,
+                  candidateAnswer: answer.answer,
+                  expectedAnswer: expectedAnswer.expected_answer,
+                  questionId: answer.question_id,
+                  keywords: expectedAnswer.keywords || [],
+                  importanceWeight: expectedAnswer.importance_weight || 1.0
+                }
+              }).catch(error => {
+                console.error('Error triggering matching:', error);
+                // Don't fail the save if matching fails
+              });
+            }
+          }
+        }
       }
 
       toast({
         title: 'Gespeichert',
-        description: 'Deine Interviewantworten wurden gespeichert.',
+        description: 'Deine Interviewantworten wurden gespeichert. Das Matching wird im Hintergrund durchgeführt.',
       });
 
       // After saving, trigger interview scheduling if callback provided

@@ -147,6 +147,7 @@ export class JobsService {
       contact_person_email: jobData.contact_person_email || '',
       contact_person_phone: jobData.contact_person_phone || null,
       contact_person_role: jobData.contact_person_role || null,
+      contact_person_photo_url: jobData.contact_person_photo_url || null,
     };
 
     const { data, error } = await supabase

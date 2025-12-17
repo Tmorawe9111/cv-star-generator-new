@@ -353,10 +353,11 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
       } else if (unlockType === "bewerbung") {
         // Notify about standard unlock - use user_id
         // Include application_id and job_id in payload for interview questions
-        // Only send if job has interview questions (optional feature)
+        // Automatically send interview questions if they exist
         const jobIdForNotification = selectedJobId || contextApplication?.job_id;
+        const applicationIdForNotification = contextApplication?.id;
         
-        // Check if job has interview questions (optional - only notify if questions exist)
+        // Check if job has interview questions
         let hasInterviewQuestions = false;
         if (jobIdForNotification) {
           const { data: questions } = await supabase
@@ -367,25 +368,28 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
           hasInterviewQuestions = (questions?.length || 0) > 0;
         }
 
-        // Only send notification with interview questions link if questions exist
-        // Otherwise, send standard unlock notification
+        // Send notification with interview questions link if questions exist
+        // The notification will automatically open the questions modal when clicked
         await supabase.rpc("create_notification", {
           p_recipient_type: "profile",
           p_recipient_id: candidate.user_id,
           p_type: "company_unlocked_you",
-          p_title: "Dein Profil wurde freigeschaltet ✅",
+          p_title: hasInterviewQuestions
+            ? "Interviewfragen beantworten 📝"
+            : "Dein Profil wurde freigeschaltet ✅",
           p_body: hasInterviewQuestions
-            ? "Das Unternehmen, bei dem du dich beworben hast, hat dein Profil freigeschaltet. Bitte beantworte die Interviewfragen, um dich auf das Gespräch vorzubereiten."
+            ? "Das Unternehmen hat dein Profil freigeschaltet und möchte, dass du die Interviewfragen für diese Stelle beantwortest. Dies hilft dem Unternehmen, dich besser kennenzulernen und beschleunigt den Bewerbungsprozess."
             : "Das Unternehmen, bei dem du dich beworben hast, hat dein Profil freigeschaltet. Du bist jetzt für das Recruiting-Team sichtbar und kannst direkt kontaktiert werden, wenn du in die engere Auswahl kommst.",
           p_actor_type: "company",
           p_actor_id: companyId,
           p_payload: { 
-            application_id: contextApplication?.id,
+            application_id: applicationIdForNotification,
             job_id: jobIdForNotification,
-            has_interview_questions: hasInterviewQuestions
+            has_interview_questions: hasInterviewQuestions,
+            action: hasInterviewQuestions ? "answer_questions" : undefined
           },
           p_group_key: null,
-          p_priority: 5
+          p_priority: hasInterviewQuestions ? 6 : 5 // Higher priority if questions need to be answered
         });
       }
 
@@ -460,6 +464,7 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
       }
 
       // Check if job has interview questions
+      let hasQuestions = false;
       if (relatedJobId) {
         const { data: questions } = await supabase
           .from('company_interview_questions')
@@ -467,12 +472,22 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
           .eq('role_id', relatedJobId)
           .limit(1);
         
-        setHasJobQuestions((questions?.length || 0) > 0);
+        hasQuestions = (questions?.length || 0) > 0;
+        setHasJobQuestions(hasQuestions);
       }
 
-      // Success - go to step 4 (next action selection)
-      toast.success("Kandidat erfolgreich freigeschaltet");
-      setStep(4);
+      // If questions exist, they were already sent automatically in the notification above
+      // Step 4 is only for additional actions (direct interview scheduling)
+      // If no questions exist, we can skip step 4 or show it for other actions
+      if (hasQuestions) {
+        toast.success("Kandidat erfolgreich freigeschaltet. Interview-Fragen wurden automatisch gesendet.");
+        // Still show step 4 for optional direct interview scheduling
+        setStep(4);
+      } else {
+        toast.success("Kandidat erfolgreich freigeschaltet");
+        // Show step 4 for optional actions (direct interview scheduling)
+        setStep(4);
+      }
 
     } catch (e: any) {
       // Rollback tokens if deducted - get current balance and add back
@@ -555,8 +570,8 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-xl flex flex-col max-h-[90vh] overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             {alreadyUnlocked ? "Job-Zuordnung bearbeiten" : "Kandidat freischalten"}
           </DialogTitle>
@@ -570,7 +585,7 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
 
         {/* Progress Steps - Hide for already unlocked */}
         {!alreadyUnlocked && (
-          <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-4 mb-4 flex-shrink-0">
             <StepBadge index={1} active={step === 1} done={step > 1} />
             <div className={`h-[2px] grow ${step > 1 ? "bg-emerald-600" : "bg-border"}`} />
             <StepBadge index={2} active={step === 2} done={step > 2} />
@@ -583,14 +598,14 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
 
         {/* Info Banner for already unlocked */}
         {alreadyUnlocked && (
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex-shrink-0">
             <p className="text-sm text-blue-700 dark:text-blue-300">
               ✓ Kandidat bereits freigeschaltet - Sie können die Job-Zuordnung anpassen
             </p>
           </div>
         )}
 
-        <div className="min-h-[220px]">
+        <div className="flex-1 overflow-y-auto min-h-[220px] pr-2">
           {!alreadyUnlocked && step === 1 && (
             <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
               <div className="rounded-lg border p-4">
@@ -744,8 +759,8 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
           )}
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+        <DialogFooter className="gap-2 flex-shrink-0 border-t pt-4 mt-4 flex-wrap">
+          <Button variant="outline" onClick={() => handleOpenChange(false)} className="flex-shrink-0">
             Abbrechen
           </Button>
 
@@ -791,7 +806,8 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
                   <Button 
                     onClick={async () => {
                       if (nextAction === "send_questions") {
-                        // Send notification with link to interview questions
+                        // This should not happen if questions were already sent automatically
+                        // But keep it as fallback for manual sending
                         const jobIdForNotification = selectedJobId || contextApplication?.job_id;
                         if (jobIdForNotification) {
                           await supabase.rpc("create_notification", {
@@ -860,8 +876,12 @@ export default function CandidateUnlockModal(props: CandidateUnlockModalProps) {
           onOpenChange={(open) => {
             setShowInterviewModal(open);
             if (!open) {
+              // Close the unlock modal when interview modal closes
               handleOpenChange(false);
               onSuccess?.();
+            } else {
+              // Close the unlock modal when interview modal opens
+              handleOpenChange(false);
             }
           }}
           applicationId={applicationId || ""}

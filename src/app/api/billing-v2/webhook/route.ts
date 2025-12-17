@@ -21,14 +21,38 @@ export async function POST(request: Request) {
   const rawBody = Buffer.from(await request.arrayBuffer());
 
   let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(
-      rawBody,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET as string,
+  
+  // Support multiple webhook secrets (for different environments or endpoints)
+  const webhookSecrets = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_WEBHOOK_SECRET_ALT, // Alternative secret
+  ].filter(Boolean) as string[];
+
+  if (webhookSecrets.length === 0) {
+    return NextResponse.json(
+      { error: "STRIPE_WEBHOOK_SECRET not configured" },
+      { status: 500 }
     );
-  } catch (error: any) {
-    return NextResponse.json({ error: `Webhook Error: ${error.message}` }, { status: 400 });
+  }
+
+  // Try each secret until one works
+  let lastError: Error | null = null;
+  for (const secret of webhookSecrets) {
+    try {
+      event = stripe.webhooks.constructEvent(rawBody, signature, secret);
+      lastError = null;
+      break; // Success, exit loop
+    } catch (error: any) {
+      lastError = error;
+      continue; // Try next secret
+    }
+  }
+
+  if (lastError || !event) {
+    return NextResponse.json(
+      { error: `Webhook signature verification failed: ${lastError?.message}` },
+      { status: 400 }
+    );
   }
 
   const supabase = createClient(
@@ -38,8 +62,9 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const { kind, companyId, packageId } = (session.metadata ?? {}) as any;
+    const { kind, companyId, packageId, plan, interval } = (session.metadata ?? {}) as any;
 
+    // Handle token purchases
     if (kind === "tokens" && companyId) {
       const delta = resolveTokenAmount(packageId as keyof typeof TOKEN_PACKS | undefined);
       if (delta > 0) {
@@ -58,6 +83,43 @@ export async function POST(request: Request) {
         currency: session.currency ?? "eur",
         status: session.payment_status ?? "paid",
       });
+    }
+
+    // Handle plan upgrades
+    if (kind === "plan" && companyId && plan) {
+      const subscriptionId = session.subscription as string | null;
+      const customerId = session.customer as string | null;
+
+      if (subscriptionId && customerId) {
+        try {
+          // Retrieve subscription details from Stripe
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          
+          // Activate subscription in database
+          await supabase.rpc("activate_subscription", {
+            p_company_id: companyId,
+            p_stripe_subscription_id: subscriptionId,
+            p_stripe_customer_id: customerId,
+            p_plan_key: plan,
+            p_interval: interval || "month",
+            p_current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+            p_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          });
+
+          // Log purchase
+          await supabase.from("purchases_v2").insert({
+            company_id: companyId,
+            kind: "plan",
+            package_code: plan,
+            amount_total_cents: session.amount_total ?? 0,
+            currency: session.currency ?? "eur",
+            status: session.payment_status ?? "paid",
+          });
+        } catch (error) {
+          console.error("Error activating subscription in webhook:", error);
+          // Don't fail the webhook, but log the error
+        }
+      }
     }
   }
 

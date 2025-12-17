@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { CompanyBillingSnapshot } from "@/lib/billing-v2/types";
 import { PLANS, type PlanKey } from "@/lib/billing-v2/plans";
+import { useJobLimits } from "@/hooks/useJobLimits";
+import { Briefcase } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface TokenOverviewCardV2Props {
   company: CompanyBillingSnapshot | null;
@@ -11,8 +14,10 @@ interface TokenOverviewCardV2Props {
 }
 
 export function TokenOverviewCardV2({ company, onBuyTokens, onUpgradePlan }: TokenOverviewCardV2Props) {
+  const navigate = useNavigate();
   const planKey = (company?.plan_name || company?.active_plan_id || company?.selected_plan_id || "free") as PlanKey;
   const plan = PLANS[planKey] || PLANS["free"];
+  const { data: jobLimits } = useJobLimits();
   
   // Tokens: active_tokens ist der verfügbare Bestand (wird beim Verwenden reduziert)
   // Für die Anzeige: "X von Y" bedeutet "X verfügbar von Y total"
@@ -49,6 +54,39 @@ export function TokenOverviewCardV2({ company, onBuyTokens, onUpgradePlan }: Tok
             </div>
           )}
         </div>
+
+        {/* Job Counter (small, right side) */}
+        {jobLimits && jobLimits.maxAllowed > 0 && (
+          <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-gray-600" />
+                <span className="text-sm font-medium text-gray-900">Stellenanzeigen</span>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-gray-900">
+                  {jobLimits.currentCount} / {jobLimits.maxAllowed === 999999 ? "∞" : jobLimits.maxAllowed}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {jobLimits.maxAllowed === 999999 
+                    ? "Unbegrenzt"
+                    : `${jobLimits.maxAllowed - jobLimits.currentCount} verfügbar`
+                  }
+                </p>
+              </div>
+            </div>
+            {!jobLimits.canCreate && jobLimits.maxAllowed !== 999999 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-2"
+                onClick={() => navigate('/unternehmen/abrechnung?open=upgrade')}
+              >
+                Plan upgraden
+              </Button>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button className="flex-1" size="lg" onClick={onBuyTokens}>

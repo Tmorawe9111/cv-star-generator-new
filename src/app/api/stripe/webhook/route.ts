@@ -30,14 +30,38 @@ export async function POST(request: Request) {
   const rawBody = Buffer.from(await request.arrayBuffer());
 
   let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(
-      rawBody,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET as string,
+  
+  // Support multiple webhook secrets (for different environments or endpoints)
+  const webhookSecrets = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_WEBHOOK_SECRET_ALT, // Alternative secret
+  ].filter(Boolean) as string[];
+
+  if (webhookSecrets.length === 0) {
+    return NextResponse.json(
+      { error: "STRIPE_WEBHOOK_SECRET not configured" },
+      { status: 500 }
     );
-  } catch (error: any) {
-    return NextResponse.json({ error: `Webhook Error: ${error.message}` }, { status: 400 });
+  }
+
+  // Try each secret until one works
+  let lastError: Error | null = null;
+  for (const secret of webhookSecrets) {
+    try {
+      event = stripe.webhooks.constructEvent(rawBody, signature, secret);
+      lastError = null;
+      break; // Success, exit loop
+    } catch (error: any) {
+      lastError = error;
+      continue; // Try next secret
+    }
+  }
+
+  if (lastError || !event) {
+    return NextResponse.json(
+      { error: `Webhook signature verification failed: ${lastError?.message}` },
+      { status: 400 }
+    );
   }
 
   const supabase = createClient(

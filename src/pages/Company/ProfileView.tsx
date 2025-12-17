@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,13 +20,17 @@ import { WeitereDokumenteSection } from "@/components/linkedin/right-rail/Weiter
 import { ContactInfoCard } from "@/components/linkedin/right-rail/ContactInfoCard";
 import { AdCard } from "@/components/linkedin/right-rail/AdCard";
 import CandidateUnlockModal from "@/components/unlock/CandidateUnlockModal";
+import { ScheduleInterviewAfterQuestions } from "@/components/jobs/ScheduleInterviewAfterQuestions";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { CandidateStatus, changeCandidateStatus } from "@/lib/api/candidates";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyUserRole, isCompanyAdminRole } from "@/hooks/useCompanyUserRole";
+import { useAssignedJobIds } from "@/hooks/useAssignedJobIds";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect, Option as MultiSelectOption } from "@/components/ui/multi-select";
+import { Calendar } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -157,11 +162,14 @@ const createNoteId = () => {
 };
 
 export default function ProfileView() {
+  const queryClient = useQueryClient();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { company } = useCompany();
   const { user } = useAuth();
+  const { data: role } = useCompanyUserRole(company?.id);
+  const { data: assignedJobIds } = useAssignedJobIds(company?.id, role === "recruiter" || role === "viewer");
   const updateEmploymentRequest = useUpdateEmploymentRequest();
   
   const [profile, setProfile] = useState<any>(null);
@@ -185,6 +193,10 @@ export default function ProfileView() {
   const [metaAccordionValue, setMetaAccordionValue] = useState<string | null>(null);
   const [employmentRequest, setEmploymentRequest] = useState<EmploymentRequest | null>(null);
   const [loadingEmploymentRequest, setLoadingEmploymentRequest] = useState(false);
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
+  const [candidateWorksForCompany, setCandidateWorksForCompany] = useState(false);
+  const [interestRequestStatus, setInterestRequestStatus] = useState<'none' | 'pending' | 'accepted' | 'rejected'>('none');
+  const [creatingInterestRequest, setCreatingInterestRequest] = useState(false);
 
   const navigationState = location.state as
     | {
@@ -477,13 +489,6 @@ export default function ProfileView() {
       case "FREIGESCHALTET":
         return [
           {
-            key: "plan",
-            label: "Interview planen",
-            status: "INTERVIEW_GEPLANT",
-            requiresDate: "planned",
-            variant: "primary",
-          },
-          {
             key: "reject",
             label: "Unpassend",
             status: "ABGELEHNT",
@@ -630,6 +635,18 @@ export default function ProfileView() {
   };
 
   const handleJobAssignmentChange = async (values: string[]) => {
+    // Recruiter/viewer scoping: prevent assigning outside allowed jobs when assignments exist
+    if (!isCompanyAdminRole(role) && role !== "owner" && (role === "recruiter" || role === "viewer")) {
+      if (assignedJobIds && assignedJobIds.length > 0) {
+        const allowed = new Set(assignedJobIds);
+        const disallowed = values.filter((v) => !allowed.has(v));
+        if (disallowed.length > 0) {
+          toast.error("Sie können nur Kandidaten zu Ihren zugewiesenen Stellen zuordnen.");
+          return;
+        }
+      }
+    }
+
     setSelectedJobIds(values);
     setUpdatingJobs(true);
     try {
@@ -709,6 +726,84 @@ export default function ProfileView() {
     loadEmploymentRequest();
   }, [loadEmploymentRequest]);
 
+  // Check if candidate works for company and load interest request status
+  useEffect(() => {
+    if (!id || !company?.id) return;
+    
+    const checkCandidateEmployment = async () => {
+      try {
+        // Check if candidate works for company
+        const { data: employmentData } = await supabase
+          .from("company_employment_requests")
+          .select("status")
+          .eq("user_id", id)
+          .eq("company_id", company.id)
+          .eq("status", "accepted")
+          .maybeSingle();
+
+        const worksForCompany = !!employmentData;
+        setCandidateWorksForCompany(worksForCompany);
+
+        // Check existing interest request
+        if (worksForCompany) {
+          const { data: interestData } = await supabase
+            .from("company_interest_requests")
+            .select("status")
+            .eq("company_id", company.id)
+            .eq("candidate_id", id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (interestData) {
+            setInterestRequestStatus(interestData.status as 'pending' | 'accepted' | 'rejected');
+          }
+        }
+      } catch (error) {
+        console.error("Error checking candidate employment:", error);
+      }
+    };
+
+    checkCandidateEmployment();
+  }, [id, company?.id]);
+
+  const handleCreateInterestRequest = async () => {
+    if (!company?.id || !id || creatingInterestRequest) return;
+
+    setCreatingInterestRequest(true);
+    try {
+      console.log('[ProfileView] Creating interest request:', {
+        company_id: company.id,
+        candidate_id: id,
+      });
+      
+      const { data, error } = await supabase.rpc('create_company_interest_request', {
+        p_company_id: company.id,
+        p_candidate_id: id,
+      });
+
+      console.log('[ProfileView] Interest request response:', { data, error });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        setInterestRequestStatus('pending');
+        toast.success("Interesse-Anfrage wurde gesendet. Der Kandidat wird benachrichtigt.");
+        
+        // Invalidate queries to refresh the interest list
+        queryClient.invalidateQueries({ queryKey: ["company-interests"] });
+      } else {
+        console.error('[ProfileView] Interest request failed:', data);
+        toast.error(data?.message || "Fehler beim Erstellen der Anfrage");
+      }
+    } catch (error: any) {
+      console.error("Error creating interest request:", error);
+      toast.error(error?.message || "Fehler beim Erstellen der Anfrage");
+    } finally {
+      setCreatingInterestRequest(false);
+    }
+  };
+
   useEffect(() => {
     if (linkedJobs.length === 0) return;
     setJobOptions((prev) => {
@@ -741,9 +836,25 @@ export default function ProfileView() {
   };
 
   const checkUnlockState = async () => {
-    if (!id) return;
+    if (!id || !company?.id) return;
+    
+    // Check unlock state via unlockService (tokens_used)
     const state = await unlockService.checkUnlockState(id);
-    setIsUnlocked(state?.basic_unlocked || false);
+    const unlockedViaTokens = state?.basic_unlocked || false;
+    
+    // Also check if unlocked via company_candidates (e.g., after interest request confirmation)
+    const { data: companyCandidate } = await supabase
+      .from('company_candidates')
+      .select('unlocked_at')
+      .eq('company_id', company.id)
+      .eq('candidate_id', id)
+      .not('unlocked_at', 'is', null)
+      .maybeSingle();
+    
+    const unlockedViaCompanyCandidates = !!companyCandidate?.unlocked_at;
+    
+    // Profile is unlocked if either method shows it's unlocked
+    setIsUnlocked(unlockedViaTokens || unlockedViaCompanyCandidates);
   };
 
   const checkFollowState = async () => {
@@ -947,14 +1058,19 @@ export default function ProfileView() {
 
                       {candidateStatus === "FREIGESCHALTET" && (
                         <div className="mt-3 space-y-2">
-                          <Label htmlFor="planned-at">Interviewtermin (optional)</Label>
-                          <Input
-                            id="planned-at"
-                            type="datetime-local"
-                            value={plannedAt}
-                            onChange={(event) => setPlannedAt(event.target.value)}
-                            disabled={statusUpdating}
-                          />
+                          <Label>Interviewtermin (optional)</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                            onClick={() => setShowInterviewModal(true)}
+                            disabled={statusUpdating || !candidateMeta?.id}
+                          >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {plannedAt 
+                              ? format(new Date(plannedAt), "dd.MM.yyyy, HH:mm", { locale: de })
+                              : "Interview planen"}
+                          </Button>
                           <p className="text-xs text-muted-foreground">
                             Termin kann später angepasst werden. Ohne Angabe wird nur der Status geändert.
                           </p>
@@ -977,7 +1093,32 @@ export default function ProfileView() {
                         </div>
                       )}
 
-                      {renderActionButtons("main")}
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {candidateStatus === "FREIGESCHALTET" && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => setShowInterviewModal(true)}
+                            disabled={statusUpdating || !candidateMeta?.id}
+                          >
+                            Interview planen
+                          </Button>
+                        )}
+                        {renderActionButtons("main")}
+                      </div>
+                      
+                      {/* Historie Link */}
+                      <div className="mt-4 pt-4 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/unternehmen/profil/${id}/historie`)}
+                          className="w-full justify-start"
+                        >
+                          <Clock className="h-4 w-4 mr-2" />
+                          Vollständige Historie anzeigen
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
@@ -1106,8 +1247,56 @@ export default function ProfileView() {
           </div>
         )}
 
-        {/* Unlock Section if not unlocked */}
-        {!isUnlocked && (
+        {/* Interest Request Section - if candidate works for company and not unlocked */}
+        {candidateWorksForCompany && !isUnlocked && (
+          <div className="mb-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <UserCheck className="h-6 w-6 text-blue-600 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-blue-900">
+                    {interestRequestStatus === 'pending' 
+                      ? 'Interesse-Anfrage ausstehend' 
+                      : 'Interesse bekunden'}
+                  </h3>
+                  <p className="text-sm text-blue-700">
+                    {interestRequestStatus === 'pending' 
+                      ? 'Der Kandidat wurde benachrichtigt. Nach Bestätigung werden 3 Tokens abgebucht und das Profil freigeschaltet.'
+                      : 'Bekunden Sie Interesse an diesem Kandidaten. Nach Bestätigung werden 3 Tokens abgebucht und das Profil freigeschaltet.'}
+                  </p>
+                </div>
+              </div>
+              {interestRequestStatus === 'pending' ? (
+                <Badge variant="secondary" className="flex-shrink-0">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Ausstehend
+                </Badge>
+              ) : (
+                <Button
+                  onClick={handleCreateInterestRequest}
+                  size="lg"
+                  className="flex-shrink-0"
+                  disabled={creatingInterestRequest}
+                >
+                  {creatingInterestRequest ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Wird gesendet...
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="h-4 w-4 mr-2" />
+                      Interesse bekunden
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Unlock Section if not unlocked and not showing interest request */}
+        {!isUnlocked && !candidateWorksForCompany && (
           <div className="mb-6 p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1127,6 +1316,21 @@ export default function ProfileView() {
                 <Lock className="h-4 w-4 mr-2" />
                 Profil freischalten
               </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Info Banner for employees: Contact details and CV only after interest confirmation */}
+        {candidateWorksForCompany && !isUnlocked && (
+          <div className="mb-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-3">
+              <Lock className="h-6 w-6 text-blue-600 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-blue-900">Kontaktdaten und Lebenslauf verborgen</h3>
+                <p className="text-sm text-blue-700">
+                  Um Kontaktdaten und Lebenslauf zu sehen, bekunden Sie Ihr Interesse. Der Mitarbeiter wird benachrichtigt und kann Ihr Interesse bestätigen.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -1282,6 +1486,23 @@ export default function ProfileView() {
               await loadCandidateMeta();
               toast.success("Profil freigeschaltet!");
               setUnlockModalOpen(false);
+            }}
+          />
+        )}
+
+        {/* Interview Planning Modal */}
+        {candidateMeta?.id && (
+          <ScheduleInterviewAfterQuestions
+            open={showInterviewModal}
+            onOpenChange={setShowInterviewModal}
+            applicationId={applications[0]?.id || ""}
+            jobId={linkedJobs[0]?.id || selectedJobIds[0] || ""}
+            companyId={company?.id || ""}
+            candidateName={profile?.full_name || profile?.vorname || "Kandidat"}
+            companyCandidateId={candidateMeta.id}
+            onComplete={async () => {
+              await loadCandidateMeta();
+              setShowInterviewModal(false);
             }}
           />
         )}

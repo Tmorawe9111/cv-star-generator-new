@@ -3,10 +3,12 @@ import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
 import { CompanyInterviewQuestions } from '@/components/onboarding/CompanyInterviewQuestions';
 import { CompanyValuesReview } from '@/components/onboarding/CompanyValuesReview';
+import { CompanyInterviewExpectedAnswers } from '@/components/modals/CompanyInterviewExpectedAnswers';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { X, Sparkles, Loader2 } from 'lucide-react';
+import { X, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 type Step = 'interview' | 'review';
 
@@ -19,10 +21,12 @@ interface CompanyInterviewEditModalProps {
 
 export function CompanyInterviewEditModal({ open, onOpenChange, onComplete, roleId }: CompanyInterviewEditModalProps) {
   const { company } = useCompany();
+  const { user } = useAuth();
   const [step, setStep] = useState<Step>('interview');
   const [interviewQuestions, setInterviewQuestions] = useState<Array<{ id?: string; question: string; position: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [editingExpectedAnswerFor, setEditingExpectedAnswerFor] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && company?.id) {
@@ -197,11 +201,17 @@ export function CompanyInterviewEditModal({ open, onOpenChange, onComplete, role
           questionToSave.id = question.id;
         }
 
-        await supabase
+        const { data: savedQuestion, error: saveError } = await supabase
           .from('company_interview_questions')
           .upsert(questionToSave, {
             onConflict: 'id'
-          });
+          })
+          .select()
+          .single();
+
+        if (saveError) {
+          console.error('Error saving question:', saveError);
+        }
       }
 
       // Check if at least one question exists
@@ -284,12 +294,52 @@ export function CompanyInterviewEditModal({ open, onOpenChange, onComplete, role
                       </Button>
                     </div>
                   )}
-                  <CompanyInterviewQuestions
-                    initialQuestions={interviewQuestions}
-                    onComplete={handleInterviewComplete}
-                    onBack={() => onOpenChange(false)}
-                    onSkip={() => setStep('review')}
-                  />
+                  <div className="space-y-4">
+                    <CompanyInterviewQuestions
+                      initialQuestions={interviewQuestions}
+                      onComplete={handleInterviewComplete}
+                      onBack={() => onOpenChange(false)}
+                      onSkip={() => setStep('review')}
+                    />
+                    
+                    {/* Expected Answers Section */}
+                    {interviewQuestions.filter(q => q.question.trim() && q.id).length > 0 && (
+                      <div className="mt-6 p-4 border rounded-lg bg-muted/50">
+                        <h4 className="text-sm font-semibold mb-2">Erwartete Antworten definieren (optional)</h4>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Definieren Sie für jede Frage eine erwartete Antwort. Diese wird für das Matching verwendet und ist nicht für Kandidaten sichtbar.
+                        </p>
+                        <div className="space-y-2">
+                          {interviewQuestions
+                            .filter(q => q.question.trim() && q.id)
+                            .map((q) => {
+                              const hasExpectedAnswer = false; // TODO: Check if expected answer exists
+                              return (
+                                <div key={q.id} className="flex items-center justify-between p-2 bg-background rounded border">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium truncate">{q.question}</p>
+                                    {hasExpectedAnswer && (
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        <CheckCircle2 className="h-3 w-3 inline mr-1 text-green-600" />
+                                        Erwartete Antwort definiert
+                                      </p>
+                                    )}
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setEditingExpectedAnswerFor(q.id!)}
+                                    className="ml-2 flex-shrink-0"
+                                  >
+                                    {hasExpectedAnswer ? 'Bearbeiten' : 'Hinzufügen'}
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {step === 'review' && (
@@ -312,6 +362,49 @@ export function CompanyInterviewEditModal({ open, onOpenChange, onComplete, role
           )}
         </div>
       </DialogContent>
+
+      {/* Expected Answer Edit Dialog */}
+      {editingExpectedAnswerFor && (
+        <Dialog open={!!editingExpectedAnswerFor} onOpenChange={(open) => !open && setEditingExpectedAnswerFor(null)}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden p-0">
+            <DialogHeader className="px-4 pt-4 pb-3 border-b">
+              <DialogTitle>Erwartete Antwort definieren</DialogTitle>
+            </DialogHeader>
+            <div className="overflow-y-auto px-4 py-3 max-h-[calc(85vh-120px)]">
+              {(() => {
+                const question = interviewQuestions.find(q => q.id === editingExpectedAnswerFor);
+                if (!question) return null;
+                
+                return (
+                  <CompanyInterviewExpectedAnswers
+                    questionId={editingExpectedAnswerFor}
+                    question={question.question}
+                    onSave={async (expectedAnswer, keywords, importanceWeight) => {
+                      if (!user?.id) throw new Error('Nicht angemeldet');
+                      
+                      const { error } = await supabase
+                        .from('company_interview_question_expected_answers')
+                        .upsert({
+                          question_id: editingExpectedAnswerFor,
+                          expected_answer: expectedAnswer,
+                          keywords: keywords,
+                          importance_weight: importanceWeight,
+                          created_by_user_id: user.id,
+                        }, {
+                          onConflict: 'question_id'
+                        });
+
+                      if (error) throw error;
+                      setEditingExpectedAnswerFor(null);
+                    }}
+                    onCancel={() => setEditingExpectedAnswerFor(null)}
+                  />
+                );
+              })()}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }

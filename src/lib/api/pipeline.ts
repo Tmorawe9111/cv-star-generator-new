@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { CompanyUserRole } from "@/hooks/useCompanyUserRole";
 
 export interface PipelineProfileRow {
   id: string;
@@ -73,7 +74,7 @@ const HIRE_STATUSES = new Set(["EINGESTELLT"]);
 
 export async function fetchPipelineSnapshot(
   companyId: string,
-  options: { limitPerStage?: number } = {},
+  options: { limitPerStage?: number; scopedJobIds?: string[]; role?: CompanyUserRole | null } = {},
 ): Promise<PipelineSnapshot> {
   const limitPerStage = options.limitPerStage ?? DEFAULT_LIMIT_PER_STAGE;
 
@@ -123,9 +124,18 @@ export async function fetchPipelineSnapshot(
     };
   });
 
+  // Recruiter/viewer scoping: if scopedJobIds provided and not empty, only include those jobs
+  const scoped =
+    (options.role === "recruiter" || options.role === "viewer") &&
+    Array.isArray(options.scopedJobIds) &&
+    options.scopedJobIds.length > 0;
+  const scopedCandidatesWithJobId = scoped
+    ? candidatesWithJobId.filter((c) => !!c.job_id && options.scopedJobIds!.includes(c.job_id))
+    : candidatesWithJobId;
+
   // For applications (source='bewerbung'), if profile data is missing, fetch it using RPC
   // This ensures we always have profile data for applicants, even if they are invisible
-  const candidatesWithMissingProfiles = candidatesWithJobId.filter(
+  const candidatesWithMissingProfiles = scopedCandidatesWithJobId.filter(
     c => c.source === 'bewerbung' && !c.profiles
   );
 
@@ -150,7 +160,7 @@ export async function fetchPipelineSnapshot(
       });
 
       // Update candidates with missing profiles
-      candidatesWithJobId.forEach(candidate => {
+      scopedCandidatesWithJobId.forEach(candidate => {
         if (candidate.source === 'bewerbung' && !candidate.profiles) {
           const profile = profileMap.get(candidate.candidate_id);
           if (profile) {
@@ -191,7 +201,7 @@ export async function fetchPipelineSnapshot(
   let unlockedProfilesCount = 0;
   let hiresCount = 0;
 
-  candidatesWithJobId.forEach(candidate => {
+  scopedCandidatesWithJobId.forEach(candidate => {
     const status = candidate.status ?? "";
     const stage = candidate.stage ?? "";
 

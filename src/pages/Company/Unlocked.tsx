@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { useEqualizeCards } from "@/components/unlocked/useEqualizeCards";
 import { FullProfileModal } from "@/components/Company/FullProfileModal";
 import { UserCVModal } from "@/components/admin/user/UserCVModal";
+import { useCompanyUserRole } from "@/hooks/useCompanyUserRole";
+import { useAssignedJobIds } from "@/hooks/useAssignedJobIds";
 import {
   Pagination,
   PaginationContent,
@@ -145,6 +147,11 @@ export default function CompanyUnlocked() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { data: role } = useCompanyUserRole(company?.id);
+  const { data: assignedJobIds, isLoading: assignedJobsLoading } = useAssignedJobIds(
+    company?.id,
+    role === "recruiter" || role === "viewer",
+  );
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<Profile[]>([]);
   const [activeRecentTab, setActiveRecentTab] = useState<'unlocked' | 'viewed'>('unlocked');
@@ -347,6 +354,12 @@ export default function CompanyUnlocked() {
           }
           return hasProfile;
         })
+        .filter((cc: any) => {
+          if (role !== "recruiter" && role !== "viewer") return true;
+          if (!assignedJobIds || assignedJobIds.length === 0) return true; // rollout-safe default
+          const linked = Array.isArray(cc.linked_job_ids) ? cc.linked_job_ids : [];
+          return linked.some((id: string) => assignedJobIds.includes(id));
+        })
         .map((cc: any) => ({
           ...cc.profiles,
           stage: cc.status || cc.stage,
@@ -374,8 +387,10 @@ export default function CompanyUnlocked() {
   }, [company?.id]);
 
   useEffect(() => {
+    if (!company?.id) return;
+    if ((role === "recruiter" || role === "viewer") && assignedJobsLoading) return;
     loadUnlockedCandidates();
-  }, [loadUnlockedCandidates]);
+  }, [loadUnlockedCandidates, company?.id, role, assignedJobsLoading]);
 
   // Load available jobs on mount
   useEffect(() => {

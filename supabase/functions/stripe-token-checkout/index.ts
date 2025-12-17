@@ -39,7 +39,8 @@ serve(async (req) => {
       throw new Error('Supabase credentials not configured');
     }
 
-    const { companyId, packageId } = await req.json();
+    const body = await req.json();
+    const { companyId, packageId, appUrl: clientAppUrl } = body;
 
     if (!companyId || !packageId) {
       return new Response(
@@ -171,10 +172,36 @@ serve(async (req) => {
       }
     }
 
-    // Get app URL from environment or use default
-    // For local testing, use localhost:8083
-    // For production, APP_URL should be set in Supabase Secrets
-    const appUrl = Deno.env.get('APP_URL') || 'http://localhost:8083';
+    // Get app URL from multiple sources (priority order):
+    // 1. Client-provided appUrl in request body
+    // 2. Environment variable APP_URL
+    // 3. Request origin/referer header
+    // 4. Fallback to localhost
+    const requestOrigin = req.headers.get('origin') || req.headers.get('referer');
+    let appUrl = clientAppUrl || Deno.env.get('APP_URL');
+    
+    // If no APP_URL set, try to extract from request origin
+    if (!appUrl && requestOrigin) {
+      try {
+        const url = new URL(requestOrigin);
+        appUrl = `${url.protocol}//${url.host}`;
+        console.log('[stripe-token-checkout] Using APP_URL from request origin:', appUrl);
+      } catch (e) {
+        console.warn('[stripe-token-checkout] Could not parse origin:', requestOrigin);
+      }
+    }
+    
+    // Final fallback
+    if (!appUrl) {
+      appUrl = 'http://localhost:8080'; // Default dev server port
+      console.warn('[stripe-token-checkout] Using fallback APP_URL:', appUrl);
+    }
+    
+    console.log('[stripe-token-checkout] Final APP_URL:', appUrl, {
+      clientAppUrl,
+      envAppUrl: Deno.env.get('APP_URL'),
+      requestOrigin,
+    });
 
     // Create Stripe Checkout Session for one-time payment
     try {
@@ -187,8 +214,9 @@ serve(async (req) => {
             quantity: 1,
           },
         ],
-        success_url: `${appUrl}/company/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${appUrl}/pricing`,
+        payment_method_types: ['card'], // Only allow card payments, disable Amazon Pay
+        success_url: `${appUrl}/unternehmen/abrechnung?success=1&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appUrl}/unternehmen/abrechnung?cancel=1`,
         metadata: {
           kind: 'tokens',
           companyId,

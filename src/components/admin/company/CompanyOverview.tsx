@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Mail, Phone, MapPin, Globe, ShieldCheck } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatSupportCode } from "@/lib/support-code";
+import { AdminCompanyAccessCodeInput } from "./AdminCompanyAccessCodeInput";
 
 interface CompanyOverviewProps {
   companyId: string;
@@ -53,6 +53,7 @@ export function CompanyOverview({ companyId }: CompanyOverviewProps) {
                 </Badge>
               </div>
             </div>
+            <AdminCompanyAccessCodeInput companyId={companyId} />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -75,22 +76,6 @@ export function CompanyOverview({ companyId }: CompanyOverviewProps) {
               <div className="flex items-center gap-2 text-sm">
                 <Phone className="h-4 w-4 text-muted-foreground" />
                 <span>{company.phone}</span>
-              </div>
-            )}
-            {company.support_code && (
-              <div className="flex items-center gap-2 text-sm col-span-2">
-                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Support-Code:</span>
-                  <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
-                    {formatSupportCode(company.support_code)}
-                  </code>
-                  {company.support_code_verified_at && (
-                    <Badge variant="outline" className="text-xs text-green-600 border-green-600">
-                      ✓ Verifiziert
-                    </Badge>
-                  )}
-                </div>
               </div>
             )}
             {company.website_url && (

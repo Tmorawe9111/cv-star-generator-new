@@ -1,0 +1,5 @@
+company_external_id,location_external_id,name,street,house_number,postal_code,city,country,is_primary,is_active,lat,lon
+acme-001,acme-berlin,"Standort Berlin","Musterstraße",12,10115,Berlin,Deutschland,true,true,52.5200,13.4050
+acme-001,acme-hamburg,"Standort Hamburg","Beispielweg",3,20095,Hamburg,Deutschland,false,true,53.5511,9.9937
+
+

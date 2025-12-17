@@ -45,6 +45,7 @@ serve(async (req) => {
         id: session.id,
         payment_status: session.payment_status,
         subscription: session.subscription as string | undefined,
+        customer: session.customer as string | undefined,
         metadata: {
           ...(session.metadata || {}),
           subscriptionId: session.subscription as string | undefined,

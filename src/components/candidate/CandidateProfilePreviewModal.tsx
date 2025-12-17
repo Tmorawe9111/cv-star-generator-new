@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MapPin, Briefcase, Wrench, Lock, X, Loader2, GraduationCap, Languages, User } from "lucide-react";
 import CandidateUnlockModal from "@/components/unlock/CandidateUnlockModal";
+import { InterviewAnswerMatchDisplay } from "@/components/jobs/InterviewAnswerMatchDisplay";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -297,21 +298,20 @@ export function CandidateProfilePreviewModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden">
-          <div className="flex h-full max-h-[90vh] flex-col">
-            <div className="flex items-center justify-between border-b px-6 py-4">
-              <h2 className="text-xl font-semibold">Profil ansehen</h2>
-              <Button variant="ghost" size="icon" onClick={handleClosePreview} className="h-6 w-6">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="flex items-center justify-between border-b px-6 py-4 flex-shrink-0">
+            <h2 className="text-xl font-semibold">Profil ansehen</h2>
+            <Button variant="ghost" size="icon" onClick={handleClosePreview} className="h-6 w-6">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
-            {isLoading ? (
-              <div className="flex flex-1 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+          {isLoading ? (
+            <div className="flex flex-1 items-center justify-center min-h-0">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 min-h-0">
                 {showApplicationBanner && applicationInfo && (
                   <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
                     <div className="font-semibold text-blue-700 mb-1">Bewerbung ansehen</div>
@@ -564,70 +564,79 @@ export function CandidateProfilePreviewModal({
                   </div>
                 )}
 
-              </div>
-            )}
+                {/* Interview Answer Matching Results - Only visible to companies */}
+                {isUnlocked && applicationInfo?.id && (
+                  <div className="mt-6 pt-6 border-t">
+                    <InterviewAnswerMatchDisplay 
+                      applicationId={applicationInfo.id}
+                      jobId={applicationInfo.jobId || undefined}
+                    />
+                  </div>
+                )}
 
-            <div className="border-t bg-white px-6 py-4">
-              {showApplicationActions ? (
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {!isUnlocked && (
-                    <Button
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      onClick={handleOpenUnlockModal}
-                      disabled={isRejecting}
-                    >
-                      <Lock className="mr-2 h-4 w-4" />
-                      Bewerbung freischalten
-                    </Button>
-                  )}
+            </div>
+          )}
+
+          <div className="border-t bg-white px-6 py-4 flex-shrink-0">
+            {showApplicationActions ? (
+              <div className="flex flex-col sm:flex-row gap-3">
+                {!isUnlocked && (
+                  <Button
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    onClick={handleOpenUnlockModal}
+                    disabled={isRejecting}
+                  >
+                    <Lock className="mr-2 h-4 w-4" />
+                    Bewerbung freischalten
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleRejectButtonClick}
+                  disabled={rejectButtonLoading}
+                >
+                  Bewerbung ablehnen
+                </Button>
+              </div>
+            ) : null}
+
+            {(hasRejectButton || !isUnlocked) && (
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                {hasRejectButton && (
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    className="sm:w-auto border-red-200 text-red-600 hover:bg-red-50"
                     onClick={handleRejectButtonClick}
                     disabled={rejectButtonLoading}
                   >
-                    Bewerbung ablehnen
+                    {rejectButtonLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {onRejectRequest ? "Wird abgelehnt..." : "Wird ausgeblendet..."}
+                      </>
+                    ) : (
+                      "Unpassend"
+                    )}
                   </Button>
-                </div>
-              ) : null}
-
-              {(hasRejectButton || !isUnlocked) && (
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                  {hasRejectButton && (
-                    <Button
-                      variant="outline"
-                      className="sm:w-auto border-red-200 text-red-600 hover:bg-red-50"
-                      onClick={handleRejectButtonClick}
-                      disabled={rejectButtonLoading}
-                    >
-                      {rejectButtonLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {onRejectRequest ? "Wird abgelehnt..." : "Wird ausgeblendet..."}
-                        </>
-                      ) : (
-                        "Unpassend"
-                      )}
-                    </Button>
-                  )}
-                  {!isUnlocked && (
-                    <Button
-                      className="sm:w-auto bg-blue-600 hover:bg-blue-700"
-                      onClick={handleOpenUnlockModal}
-                      disabled={isRejecting || markingNotFit}
-                    >
-                      <Lock className="mr-2 h-4 w-4" />
-                      Jetzt freischalten
-                    </Button>
-                  )}
-                  {isUnlocked && !showApplicationActions && (
-                    <Button className="sm:w-auto" disabled>
-                      Bereits freigeschaltet
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+                {!isUnlocked && (
+                  <Button
+                    className="sm:w-auto bg-blue-600 hover:bg-blue-700"
+                    onClick={handleOpenUnlockModal}
+                    disabled={isRejecting || markingNotFit}
+                  >
+                    <Lock className="mr-2 h-4 w-4" />
+                    Jetzt freischalten
+                  </Button>
+                )}
+                {isUnlocked && !showApplicationActions && (
+                  <Button className="sm:w-auto" disabled>
+                    Bereits freigeschaltet
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

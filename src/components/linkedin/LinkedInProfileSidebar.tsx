@@ -7,6 +7,7 @@ import { AvailabilityCard } from '@/components/linkedin/right-rail/AvailabilityC
 import { ValuesAndInterviewCard } from '@/components/linkedin/right-rail/ValuesAndInterviewCard';
 import { ValuesAndInterviewSection } from '@/components/recruiter/ValuesAndInterviewSection';
 import { ProfileCommonalities } from '@/components/linkedin/right-rail/ProfileCommonalities';
+import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -67,6 +68,9 @@ export function LinkedInProfileSidebar({
   profileId,
   onEditingChange
 }: LinkedInProfileSidebarProps) {
+  const { user } = useAuth();
+  const isCompanyUser = user?.user_metadata?.is_company === true;
+  
   const [isDocumentWidgetOpen, setIsDocumentWidgetOpen] = useState(false);
   const [documentUpdateTrigger, setDocumentUpdateTrigger] = useState(0);
   
@@ -165,8 +169,8 @@ export function LinkedInProfileSidebar({
 
   return (
     <div className="space-y-3 sm:space-y-4">
-      {/* Profile Commonalities - First (only when viewing other profiles) */}
-      {readOnly && profileId && (
+      {/* Profile Commonalities - First (only when viewing other profiles, not for companies) */}
+      {readOnly && profileId && !isCompanyUser && (
         <ProfileCommonalities profileId={profileId} />
       )}
 
@@ -373,6 +377,7 @@ export function LinkedInProfileSidebar({
       )}
 
       {/* Values & Interview Section - For recruiter view (readOnly) or own profile */}
+      {/* Companies should see this to evaluate candidates, candidates see it for their own profile */}
       {showValuesAndInterview && profileId && readOnly ? (
         <ValuesAndInterviewSection profileId={profileId} />
       ) : !readOnly ? (

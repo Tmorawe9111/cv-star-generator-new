@@ -20,6 +20,7 @@ import { PLAN_ORDER, PLANS, getPriceLabel, type PlanKey, type PlanInterval } fro
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 interface CurrentPlanCardV2Props {
   company: CompanyBillingSnapshot | null;
@@ -135,8 +136,36 @@ export function CurrentPlanCardV2({
   onOpenBillingPortal,
   onCancelSubscription 
 }: CurrentPlanCardV2Props) {
-  // Priority: subscription.plan_key > company.active_plan_id > company.plan_name > company.selected_plan_id > "free"
-  const planKey = (subscription?.plan_key || company?.active_plan_id || company?.plan_name || company?.selected_plan_id || "free") as PlanKey;
+  const companyId = company?.id;
+
+  // Fetch active plan assignment with custom conditions
+  const { data: activePlanAssignment } = useQuery({
+    queryKey: ["active-company-plan", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data, error } = await supabase
+        .rpc("get_active_company_plan", { p_company_id: companyId });
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error("Error fetching active plan:", error);
+      }
+      return data?.[0] || null;
+    },
+    enabled: !!companyId,
+  });
+
+  // Check if this is a custom plan (has custom conditions)
+  const isCustomPlan = activePlanAssignment && (
+    activePlanAssignment.jobs !== null ||
+    activePlanAssignment.locations !== null ||
+    activePlanAssignment.tokens !== null ||
+    activePlanAssignment.seats !== null ||
+    activePlanAssignment.price_monthly_cents !== null ||
+    activePlanAssignment.price_yearly_cents !== null
+  );
+
+  // Priority: activePlanAssignment.plan_id > subscription.plan_key > company.active_plan_id > company.plan_name > company.selected_plan_id > "free"
+  const planKey = (activePlanAssignment?.plan_id || subscription?.plan_key || company?.active_plan_id || company?.plan_name || company?.selected_plan_id || "free") as PlanKey;
   const plan = PLANS[planKey] || PLANS["free"];
   const interval = (subscription?.interval || company?.plan_interval || "month") as PlanInterval;
   const seats = company?.seats_included ?? plan.seatsIncluded;
@@ -146,7 +175,10 @@ export function CurrentPlanCardV2({
     ? format(new Date(company.next_invoice_at), "dd.MM.yyyy", { locale: de })
     : "—";
 
-  const renewalDate = subscription?.current_period_end
+  // For custom plans, use valid_until; otherwise use subscription.current_period_end
+  const renewalDate = isCustomPlan && activePlanAssignment?.valid_until
+    ? format(new Date(activePlanAssignment.valid_until), "dd.MM.yyyy", { locale: de })
+    : subscription?.current_period_end
     ? format(new Date(subscription.current_period_end), "dd.MM.yyyy", { locale: de })
     : "—";
 
@@ -159,6 +191,8 @@ export function CurrentPlanCardV2({
     planKey,
     isFreePlan,
     isCanceled,
+    isCustomPlan,
+    activePlanAssignment,
     hasStripeSubscriptionId: !!subscription?.stripe_subscription_id,
     subscription: subscription,
   });
@@ -206,9 +240,13 @@ export function CurrentPlanCardV2({
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{companyName}</p>
-            <p className="mt-1 text-xs text-gray-600">Sie sind im {plan.label} Plan</p>
-            {renewalDate && (
-              <p className="mt-0.5 text-xs text-gray-500">Verlängert sich {renewalDate}</p>
+            <p className="mt-1 text-xs text-gray-600">
+              {isCustomPlan ? "Custom Plan" : `Sie sind im ${plan.label} Plan`}
+            </p>
+            {renewalDate && renewalDate !== "—" && (
+              <p className="mt-0.5 text-xs text-gray-500">
+                {isCustomPlan ? `Gültig bis: ${renewalDate}` : `Verlängert sich ${renewalDate}`}
+              </p>
             )}
           </div>
           {!isTopPlan && (
@@ -229,8 +267,66 @@ export function CurrentPlanCardV2({
           </div>
         )}
 
+
+        {/* Custom Plan Conditions Section */}
+        {isCustomPlan && activePlanAssignment && (
+          <div className="mb-4 rounded-xl border border-purple-200 bg-purple-50 p-4">
+            <p className="text-sm font-semibold text-purple-900 mb-3">Custom Plan Bedingungen:</p>
+            <ul className="space-y-2 text-xs text-purple-800">
+              {activePlanAssignment.tokens !== null && (
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-purple-500 flex-shrink-0" />
+                  <span>
+                    <strong>Tokens:</strong> {activePlanAssignment.tokens === -1 ? "Unbegrenzt" : `${activePlanAssignment.tokens} Tokens`}
+                  </span>
+                </li>
+              )}
+              {activePlanAssignment.jobs !== null && (
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-purple-500 flex-shrink-0" />
+                  <span>
+                    <strong>Stellenanzeigen:</strong> {activePlanAssignment.jobs === -1 ? "Unbegrenzt" : `${activePlanAssignment.jobs} Jobs`}
+                  </span>
+                </li>
+              )}
+              {activePlanAssignment.locations !== null && (
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-purple-500 flex-shrink-0" />
+                  <span>
+                    <strong>Standorte:</strong> {activePlanAssignment.locations === -1 ? "Unbegrenzt" : `${activePlanAssignment.locations} Standorte`}
+                  </span>
+                </li>
+              )}
+              {activePlanAssignment.seats !== null && (
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-purple-500 flex-shrink-0" />
+                  <span>
+                    <strong>Benutzer:</strong> {activePlanAssignment.seats === -1 ? "Unbegrenzt" : `${activePlanAssignment.seats} Benutzer`}
+                  </span>
+                </li>
+              )}
+              {activePlanAssignment.price_monthly_cents !== null && (
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-purple-500 flex-shrink-0" />
+                  <span>
+                    <strong>Preis (monatlich):</strong> {(activePlanAssignment.price_monthly_cents / 100).toFixed(2)} €
+                  </span>
+                </li>
+              )}
+              {activePlanAssignment.price_yearly_cents !== null && (
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-purple-500 flex-shrink-0" />
+                  <span>
+                    <strong>Preis (jährlich):</strong> {(activePlanAssignment.price_yearly_cents / 100).toFixed(2)} €
+                  </span>
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
         {/* Free Plan Benefits Section */}
-        {isFreePlan && (
+        {isFreePlan && !isCustomPlan && (
           <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
             <p className="text-sm font-semibold text-blue-900 mb-3">Ihre Free Plan Benefits:</p>
             <ul className="space-y-2 text-xs text-blue-800">
@@ -261,11 +357,12 @@ export function CurrentPlanCardV2({
                   <AlertDialogDescription className="space-y-4">
                     <div className="space-y-2">
                       <p className="text-sm text-gray-600">
-                        Ihr aktueller Plan: <strong>{plan.label}</strong>
+                        Ihr aktueller Plan: <strong>{isCustomPlan ? "Custom Plan" : plan.label}</strong>
                       </p>
                       {renewalDate && renewalDate !== "—" && (
                         <p className="text-sm text-gray-600">
-                          Verlängert sich am: <strong>{renewalDate}</strong>
+                          {isCustomPlan ? `Gültig bis: ` : "Verlängert sich am: "}
+                          <strong>{renewalDate}</strong>
                         </p>
                       )}
                     </div>

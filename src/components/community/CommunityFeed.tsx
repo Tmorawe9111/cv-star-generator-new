@@ -6,6 +6,7 @@ import PostCard from './PostCard';
 import NewPostsNotification from './NewPostsNotification';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useCompany } from '@/hooks/useCompany';
 import { useState, useEffect } from 'react';
 import { LogoSpinner } from '@/components/shared/LoadingSkeleton';
 
@@ -51,6 +52,8 @@ interface CommunityFeedProps {
 
 export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps) {
   const { user } = useAuth();
+  const { company } = useCompany();
+  const isCompanyUser = !!company?.id;
   const queryClient = useQueryClient();
   const viewerId = user?.id || null;
   const [sort, setSort] = useState<FeedSortOption>((localStorage.getItem('feed_sort') as FeedSortOption) || 'relevant');
@@ -153,33 +156,98 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
 
       console.log('[feed] transformed posts:', transformedPosts.length, transformedPosts);
 
-      // Load missing user profiles
+      // Load missing user profiles OR filter existing author data for company users
       const postsNeedingAuthorInfo = transformedPosts.filter(
-        (post) => post.author_type === 'user' && !post.author
+        (post) => post.author_type === 'user' && (!post.author || (isCompanyUser && post.author))
       );
       if (postsNeedingAuthorInfo.length > 0) {
         const userIds = [...new Set(postsNeedingAuthorInfo.map((p) => p.user_id).filter(Boolean))];
         if (userIds.length > 0) {
-          const { data: profiles, error: profileError } = await supabase
-            .from('profiles')
-            .select(
-              'id, vorname, nachname, avatar_url, headline, employer_free, aktueller_beruf, ausbildungsberuf, ausbildungsbetrieb, company_name'
-            )
-            .in('id', userIds);
+          // For company users: always reload profiles to ensure nachname filtering works
+          // For regular users: only load if author data is missing
+          const shouldReload = isCompanyUser || postsNeedingAuthorInfo.some(p => !p.author);
+          
+          let profiles: any[] = [];
+          if (shouldReload) {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select(
+                'id, vorname, nachname, avatar_url, headline, employer_free, aktueller_beruf, ausbildungsberuf, ausbildungsbetrieb, company_name'
+              )
+              .in('id', userIds);
 
-          if (profileError) {
-            console.error('[feed] profile fetch error', profileError);
+            if (profileError) {
+              console.error('[feed] profile fetch error', profileError);
+              console.error('[feed] profile fetch error details:', {
+                code: profileError.code,
+                message: profileError.message,
+                details: profileError.details,
+                hint: profileError.hint
+              });
+            } else {
+              profiles = profileData || [];
+              console.log('[feed] loaded profiles:', profiles.length, 'for company user:', isCompanyUser, 'company:', company?.id);
+              console.log('[feed] profile data sample:', profiles[0]);
+            }
+          } else {
+            // Use existing author data
+            profiles = postsNeedingAuthorInfo
+              .filter(p => p.author)
+              .map(p => ({
+                id: p.user_id,
+                vorname: p.author?.vorname,
+                nachname: p.author?.nachname,
+                avatar_url: p.author?.avatar_url,
+                headline: p.author?.headline,
+                employer_free: p.author?.employer_free,
+                aktueller_beruf: p.author?.aktueller_beruf,
+                ausbildungsberuf: p.author?.ausbildungsberuf,
+                ausbildungsbetrieb: p.author?.ausbildungsbetrieb,
+                company_name: p.author?.company_name,
+              }));
+          }
+
+          // For company users: check which profiles are unlocked and hide nachname if not unlocked
+          let unlockedProfileIds = new Set<string>();
+          if (isCompanyUser && company?.id && profiles && profiles.length > 0) {
+            const { data: unlockedCandidates, error: unlockError } = await supabase
+              .from('company_candidates')
+              .select('candidate_id')
+              .eq('company_id', company.id)
+              .in('candidate_id', userIds)
+              .not('unlocked_at', 'is', null);
+            
+            if (unlockError) {
+              console.error('[feed] unlock check error:', unlockError);
+            } else {
+              console.log('[feed] unlocked candidates:', unlockedCandidates?.length, unlockedCandidates);
+              if (unlockedCandidates) {
+                unlockedProfileIds = new Set(unlockedCandidates.map(uc => uc.candidate_id));
+              }
+            }
           }
 
           const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]));
 
+          // Process all posts that need author info
           postsNeedingAuthorInfo.forEach((post) => {
             const author = profileMap.get(post.user_id);
             if (author) {
+              // For company users: hide nachname if profile is not unlocked
+              const isUnlocked = isCompanyUser ? unlockedProfileIds.has(author.id) : true;
+              console.log('[feed] processing author:', {
+                userId: post.user_id,
+                authorId: author.id,
+                vorname: author.vorname,
+                nachname: author.nachname,
+                isCompanyUser,
+                isUnlocked,
+                willShowNachname: isUnlocked ? author.nachname : null
+              });
               post.author = {
                 id: author.id,
                 vorname: author.vorname,
-                nachname: author.nachname,
+                nachname: isUnlocked ? author.nachname : null, // Hide nachname if not unlocked for company users
                 avatar_url: author.avatar_url,
                 headline: author.headline,
                 employer_free: author.employer_free,
@@ -188,8 +256,51 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
                 ausbildungsbetrieb: author.ausbildungsbetrieb,
                 company_name: author.company_name,
               };
+            } else {
+              console.warn('[feed] author not found for user_id:', post.user_id);
             }
           });
+
+          // Also filter nachname for company users on ALL posts (even those that already have author data)
+          if (isCompanyUser && company?.id) {
+            // Get all user IDs from all posts to check unlock status
+            const allUserIds = [...new Set(transformedPosts
+              .filter(p => p.author_type === 'user' && p.user_id)
+              .map(p => p.user_id)
+              .filter(Boolean))];
+            
+            if (allUserIds.length > 0 && unlockedProfileIds.size === 0) {
+              // Reload unlock status for all posts
+              const { data: allUnlockedCandidates } = await supabase
+                .from('company_candidates')
+                .select('candidate_id')
+                .eq('company_id', company.id)
+                .in('candidate_id', allUserIds)
+                .not('unlocked_at', 'is', null);
+              
+              if (allUnlockedCandidates) {
+                unlockedProfileIds = new Set(allUnlockedCandidates.map(uc => uc.candidate_id));
+                console.log('[feed] all unlocked candidates for company:', unlockedProfileIds.size, Array.from(unlockedProfileIds));
+              }
+            }
+            
+            transformedPosts.forEach((post) => {
+              if (post.author_type === 'user' && post.author) {
+                // Check if this profile is unlocked
+                const isUnlocked = unlockedProfileIds.has(post.author.id);
+                if (!isUnlocked && post.author.nachname) {
+                  console.log('[feed] hiding nachname for NON-unlocked profile:', {
+                    postId: post.id,
+                    authorId: post.author.id,
+                    vorname: post.author.vorname,
+                    nachname: post.author.nachname,
+                    isUnlocked
+                  });
+                  post.author.nachname = null;
+                }
+              }
+            });
+          }
         }
       }
 

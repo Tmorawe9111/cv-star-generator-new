@@ -72,15 +72,44 @@ export function useCompanyInterest(targetUserId?: string) {
         
         const hasMutualInterest = !!userFollowsCompany;
         
-        // Insert company interest
-        const { error: insertError } = await supabase
+        // Insert company interest (with ON CONFLICT handling)
+        // First check if it already exists
+        const { data: existing } = await supabase
           .from('company_user_interests')
-          .insert({ company_id: companyId, user_id: targetUserId, created_by: user.id });
+          .select('id')
+          .eq('company_id', companyId)
+          .eq('user_id', targetUserId)
+          .maybeSingle();
         
-        if (insertError) throw insertError;
+        let interestCreated = false;
+        if (existing) {
+          // Already exists, just set interested to true
+          setInterested(true);
+          interestCreated = true;
+        } else {
+          // Insert new interest
+          const { error: insertError } = await supabase
+            .from('company_user_interests')
+            .insert({ company_id: companyId, user_id: targetUserId, created_by: user.id });
+          
+          if (insertError) {
+            // If it's a unique constraint violation, it means it was created between check and insert
+            // In that case, just set interested to true
+            if (insertError.code === '23505') {
+              setInterested(true);
+              interestCreated = true;
+            } else {
+              throw insertError;
+            }
+          } else {
+            setInterested(true);
+            interestCreated = true;
+          }
+        }
         
         // If mutual interest (user follows company), deduct 3 tokens
-        if (hasMutualInterest) {
+        // Only deduct if interest was just created (not if it already existed)
+        if (hasMutualInterest && interestCreated && !existing) {
           const { data: tokenResult, error: tokenError } = await supabase.rpc('use_company_token', {
             p_company_id: companyId,
             p_profile_id: targetUserId,

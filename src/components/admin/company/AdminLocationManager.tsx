@@ -106,6 +106,8 @@ export function AdminLocationManager({ companyId }: AdminLocationManagerProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-locations", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["company-users"] });
+      window.dispatchEvent(new CustomEvent('company-data-updated', { detail: { companyId } }));
       toast({ title: "Erfolg", description: "Hauptstandort erfolgreich gesetzt" });
     },
     onError: (error: Error) => {
@@ -129,6 +131,8 @@ export function AdminLocationManager({ companyId }: AdminLocationManagerProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-locations", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["company-users"] });
+      window.dispatchEvent(new CustomEvent('company-data-updated', { detail: { companyId } }));
       toast({ title: "Erfolg", description: "Standort erfolgreich gelöscht" });
       setDeletingLocationId(null);
     },
@@ -188,6 +192,9 @@ export function AdminLocationManager({ companyId }: AdminLocationManagerProps) {
       }
 
       queryClient.invalidateQueries({ queryKey: ["company-locations", companyId] });
+      // Force company data refresh
+      queryClient.invalidateQueries({ queryKey: ["company-users"] });
+      window.dispatchEvent(new CustomEvent('company-data-updated', { detail: { companyId } }));
       toast({ title: "Erfolg", description: "Standort erfolgreich hinzugefügt" });
       setNewLocation({
         street: "",

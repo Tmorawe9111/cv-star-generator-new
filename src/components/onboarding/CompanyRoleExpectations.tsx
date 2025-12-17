@@ -67,7 +67,7 @@ export function CompanyRoleExpectations({
       if (company?.id) {
         try {
           const { data, error } = await supabase
-            .from('job_postings')
+            .from('job_posts')
             .select('id, title')
             .eq('company_id', company.id)
             .eq('status', 'published')

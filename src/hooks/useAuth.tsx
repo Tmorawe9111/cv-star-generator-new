@@ -165,10 +165,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         });
         setProfile(profile);
       } else {
-        // Profile not found - this is normal for new users, don't set to null
-        // Keep existing profile state if available, otherwise set to null
-        console.warn('Profile not found for user:', userId);
-        setProfile(null);
+        // Profile not found - check if this is a company user (expected behavior)
+        // or a regular user (potential issue)
+        try {
+          const { data: companyUser } = await supabase
+            .from('company_users')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          if (companyUser) {
+            // This is a company user - no profile is expected, silently set to null
+            setProfile(null);
+          } else {
+            // This is a regular user without a profile - log warning
+            console.warn('Profile not found for user:', userId, '- This may indicate a missing profile for a job seeker');
+            setProfile(null);
+          }
+        } catch (checkError) {
+          // If we can't check, just set to null and log warning
+          console.warn('Profile not found for user:', userId);
+          setProfile(null);
+        }
       }
     } catch (error: any) {
       // Silently ignore abort errors

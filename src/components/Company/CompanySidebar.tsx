@@ -1,11 +1,12 @@
 import React from "react";
-import { Home, Search, Columns3, MessageSquare, Settings as SettingsIcon, Building2, Bell, Users, Briefcase, LogOut, CreditCard, MapPin, BarChart3 } from "lucide-react";
+import { Home, Search, Columns3, MessageSquare, Settings as SettingsIcon, Building2, Bell, Users, Briefcase, LogOut, CreditCard, MapPin, BarChart3, Sparkles } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import AppSidebar, { type NavItem } from "@/components/layout/AppSidebar";
 import { LovableStyleTokenWidget } from "@/components/billing-v2/LovableStyleTokenWidget";
+import { useCompanyUserRole, isCompanyAdminRole } from "@/hooks/useCompanyUserRole";
 
 interface CompanySidebarProps {
   collapsed: boolean;
@@ -16,6 +17,12 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
   const { company } = useCompany();
   const location = useLocation();
   const navigate = useNavigate();
+  const { data: role } = useCompanyUserRole(company?.id);
+  const isSuperadmin = role === "owner";
+  const canSeeRecruiting = role !== "marketing" && role !== "viewer";
+  const canBuyTokens = role === "owner" || role === "admin" || role === "recruiter";
+  const canSeeBilling = canBuyTokens; // billing page used for token purchases too
+  const canSeeSettings = isCompanyAdminRole(role); // owner/admin can access settings hub
 
   // Check both German and English paths for active state
   const isActive = (to: string) => {
@@ -24,6 +31,7 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
       .replace('/profile', '/profil')
       .replace('/jobs', '/stellenanzeigen')
       .replace('/search', '/kandidatensuche')
+      .replace('/matching', '/matching')
       .replace('/unlocked', '/freigeschaltet')
       .replace('/candidates/pipeline', '/bewerber/pipeline')
       .replace('/feed', '/feed')
@@ -59,7 +67,7 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
       active: isActive("/company/profile"),
       onClick: handleNavigate("/unternehmen/profil"),
     },
-    {
+    ...(canSeeRecruiting ? [{
       label: "Stellenanzeigen",
       href: "/unternehmen/stellenanzeigen",
       icon: <Briefcase className="h-4 w-4" />,
@@ -72,6 +80,13 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
       icon: <Search className="h-4 w-4" />,
       active: isActive("/company/search"),
       onClick: handleNavigate("/unternehmen/kandidatensuche"),
+    },
+    {
+      label: "Matching",
+      href: "/unternehmen/matching",
+      icon: <Sparkles className="h-4 w-4" />,
+      active: isActive("/company/matching") || isActive("/unternehmen/matching"),
+      onClick: handleNavigate("/unternehmen/matching"),
     },
     {
       label: "Freigeschaltete Talente",
@@ -94,6 +109,7 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
       active: isActive("/company/analytics"),
       onClick: handleNavigate("/unternehmen/analytics"),
     },
+    ] : []),
   ];
 
   const communityItems: NavItem[] = [
@@ -127,20 +143,20 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
       active: isActive("/company/settings/locations"),
       onClick: handleNavigate("/unternehmen/einstellungen/standorte"),
     },
-    {
+    ...(canSeeBilling ? [{
       label: "Abrechnung & Tokens",
       href: "/unternehmen/abrechnung",
       icon: <CreditCard className="h-4 w-4" />,
       active: isActive("/company/billing-v2"),
       onClick: handleNavigate("/unternehmen/abrechnung"),
-    },
-    {
+    }] : []),
+    ...(canSeeSettings ? [{
       label: "Einstellungen",
       href: "/unternehmen/einstellungen",
       icon: <SettingsIcon className="h-4 w-4" />,
       active: isActive("/company/settings"),
       onClick: handleNavigate("/unternehmen/einstellungen"),
-    },
+    }] : []),
     {
       label: "Abmelden",
       href: "#logout",
@@ -217,12 +233,12 @@ export function CompanySidebar({ collapsed, onToggle }: CompanySidebarProps) {
             interval: subscription.interval || undefined,
           } : undefined}
           collapsed={collapsed}
-          onBuyTokens={handleBuyTokens}
-          onUpgradePlan={handleUpgradePlan}
+          onBuyTokens={canBuyTokens ? handleBuyTokens : undefined}
+          onUpgradePlan={isSuperadmin ? handleUpgradePlan : undefined}
         />
       );
     };
-  }, [companySnapshot, subscription, collapsed, handleBuyTokens, handleUpgradePlan]);
+  }, [companySnapshot, subscription, collapsed, handleBuyTokens, handleUpgradePlan, canBuyTokens, isSuperadmin]);
 
   return (
     <AppSidebar

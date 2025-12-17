@@ -17,6 +17,8 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useCompanyUserRole } from "@/hooks/useCompanyUserRole";
+import { useAssignedJobIds } from "@/hooks/useAssignedJobIds";
 
 const STAGES: { key: string; title: string }[] = [
   { key: "new", title: "Freigeschaltet" },
@@ -52,6 +54,11 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
 
 export const CandidatePipelineBoard: React.FC = () => {
   const { company } = useCompany();
+  const { data: role } = useCompanyUserRole(company?.id);
+  const { data: assignedJobIds, isLoading: assignedJobsLoading } = useAssignedJobIds(
+    company?.id,
+    role === "recruiter" || role === "viewer",
+  );
   const [items, setItems] = useState<CompanyCandidateItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"cards" | "rows">(() => (localStorage.getItem("pipeline_view") as "cards" | "rows") || "cards");
@@ -194,10 +201,22 @@ export const CandidatePipelineBoard: React.FC = () => {
       }
 
       if (!ccErr) {
+        // Recruiter/viewer scoping: if assignments exist, only include candidates linked to assigned jobs
+        const shouldScope =
+          (role === "recruiter" || role === "viewer") &&
+          Array.isArray(assignedJobIds) &&
+          assignedJobIds.length > 0;
+        const allowed = shouldScope ? new Set(assignedJobIds) : null;
+
         // Deduplicate by candidate_id (keep first occurrence due to updated_at DESC order)
         const seen = new Set<string>();
         const deduped: CompanyCandidateItem[] = [] as any;
         for (const it of currentItems as any[]) {
+          if (allowed) {
+            const linked = Array.isArray((it as any).linked_job_ids) ? ((it as any).linked_job_ids as string[]) : [];
+            // If no linked jobs, hide when scoping is active
+            if (!linked.some((jid) => allowed.has(jid))) continue;
+          }
           if (!seen.has(it.candidate_id)) {
             seen.add(it.candidate_id);
             deduped.push(it as any);
@@ -207,8 +226,10 @@ export const CandidatePipelineBoard: React.FC = () => {
       }
       setLoading(false);
     };
+    // Avoid flash before assignments loaded
+    if ((role === "recruiter" || role === "viewer") && assignedJobsLoading) return;
     load();
-  }, [company]);
+  }, [company, role, assignedJobsLoading, assignedJobIds]);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const activeId = event.active.id as string;

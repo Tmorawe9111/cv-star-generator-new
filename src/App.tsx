@@ -79,13 +79,23 @@ const CompanyAnalytics = lazy(() => import("./pages/Company/Analytics"));
 const CompanyNotifications = lazy(() => import("./pages/Company/Notifications"));
 const CompanySettings = lazy(() => import("./pages/Company/Settings"));
 const CompanySettingsLocations = lazy(() => import("./pages/Company/SettingsLocations"));
+const CompanySettingsProducts = lazy(() => import("./pages/Company/SettingsProducts"));
+const CompanySettingsTeam = lazy(() => import("./pages/Company/SettingsTeam"));
+const CompanySettingsNotifications = lazy(() => import("./pages/Company/SettingsNotifications"));
+const CompanySettingsIntegrations = lazy(() => import("./pages/Company/SettingsIntegrations"));
+const CompanySettingsSecurity = lazy(() => import("./pages/Company/SettingsSecurity"));
+const CompanySettingsMatchingTargets = lazy(() => import("./pages/Company/SettingsMatchingTargets"));
+const CompanyRoleGate = lazy(() => import("@/components/Company/CompanyRoleGate").then(m => ({ default: m.CompanyRoleGate })));
 const CompanyPosts = lazy(() => import("./pages/Company/Posts"));
 const CompanyProfileView = lazy(() => import("./pages/Company/ProfileView"));
+const CandidateHistory = lazy(() => import("./pages/Company/CandidateHistory"));
 const CompanyBilling = lazy(() => import("./pages/Company/Billing"));
 const CompanyBillingV2 = lazy(() => import("./pages/Company/BillingV2"));
 const CompanyUnlocked = lazy(() => import("./pages/Company/Unlocked"));
 const CompanyComingSoon = lazy(() => import("./pages/Company/ComingSoon"));
 const CompanyFeed = lazy(() => import("./pages/Company/Feed"));
+const CompanyMatchList = lazy(() => import("./pages/Company/CompanyMatchList"));
+const CompanyMatchesPage = lazy(() => import("./pages/Company/Matches"));
 const CandidatesPipelinePage = lazy(() => import("./pages/Company/CandidatesPipeline"));
 const MatchingProfilePage = lazy(() => import("./pages/Company/MatchingProfile"));
 const CompanyNeeds = lazy(() => import("./pages/Company/Needs"));
@@ -128,6 +138,7 @@ const ContentPage = lazy(() => import("./pages/Admin/Content"));
 const BlogList = lazy(() => import("./pages/Admin/BlogList"));
 const BlogEditor = lazy(() => import("./pages/Admin/BlogEditor"));
 const BlogBulkUpload = lazy(() => import("./pages/Admin/BlogBulkUpload"));
+const BulkImport = lazy(() => import("./pages/Admin/BulkImport"));
 const SupportPage = lazy(() => import("./pages/Admin/Support"));
 const AdminTools = lazy(() => import("./pages/Admin/Tools"));
 const AdminAuthGate = lazy(() => import("@/components/admin/AdminAuthGate"));
@@ -139,7 +150,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 2 * 60 * 1000, // 2 Minuten - Daten sind 2 Min "frisch"
-      cacheTime: 5 * 60 * 1000, // 5 Minuten - Cache bleibt 5 Min erhalten
+      gcTime: 5 * 60 * 1000, // 5 Minuten - Cache bleibt 5 Min erhalten
       refetchOnWindowFocus: false, // Kein Refetch beim Tab-Wechsel
       refetchOnMount: false, // Kein Refetch beim Remount wenn Daten noch fresh sind
       retry: 1, // Nur 1 Retry bei Fehlern
@@ -455,20 +466,53 @@ const App = () => {
                 <Route path="profil" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyProfile /></Suspense>} />
                 <Route path="analytics" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyAnalytics /></Suspense>} />
                 <Route path="kandidatensuche" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySearch /></Suspense>} />
+                <Route path="matching" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyMatchesPage /></Suspense>} />
                 <Route path="freigeschaltet" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyUnlocked /></Suspense>} />
                 <Route path="abrechnung" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyBillingV2 /></Suspense>} />
                 <Route path="benachrichtigungen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyNotifications /></Suspense>} />
                 <Route path="einstellungen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettings /></Suspense>} />
                 <Route path="einstellungen/standorte" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsLocations /></Suspense>} />
-                <Route path="einstellungen/team" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
-                <Route path="einstellungen/benachrichtigungen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
+                <Route path="einstellungen/produkte" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsProducts /></Suspense>} />
+                <Route path="einstellungen/team" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsTeam /></Suspense>} />
+                <Route path="einstellungen/benachrichtigungen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsNotifications /></Suspense>} />
+                <Route path="einstellungen/integrationen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsIntegrations /></Suspense>} />
+                <Route path="einstellungen/sicherheit" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsSecurity /></Suspense>} />
+                <Route path="einstellungen/matching-targets" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsMatchingTargets /></Suspense>} />
                 <Route path="beitraege" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyPosts /></Suspense>} />
                 <Route path="feed" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyFeed /></Suspense>} />
                 <Route path="profil/:id" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyProfileView /></Suspense>} />
-                <Route path="anforderungen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyNeeds /></Suspense>} />
-                <Route path="bewerber/pipeline" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CandidatesPipelinePage /></Suspense>} />
+                <Route path="profil/:id/historie" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CandidateHistory /></Suspense>} />
+                <Route
+                  path="anforderungen"
+                  element={
+                    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+                      <CompanyRoleGate allow={["owner","admin","recruiter","viewer"]}>
+                        <CompanyNeeds />
+                      </CompanyRoleGate>
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="bewerber/pipeline"
+                  element={
+                    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+                      <CompanyRoleGate allow={["owner","admin","recruiter","viewer"]}>
+                        <CandidatesPipelinePage />
+                      </CompanyRoleGate>
+                    </Suspense>
+                  }
+                />
                 <Route path="bewerber/gespeichert" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
-                <Route path="stellenanzeigen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyJobsList /></Suspense>} />
+                <Route
+                  path="stellenanzeigen"
+                  element={
+                    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+                      <CompanyRoleGate allow={["owner","admin","recruiter","viewer"]}>
+                        <CompanyJobsList />
+                      </CompanyRoleGate>
+                    </Suspense>
+                  }
+                />
                 <Route path="stellenanzeigen/neu" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><JobCreate /></Suspense>} />
                 <Route path="stellenanzeigen/:id/bearbeiten" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><JobEdit /></Suspense>} />
                 <Route path="stellenanzeigen/:id" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><JobDetail /></Suspense>} />
@@ -509,6 +553,7 @@ const App = () => {
                 <Route path="posts" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyPosts /></Suspense>} />
                 <Route path="feed" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyFeed /></Suspense>} />
                 <Route path="profile/:id" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyProfileView /></Suspense>} />
+                <Route path="profile/:id/history" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CandidateHistory /></Suspense>} />
 
                 <Route path="needs" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyNeeds /></Suspense>} />
                 <Route path="candidates/pipeline" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CandidatesPipelinePage /></Suspense>} />
@@ -534,8 +579,12 @@ const App = () => {
                 <Route path="insights/followers" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
 
                 <Route path="settings/locations" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsLocations /></Suspense>} />
-                <Route path="settings/team" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
-                <Route path="settings/notifications" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
+                <Route path="settings/products" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsProducts /></Suspense>} />
+                <Route path="settings/team" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsTeam /></Suspense>} />
+                <Route path="settings/notifications" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsNotifications /></Suspense>} />
+                <Route path="settings/integrations" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsIntegrations /></Suspense>} />
+                <Route path="settings/security" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsSecurity /></Suspense>} />
+                <Route path="settings/matching-targets" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySettingsMatchingTargets /></Suspense>} />
 
                 <Route path="help/center" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
                 <Route path="help/support" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanyComingSoon /></Suspense>} />
@@ -555,8 +604,10 @@ const App = () => {
               <Route path="/firmen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompaniesSearch /></Suspense>} />
               
               {/* Public User Profiles - Vanity URL + UUID fallback */}
+              {/* These routes are accessible to both regular users and company users */}
               <Route path="/@:username" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><UserProfilePage /></Suspense>} />
               <Route path="/profil/:username" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><UserProfilePage /></Suspense>} />
+              <Route path="/u/:id" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><UserProfilePage /></Suspense>} />
               
               {/* Authenticated USER routes - German + English fallbacks */}
               {/* ⛔️ Companies are blocked from these routes via UserProtectedRoute */}
@@ -602,9 +653,6 @@ const App = () => {
                 
                 <Route path="/entdecken/azubis" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><DiscoverAzubis /></Suspense>} />
                 <Route path="/entdecken/unternehmen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><DiscoverCompaniesPage /></Suspense>} />
-                
-                {/* User profile by UUID - fallback */}
-                <Route path="/u/:id" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><UserProfilePage /></Suspense>} />
               </Route>
 
               {/* Admin Login - separate route without AdminAuthGate */}
@@ -627,6 +675,7 @@ const App = () => {
                 <Route path="blog/new" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BlogEditor /></Suspense>} />
                 <Route path="blog/edit/:id" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BlogEditor /></Suspense>} />
                 <Route path="blog/bulk-upload" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BlogBulkUpload /></Suspense>} />
+                <Route path="bulk-import" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BulkImport /></Suspense>} />
                 {/* Legacy content routes remain accessible */}
                 <Route path="pages" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><PagesList /></Suspense>} />
                 <Route path="pages/new" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><PageEditor /></Suspense>} />

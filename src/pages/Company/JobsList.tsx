@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { useCompanyJobs, usePublishJob, usePauseJob, useResumeJob, useInactivateJob, useDeleteJob } from "@/hooks/useJobs";
+import { useJobLimits } from "@/hooks/useJobLimits";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -22,15 +24,18 @@ import {
 } from "@/components/ui/table";
 import { JobStatusBadge } from "@/components/jobs/JobStatusBadge";
 import { JobActionsMenu } from "@/components/jobs/JobActionsMenu";
-import { Briefcase, Plus, Search } from "lucide-react";
+import { JobLimitUpgradeModal } from "@/components/Company/jobs/JobLimitUpgradeModal";
+import { Briefcase, Plus, Search, AlertCircle } from "lucide-react";
 
 export default function CompanyJobsList() {
   const navigate = useNavigate();
   const { company } = useCompany();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const { data: jobs, isLoading } = useCompanyJobs(company?.id);
+  const { data: jobLimits } = useJobLimits();
   const publishJob = usePublishJob();
   const pauseJob = usePauseJob();
   const resumeJob = useResumeJob();
@@ -81,7 +86,33 @@ export default function CompanyJobsList() {
                   <SelectItem value="inactive">Archiviert</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={() => navigate('/unternehmen/stellenanzeigen/neu')}>
+              {jobLimits && jobLimits.maxAllowed > 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-muted/50">
+                  <Briefcase className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">
+                    <span className="text-foreground">{jobLimits.currentCount}</span>
+                    <span className="text-muted-foreground"> / </span>
+                    <span className="text-foreground">{jobLimits.maxAllowed === 999999 ? "∞" : jobLimits.maxAllowed}</span>
+                    <span className="text-muted-foreground ml-1">aktiv</span>
+                  </span>
+                  {!jobLimits.canCreate && jobLimits.maxAllowed !== 999999 && (
+                    <Badge variant="destructive" className="ml-2">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      Limit erreicht
+                    </Badge>
+                  )}
+                </div>
+              )}
+              <Button 
+                onClick={() => {
+                  if (jobLimits && !jobLimits.canCreate && jobLimits.maxAllowed !== 999999) {
+                    setShowUpgradeModal(true);
+                  } else {
+                    navigate('/unternehmen/stellenanzeigen/neu');
+                  }
+                }}
+                disabled={jobLimits && !jobLimits.canCreate && jobLimits.maxAllowed !== 999999}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Neue Stelle
               </Button>
@@ -146,6 +177,20 @@ export default function CompanyJobsList() {
           </Table>
         </CardContent>
       </Card>
+
+      {jobLimits && (
+        <JobLimitUpgradeModal
+          open={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          onUpgrade={() => {
+            setShowUpgradeModal(false);
+            navigate('/unternehmen/abrechnung?open=upgrade');
+          }}
+          currentCount={jobLimits.currentCount}
+          maxAllowed={jobLimits.maxAllowed}
+          reason={jobLimits.reason || "limit_reached"}
+        />
+      )}
     </div>
   );
 }

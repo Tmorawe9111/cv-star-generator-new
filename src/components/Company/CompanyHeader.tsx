@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import AppNavbar from "@/components/layout/AppNavbar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { UnlockCodeInput } from "./UnlockCodeInput";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -184,7 +185,7 @@ export function CompanyHeader({ collapsed, onToggleSidebar }: CompanyHeaderProps
           <DropdownMenuItem
             onClick={() => {
               setProfileOpen(false);
-              navigate("/company/settings");
+                      navigate("/unternehmen/einstellungen");
             }}
             className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm"
           >
@@ -194,7 +195,7 @@ export function CompanyHeader({ collapsed, onToggleSidebar }: CompanyHeaderProps
           <DropdownMenuItem
             onClick={() => {
               setProfileOpen(false);
-              navigate("/company/settings/products");
+                      navigate("/unternehmen/einstellungen/produkte");
             }}
             className="flex cursor-pointer items-center px-4 py-3 text-sm"
           >
@@ -203,7 +204,7 @@ export function CompanyHeader({ collapsed, onToggleSidebar }: CompanyHeaderProps
           <DropdownMenuItem
             onClick={() => {
               setProfileOpen(false);
-              navigate("/company/settings/team");
+                      navigate("/unternehmen/einstellungen/team");
             }}
             className="flex cursor-pointer items-center px-4 py-3 text-sm"
           >
@@ -212,7 +213,7 @@ export function CompanyHeader({ collapsed, onToggleSidebar }: CompanyHeaderProps
           <DropdownMenuItem
             onClick={() => {
               setProfileOpen(false);
-              navigate("/company/settings/billing");
+                      navigate("/unternehmen/abrechnung?open=manage");
             }}
             className="flex cursor-pointer items-center px-4 py-3 text-sm"
           >
@@ -227,6 +228,8 @@ export function CompanyHeader({ collapsed, onToggleSidebar }: CompanyHeaderProps
           >
             Weiter zu BeVisiblle.de
           </DropdownMenuItem>
+          <DropdownMenuSeparator className="bg-slate-200" />
+          <UnlockCodeInput onSuccess={() => setProfileOpen(false)} />
           <DropdownMenuSeparator className="bg-slate-200" />
           <DropdownMenuItem
             onClick={() => {

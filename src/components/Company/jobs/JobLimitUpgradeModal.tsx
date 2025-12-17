@@ -40,7 +40,9 @@ export function JobLimitUpgradeModal({
   const [selectedPlan, setSelectedPlan] = useState<PlanKey | null>(null);
 
   const handleUpgradeNow = () => {
-    setShowPlanSelector(true);
+    // Navigate to billing page with upgrade parameter (same as token upgrade)
+    navigate('/unternehmen/abrechnung?open=upgrade');
+    onClose();
   };
 
   const handleLater = () => {

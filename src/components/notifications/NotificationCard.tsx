@@ -2,6 +2,8 @@ import { timeAgo } from '@/utils/timeAgo';
 import type { NotificationRow, NotifType } from '@/types/notifications';
 import { useAcceptEmployment, useDeclineEmployment } from '@/hooks/useEmployment';
 import { acceptInterviewRequest, declineInterviewRequest } from '@/lib/api/interview-requests';
+import { InterviewRequestResponse } from './InterviewRequestResponse';
+import { InterestRequestResponse } from './InterestRequestResponse';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +41,9 @@ const typeIcon: Record<NotifType, string> = {
   job_post_approved: '✅',
   job_post_rejected: '❌',
   job_post_expiring: '⏰',
+  company_interest_request: '💼',
+  interest_request_accepted: '✅',
+  interest_request_rejected: '❌',
   billing_invoice_ready: '🧾',
   interview_request_received: '📅',
   interview_request_accepted: '✅',
@@ -47,6 +52,7 @@ const typeIcon: Record<NotifType, string> = {
 
 export default function NotificationCard({ n, onRead, onAction }: Props) {
   const [busy, setBusy] = useState(false);
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
   const accept = useAcceptEmployment();
   const decline = useDeclineEmployment();
   const cardRef = useRef<HTMLElement>(null);
@@ -307,6 +313,17 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
           );
         }
         return null;
+      case 'company_interest_request':
+        return (
+          <InterestRequestResponse 
+            notification={n}
+            onAction={onAction}
+          />
+        );
+      case 'interest_request_accepted':
+      case 'interest_request_rejected':
+        // These are informational only, no actions needed
+        return null;
       case 'new_matches_available':
         return (
           <div className="mt-3">
@@ -327,13 +344,13 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
         return (
           <div className="mt-3 flex gap-2">
             <button
-              onClick={handleAcceptInterview}
+              onClick={() => setShowInterviewModal(true)}
               disabled={busy}
               className="h-9 rounded-lg px-3 text-sm text-white disabled:opacity-60"
               style={{ backgroundColor: '#5CE1E6' }}
-              title="Interview-Anfrage annehmen"
+              title="Interview-Anfrage ansehen & antworten"
             >
-              {busy ? 'Wird verarbeitet…' : 'Annehmen'}
+              Termin wählen
             </button>
             <button
               onClick={handleDeclineInterview}
@@ -388,7 +405,12 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
           {/* Interview request meta info */}
           {n.type === 'interview_request_received' && n.payload && (
             <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-              {n.payload.planned_at && (
+              {n.payload.has_multiple_slots ? (
+                <div>
+                  <span className="font-medium">Termine:</span>{' '}
+                  {n.payload.time_slots?.length || 0} Termine zur Auswahl
+                </div>
+              ) : n.payload.planned_at && (
                 <div>
                   <span className="font-medium">Termin:</span>{' '}
                   {format(new Date(n.payload.planned_at), "dd.MM.yyyy 'um' HH:mm 'Uhr'", { locale: de })}
@@ -417,6 +439,25 @@ export default function NotificationCard({ n, onRead, onAction }: Props) {
           <ActionButtons />
         </div>
       </div>
+
+      {/* Interview Request Modal */}
+      {n.type === 'interview_request_received' && n.payload && (
+        <InterviewRequestResponse
+          open={showInterviewModal}
+          onOpenChange={setShowInterviewModal}
+          interviewRequestId={n.payload.interview_request_id}
+          timeSlots={n.payload.time_slots}
+          plannedAt={n.payload.planned_at}
+          interviewType={n.payload.interview_type}
+          locationAddress={n.payload.location_address}
+          jobTitle={n.payload.job_title}
+          companyMessage={n.payload.company_message}
+          onComplete={() => {
+            onAction?.(n, 'accept');
+            onRead(n.id);
+          }}
+        />
+      )}
     </article>
   );
 }

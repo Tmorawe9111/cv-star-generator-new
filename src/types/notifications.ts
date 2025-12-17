@@ -27,7 +27,10 @@ export type NotifType =
   | 'billing_invoice_ready'
   | 'interview_request_received'
   | 'interview_request_accepted'
-  | 'interview_request_declined';
+  | 'interview_request_declined'
+  | 'company_interest_request'
+  | 'interest_request_accepted'
+  | 'interest_request_rejected';
 
 export type NotifChannel = 'in_app' | 'email';
 

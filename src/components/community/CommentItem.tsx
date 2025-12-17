@@ -58,26 +58,40 @@ export const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, dept
   const profileRoute = getProfileRoute();
   
   // Get name - prioritize company name, then user full name, then partial name
+  // For company users viewing user profiles: only show vorname if nachname is not available (not unlocked)
   const name = isCompanyComment && comment.company?.name
     ? comment.company.name
-    : (comment.author?.vorname && comment.author?.nachname
-      ? `${comment.author.vorname} ${comment.author.nachname}`
-      : (comment.author?.vorname
-        ? comment.author.vorname
-        : (comment.author?.nachname
-          ? comment.author.nachname
-          : 'Unbekannt')));
+    : (isCompanyUser && comment.author_type === 'user'
+      ? (comment.author?.vorname && comment.author?.nachname
+        ? `${comment.author.vorname} ${comment.author.nachname}`
+        : (comment.author?.vorname
+          ? comment.author.vorname
+          : 'Nutzer'))
+      : (comment.author?.vorname && comment.author?.nachname
+        ? `${comment.author.vorname} ${comment.author.nachname}`
+        : (comment.author?.vorname
+          ? comment.author.vorname
+          : (comment.author?.nachname
+            ? comment.author.nachname
+            : 'Unbekannt'))));
     
   // Get initials - prioritize company, then user initials
+  // For company users viewing user profiles: only use vorname initial if nachname is not available
   const initials = isCompanyComment && comment.company?.name
     ? comment.company.name.slice(0, 2).toUpperCase()
-    : (comment.author?.vorname && comment.author?.nachname
-      ? `${comment.author.vorname[0] || ''}${comment.author.nachname[0] || ''}`.toUpperCase()
-      : (comment.author?.vorname
-        ? comment.author.vorname[0]?.toUpperCase() || 'U'
-        : (comment.author?.nachname
-          ? comment.author.nachname[0]?.toUpperCase() || 'U'
-          : 'U')));
+    : (isCompanyUser && comment.author_type === 'user'
+      ? (comment.author?.vorname && comment.author?.nachname
+        ? `${comment.author.vorname[0] || ''}${comment.author.nachname[0] || ''}`.toUpperCase()
+        : (comment.author?.vorname
+          ? comment.author.vorname[0]?.toUpperCase() || 'U'
+          : 'U'))
+      : (comment.author?.vorname && comment.author?.nachname
+        ? `${comment.author.vorname[0] || ''}${comment.author.nachname[0] || ''}`.toUpperCase()
+        : (comment.author?.vorname
+          ? comment.author.vorname[0]?.toUpperCase() || 'U'
+          : (comment.author?.nachname
+            ? comment.author.nachname[0]?.toUpperCase() || 'U'
+            : 'U'))));
 
   // Comment author headline/subtitle
   let commentHeadline = '';

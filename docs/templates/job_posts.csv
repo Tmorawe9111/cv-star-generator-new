@@ -1,0 +1,5 @@
+company_external_id,job_external_id,title,is_active,is_public,status,industry,description_md,tasks_md,requirements_md,location_external_id,city,postal_code,address_street,address_number,country,contact_email,contact_person_name,contact_person_phone,contact_person_role
+acme-001,acme-job-001,"Pflegefachkraft (m/w/d)",true,true,published,Pflege,"**Beschreibung** ...","**Aufgaben** ...","**Anforderungen** ...",acme-berlin,,,,,,recruiter@acme.de,,,
+acme-001,acme-job-002,"Industriemechaniker (m/w/d)",true,true,published,Industrie,"**Beschreibung** ...","**Aufgaben** ...","**Anforderungen** ...",,Hamburg,20095,Beispielweg,3,Deutschland,hr@acme.de,"Max Mustermann","+49 40 123456","HR"
+
+

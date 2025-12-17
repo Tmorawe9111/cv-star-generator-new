@@ -3,6 +3,7 @@ import { ArrowRight, Users, Building2, MessageSquare, Sparkles, ShieldCheck, Pho
 import { Link } from 'react-router-dom';
 import Header from './marketing/Header';
 import Footer from './marketing/Footer';
+import CareerFieldsSection from './marketing/CareerFieldsSection';
 import lebenslaufFeature from '@/assets/lebenslauf-feature.png';
 import jobsFeature from '@/assets/jobs-feature.png';
 import communityFeature from '@/assets/community-feature.png';
@@ -203,6 +204,9 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <Header variant="talent" />
+      
+      {/* Career Fields Section - B2C */}
+      <CareerFieldsSection />
       
       <main className="bg-black text-white w-full" style={{
         ['--brand' as any]: '#5ce1e6'

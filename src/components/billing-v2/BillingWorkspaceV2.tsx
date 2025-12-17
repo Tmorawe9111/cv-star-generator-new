@@ -12,6 +12,7 @@ import { TokenPurchaseModalV2 } from "./TokenPurchaseModalV2";
 import { UpgradePlanModalV2 } from "./UpgradePlanModalV2";
 import { DowngradeConfirmModal } from "./DowngradeConfirmModal";
 import { UpgradeConfirmModal } from "./UpgradeConfirmModal";
+import { ManagePlanModalV2 } from "./ManagePlanModalV2";
 import type { CompanyBillingSnapshot, InvoiceRowV2, PurchaseRowV2 } from "@/lib/billing-v2/types";
 import { PLAN_ORDER, type PlanInterval, type PlanKey } from "@/lib/billing-v2/plans";
 
@@ -30,6 +31,7 @@ interface BillingWorkspaceV2Props {
   initialOpenTokenModal?: boolean;
   initialUpgradePlan?: PlanKey | null;
   initialUpgradeInterval?: PlanInterval;
+  initialOpenManagePlanModal?: boolean;
 }
 
 export function BillingWorkspaceV2({
@@ -40,10 +42,12 @@ export function BillingWorkspaceV2({
   initialOpenTokenModal,
   initialUpgradePlan,
   initialUpgradeInterval,
+  initialOpenManagePlanModal,
 }: BillingWorkspaceV2Props) {
   const { toast } = useToast();
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showManagePlanModal, setShowManagePlanModal] = useState(false);
   const [showDowngradeConfirm, setShowDowngradeConfirm] = useState(false);
   const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
   const [pendingInterval, setPendingInterval] = useState<PlanInterval>("month");
@@ -72,6 +76,12 @@ export function BillingWorkspaceV2({
       setShowTokenModal(true);
     }
   }, [initialOpenTokenModal]);
+
+  useEffect(() => {
+    if (initialOpenManagePlanModal) {
+      setShowManagePlanModal(true);
+    }
+  }, [initialOpenManagePlanModal]);
 
   useEffect(() => {
     if (initialUpgradePlan) {
@@ -206,16 +216,19 @@ export function BillingWorkspaceV2({
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://koymmvuhcxlvcuoyjnvv.supabase.co';
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtveW1tdnVoY3hsdmN1b3lqbnZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzODA3NTcsImV4cCI6MjA2OTk1Njc1N30.Pb5uz3xFH2Fupk9JSjcbxNrS-s_mE3ySnFy5B7HcZFw';
       
+      // Include origin header so Edge Function can determine the correct redirect URL
       const response = await fetch(`${supabaseUrl}/functions/v1/stripe-checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Origin': window.location.origin, // Pass origin so Edge Function knows where to redirect
         },
         body: JSON.stringify({
           companyId,
           plan,
           interval,
+          appUrl: window.location.origin, // Pass current origin so Edge Function knows where to redirect
           ...(subscriptionEndDate && { subscriptionEndDate }),
         }),
       });
@@ -319,6 +332,18 @@ export function BillingWorkspaceV2({
       <InvoicesTableV2 rows={invoiceRows} />
 
       <TokenPurchaseModalV2 open={showTokenModal} companyId={companyId} onClose={() => setShowTokenModal(false)} />
+      <ManagePlanModalV2
+        open={showManagePlanModal}
+        onOpenChange={setShowManagePlanModal}
+        company={company}
+        subscription={subscription ?? null}
+        onOpenUpgrade={() => {
+          setPendingPlan((current) => current ?? "growth");
+          setPendingInterval((current) => current ?? "month");
+          setShowUpgradeModal(true);
+        }}
+        onDowngrade={(plan, interval) => handleSelectPlan(plan, interval, subscription?.current_period_end)}
+      />
       <UpgradePlanModalV2
         open={showUpgradeModal}
         currentPlan={companyPlan}

@@ -43,7 +43,21 @@ export function UserCVModal({ open, onOpenChange, userId }: UserCVModalProps) {
     const loadProfile = async () => {
       setLoading(true);
       try {
-        // Try candidates table first
+        // ✅ profiles is source of truth
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (profileError) throw profileError;
+
+        if (profileData) {
+          setProfile(profileData as any);
+          return;
+        }
+
+        // Legacy fallback: candidates (should not be needed long-term)
         const { data: candidate, error: candidateError } = await supabase
           .from("candidates")
           .select("*")
@@ -54,19 +68,7 @@ export function UserCVModal({ open, onOpenChange, userId }: UserCVModalProps) {
           throw candidateError;
         }
 
-        if (candidate) {
-          setProfile(candidate);
-        } else {
-          // Fallback to profiles table
-          const { data: profileData, error: profileError } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", userId)
-            .maybeSingle();
-
-          if (profileError) throw profileError;
-          setProfile(profileData);
-        }
+        setProfile(candidate as any);
       } catch (error: any) {
         console.error("CV Load Error:", error);
         toast.error("Fehler beim Laden des CVs");

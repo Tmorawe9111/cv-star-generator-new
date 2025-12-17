@@ -35,6 +35,7 @@ const navItems: ReadonlyArray<NavItem> = [
   { title: "Content", url: "/admin/content", icon: FileText, roles: ["SuperAdmin", "ContentEditor", "SupportAgent"] },
   { title: "Blog", url: "/admin/blog", icon: FileText, roles: ["SuperAdmin", "ContentEditor", "SupportAgent"] },
   { title: "Blog Bulk Upload", url: "/admin/blog/bulk-upload", icon: Upload, roles: ["SuperAdmin", "ContentEditor"] },
+  { title: "Bulk Import", url: "/admin/bulk-import", icon: Upload, roles: ["SuperAdmin"] },
   { title: "Support", url: "/admin/support", icon: LifeBuoy },
   { title: "Tools", url: "/admin/tools", icon: Wrench, roles: ["SuperAdmin", "ContentEditor", "SupportAgent"] },
   { title: "Admin Settings", url: "/admin/settings", icon: Settings, roles: ["SuperAdmin"] },

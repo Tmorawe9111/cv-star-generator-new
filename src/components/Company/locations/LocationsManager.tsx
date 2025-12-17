@@ -9,6 +9,7 @@ import { useCompany } from '@/hooks/useCompany';
 import { toast } from 'sonner';
 import { LocationCard } from './LocationCard';
 import { AddLocationModal } from './AddLocationModal';
+import { LocationLimitUpgradeModal } from './LocationLimitUpgradeModal';
 import { getMaxLocations, canAddLocation } from '@/lib/billing-v2/gating';
 import type { PlanKey } from '@/lib/billing-v2/plans';
 import type { CompanyLocation } from './types';
@@ -34,10 +35,52 @@ export function LocationsManager({ onUpgradeClick }: LocationsManagerProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editLocation, setEditLocation] = useState<CompanyLocation | null>(null);
   const [deleteLocation, setDeleteLocation] = useState<CompanyLocation | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const companyId = company?.id;
-  const currentPlan = (company?.active_plan_id || company?.plan_type || 'free') as PlanKey;
-  const maxLocations = getMaxLocations(currentPlan);
+  
+  // Fetch active plan with custom limits
+  const { data: activePlanData } = useQuery({
+    queryKey: ['active-company-plan', companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data, error } = await supabase
+        .rpc('get_active_company_plan', { p_company_id: companyId });
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching active plan:', error);
+      }
+      return data?.[0] || null;
+    },
+    enabled: !!companyId,
+  });
+
+  // Use custom_locations from company_plan_assignments if available, otherwise use plan defaults
+  const currentPlan = (activePlanData?.plan_id || company?.active_plan_id || company?.plan_type || 'free') as PlanKey;
+  let maxLocations: number;
+  if (activePlanData && activePlanData.locations !== null && activePlanData.locations !== undefined) {
+    // Custom limit from company_plan_assignments (-1 means unlimited)
+    maxLocations = activePlanData.locations === -1 ? 999999 : activePlanData.locations;
+  } else {
+    // Fallback to standard plan limits
+    maxLocations = getMaxLocations(currentPlan);
+  }
+  
+  // Listen for company data updates from admin panel
+  useEffect(() => {
+    const handleCompanyUpdate = (event: CustomEvent<{ companyId: string }>) => {
+      if (companyId === event.detail.companyId) {
+        console.log("[LocationsManager] Company data updated, invalidating queries...");
+        queryClient.invalidateQueries({ queryKey: ['active-company-plan', companyId] });
+        queryClient.invalidateQueries({ queryKey: ['company-locations', companyId] });
+      }
+    };
+
+    window.addEventListener('company-data-updated', handleCompanyUpdate as EventListener);
+    return () => {
+      window.removeEventListener('company-data-updated', handleCompanyUpdate as EventListener);
+    };
+  }, [companyId, queryClient]);
 
   // Fetch locations - with fallback from companies table if no locations exist
   const { data: locations = [], isLoading } = useQuery({
@@ -157,11 +200,9 @@ export function LocationsManager({ onUpgradeClick }: LocationsManagerProps) {
 
   const handleAddClick = () => {
     if (!canAdd) {
-      if (onUpgradeClick) {
-        onUpgradeClick();
-      } else {
-        toast.error(`Sie haben das Limit von ${maxLocations} Standort${maxLocations === 1 ? '' : 'en'} erreicht. Upgraden Sie Ihren Plan für mehr Standorte.`);
-      }
+      // Determine reason: free plan or limit reached
+      const reason = currentPlan === 'free' ? 'free' : 'limit_reached';
+      setShowUpgradeModal(true);
       return;
     }
     setEditLocation(null);
@@ -311,6 +352,15 @@ export function LocationsManager({ onUpgradeClick }: LocationsManagerProps) {
         editLocation={editLocation}
         onSuccess={handleModalSuccess}
         isFirstLocation={locations.length === 0}
+      />
+
+      <LocationLimitUpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        currentPlan={currentPlan}
+        currentCount={currentCount}
+        maxAllowed={maxLocations}
+        reason={currentPlan === 'free' ? 'free' : 'limit_reached'}
       />
 
       {/* Delete Confirmation */}

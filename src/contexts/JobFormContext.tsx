@@ -26,6 +26,7 @@ export interface JobFormData {
   contact_person_email: string;
   contact_person_phone?: string;
   contact_person_role?: string;
+  contact_person_photo_url?: string;
   
   // Step 5: Details
   salary_min?: number;
@@ -67,6 +68,7 @@ const initialFormData: JobFormData = {
   contact_person_email: '',
   contact_person_phone: '',
   contact_person_role: '',
+  contact_person_photo_url: '',
   is_public: true,
   is_active: false,
 };

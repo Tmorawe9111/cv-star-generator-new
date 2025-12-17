@@ -50,8 +50,11 @@ export function LovableStyleTokenWidget({ company, subscription, collapsed, onBu
     <div className="space-y-3">
       {/* Plan Card - Clickable */}
       <div 
-        className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
-        onClick={onUpgradePlan}
+        className={[
+          "rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-colors",
+          onUpgradePlan ? "cursor-pointer hover:bg-gray-50" : "cursor-default opacity-90",
+        ].join(" ")}
+        onClick={onUpgradePlan ? onUpgradePlan : undefined}
       >
         <div className="flex items-start gap-3">
           <Avatar className="h-10 w-10 shrink-0">

@@ -74,6 +74,21 @@ export const useCompany = () => {
     }
   }, [user]);
 
+  // Listen for company data updates from admin panel
+  useEffect(() => {
+    const handleCompanyUpdate = (event: CustomEvent<{ companyId: string }>) => {
+      if (company?.id === event.detail.companyId) {
+        console.log("[useCompany] Company data updated, reloading...");
+        loadCompanyData();
+      }
+    };
+
+    window.addEventListener('company-data-updated', handleCompanyUpdate as EventListener);
+    return () => {
+      window.removeEventListener('company-data-updated', handleCompanyUpdate as EventListener);
+    };
+  }, [company?.id]);
+
   // Realtime subscription: keep company data in sync with DB changes
   useEffect(() => {
     if (!company?.id) return;
@@ -106,7 +121,7 @@ export const useCompany = () => {
         .from('company_users')
         .select(`
           id, user_id, company_id, role, invited_at, accepted_at,
-          companies (id, name, logo_url, header_image, industry, main_location, description, website_url, active_plan_id, plan_interval, subscription_id, active_tokens, total_tokens_ever, max_seats, max_locations, max_industries, next_billing_date, country, contact_person, contact_position, contact_email, contact_phone, onboarding_completed, street, house_number, postal_code, city)
+          companies (id, name, primary_email, logo_url, header_image, industry, main_location, description, website_url, active_plan_id, plan_interval, subscription_id, active_tokens, total_tokens_ever, max_seats, max_locations, max_industries, next_billing_date, country, contact_person, contact_position, contact_email, contact_phone, onboarding_completed, street, house_number, postal_code, city)
         `)
         .eq('user_id', user?.id)
         .maybeSingle();

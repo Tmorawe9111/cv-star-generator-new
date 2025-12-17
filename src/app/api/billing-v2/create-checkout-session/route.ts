@@ -50,6 +50,29 @@ export async function POST(request: Request) {
       await supabase.from("companies").update({ stripe_customer_id: customerId }).eq("id", companyId);
     }
 
+    // Get app URL from environment, request headers, or use fallback
+    const requestOrigin = request.headers.get('origin') || request.headers.get('referer');
+    let appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
+    
+    // If no APP_URL set, try to extract from request origin
+    if (!appUrl && requestOrigin) {
+      try {
+        const url = new URL(requestOrigin);
+        appUrl = `${url.protocol}//${url.host}`;
+        console.log('[create-checkout-session] Using APP_URL from request origin:', appUrl);
+      } catch (e) {
+        console.warn('[create-checkout-session] Could not parse origin:', requestOrigin);
+      }
+    }
+    
+    // Final fallback
+    if (!appUrl) {
+      appUrl = 'http://localhost:8080'; // Default dev server port
+      console.warn('[create-checkout-session] Using fallback APP_URL:', appUrl);
+    }
+    
+    console.log('[create-checkout-session] Final APP_URL:', appUrl);
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "payment",
@@ -59,8 +82,9 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.APP_URL}/company/billing-v2?success=1`,
-      cancel_url: `${process.env.APP_URL}/company/billing-v2?cancel=1`,
+      payment_method_types: ["card"], // Only allow card payments, disable Amazon Pay
+      success_url: `${appUrl}/unternehmen/abrechnung?success=1&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/unternehmen/abrechnung?cancel=1`,
       metadata: { kind: "tokens", companyId, packageId },
     });
 

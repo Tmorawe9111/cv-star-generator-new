@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useCompanyId } from "@/hooks/useCompanyId";
 import { useRealtime } from "@/hooks/useRealtime";
+import { useQuery } from "@tanstack/react-query";
 import { StatsGrid, type DashboardCounts } from "@/components/recruiter-dashboard/StatsGrid";
 import { PipelineTabs } from "@/components/recruiter-dashboard/PipelineTabs";
 import {
@@ -32,6 +33,10 @@ import { getStripeSession } from "@/lib/api/stripe-session";
 import { TOKEN_PACKS } from "@/lib/billing-v2/stripe-prices";
 import type { PlanKey } from "@/lib/billing-v2/plans";
 import { WelcomePopup } from "@/components/welcome/WelcomePopup";
+import { CompanyTopMatchesBanner } from "@/components/Company/CompanyTopMatchesBanner";
+import { getTopMatchCountForCompany } from "@/lib/api/company-matches";
+import { useCompanyUserRole } from "@/hooks/useCompanyUserRole";
+import { useAssignedJobIds } from "@/hooks/useAssignedJobIds";
 
 type ListState = {
   items: CandidateListItem[];
@@ -327,6 +332,11 @@ export default function CompanyDashboard() {
   const navigate = useNavigate();
   const companyId = useCompanyId();
   const { company, refetch: refetchCompany } = useCompany();
+  const { data: role } = useCompanyUserRole(company?.id);
+  const { data: assignedJobIds, isLoading: assignedJobsLoading } = useAssignedJobIds(
+    company?.id,
+    role === "recruiter" || role === "viewer",
+  );
 
   const [counts, setCounts] = useState<DashboardCounts>(DEFAULT_COUNTS);
   const [pipeline, setPipeline] = useState<PipelineCounts>(DEFAULT_PIPELINE);
@@ -361,6 +371,17 @@ export default function CompanyDashboard() {
   }>({ open: false, type: "tokens" });
 
   const pipelineCardRef = useRef<HTMLDivElement | null>(null);
+
+  // Fetch top match count (locked matches with score >= 80)
+  const { data: topMatchCount = 0, isLoading: topMatchCountLoading } = useQuery({
+    queryKey: ["top-match-count", companyId],
+    queryFn: () => {
+      if (!companyId) return 0;
+      return getTopMatchCountForCompany(companyId);
+    },
+    enabled: !!companyId,
+    refetchInterval: 60000, // Refetch every minute
+  });
 
   const scrollToStage = useCallback((stage: StageKey) => {
     setActiveStage(stage);
@@ -426,35 +447,48 @@ export default function CompanyDashboard() {
           });
         } else if (kind === "plan" && plan) {
           // Get subscription from session
-          const subscriptionId = session.subscription || session.metadata?.subscriptionId;
+          const subscriptionId = session.subscription as string | null;
+          const customerId = session.customer as string | null;
           
-          if (subscriptionId) {
-            // Activate subscription via RPC (fallback if webhook didn't fire)
-            const interval = (metadata.interval || "month") as "month" | "year";
-            
-            // Get subscription details from Stripe to get period dates
-            try {
-              const { data: subscriptionData } = await supabase.functions.invoke('get-stripe-subscription', {
-                body: { subscriptionId },
-              });
+          if (subscriptionId && customerId) {
+            // Check if subscription is already activated (webhook might have already processed it)
+            const { data: existingSubscription } = await supabase
+              .from("subscriptions")
+              .select("id")
+              .eq("stripe_subscription_id", subscriptionId)
+              .maybeSingle();
 
-              if (subscriptionData) {
-                await supabase.rpc("activate_subscription", {
-                  p_company_id: companyId,
-                  p_stripe_subscription_id: subscriptionId,
-                  p_stripe_customer_id: session.metadata?.customerId || "",
-                  p_plan_key: plan,
-                  p_interval: interval,
-                  p_current_period_start: subscriptionData.current_period_start || new Date().toISOString(),
-                  p_current_period_end: subscriptionData.current_period_end || new Date(Date.now() + (interval === "year" ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString(),
+            // Only activate if not already activated (fallback if webhook didn't fire)
+            if (!existingSubscription) {
+              const interval = (metadata.interval || "month") as "month" | "year";
+              
+              // Get subscription details from Stripe to get period dates
+              try {
+                const { data: subscriptionData } = await supabase.functions.invoke('get-stripe-subscription', {
+                  body: { subscriptionId },
                 });
-                
-                // Refetch company data to update sidebar immediately
-                await refetchCompany();
+
+                if (subscriptionData) {
+                  await supabase.rpc("activate_subscription", {
+                    p_company_id: companyId,
+                    p_stripe_subscription_id: subscriptionId,
+                    p_stripe_customer_id: customerId,
+                    p_plan_key: plan,
+                    p_interval: interval,
+                    p_current_period_start: subscriptionData.current_period_start || new Date().toISOString(),
+                    p_current_period_end: subscriptionData.current_period_end || new Date(Date.now() + (interval === "year" ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString(),
+                  });
+                  
+                  // Refetch company data to update sidebar immediately
+                  await refetchCompany();
+                }
+              } catch (error) {
+                console.error("Error activating subscription:", error);
+                // Continue to show success modal even if activation fails
               }
-            } catch (error) {
-              console.error("Error activating subscription:", error);
-              // Continue to show success modal even if activation fails
+            } else {
+              // Subscription already activated by webhook, just refetch company data
+              await refetchCompany();
             }
           }
 
@@ -493,7 +527,11 @@ export default function CompanyDashboard() {
 
     try {
       console.log("Dashboard: Starting to load pipeline snapshot...");
-      const pipelineSnapshot = await fetchPipelineSnapshot(companyId, { limitPerStage: 6 });
+      const pipelineSnapshot = await fetchPipelineSnapshot(companyId, {
+        limitPerStage: 6,
+        scopedJobIds: assignedJobIds ?? [],
+        role,
+      });
       console.log("Dashboard: Pipeline snapshot loaded successfully", pipelineSnapshot);
 
       const jobIds = new Set(
@@ -542,13 +580,13 @@ export default function CompanyDashboard() {
       }));
 
       const newCandidates: CandidateListItem[] = pipelineSnapshot.newCandidates.map(candidate =>
-        toCandidateItem(candidate, candidate.job_id ? jobMap.get(candidate.job_id) : undefined),
+        ({ ...toCandidateItem(candidate, candidate.job_id ? jobMap.get(candidate.job_id) : undefined), companyId }),
       );
       const unlockedCandidates: CandidateListItem[] = pipelineSnapshot.unlockedCandidates.map(candidate =>
-        toCandidateItem(candidate, candidate.job_id ? jobMap.get(candidate.job_id) : undefined),
+        ({ ...toCandidateItem(candidate, candidate.job_id ? jobMap.get(candidate.job_id) : undefined), companyId }),
       );
       const plannedCandidates: CandidateListItem[] = pipelineSnapshot.plannedCandidates.map(candidate =>
-        toCandidateItem(candidate, candidate.job_id ? jobMap.get(candidate.job_id) : undefined),
+        ({ ...toCandidateItem(candidate, candidate.job_id ? jobMap.get(candidate.job_id) : undefined), companyId }),
       );
 
       setNewList({
@@ -680,10 +718,11 @@ export default function CompanyDashboard() {
   }, [company?.seat_limit, company?.seats, companyId]);
 
   useEffect(() => {
-    if (companyId) {
-      loadDashboardSnapshot();
-    }
-  }, [companyId, loadDashboardSnapshot]);
+    if (!companyId) return;
+    // Avoid brief "all jobs" snapshot for recruiter/viewer before assignments are loaded
+    if ((role === "recruiter" || role === "viewer") && assignedJobsLoading) return;
+    loadDashboardSnapshot();
+  }, [companyId, loadDashboardSnapshot, role, assignedJobsLoading]);
 
   const handleRealtimeUpdate = useCallback(() => {
     loadDashboardSnapshot();
@@ -766,6 +805,7 @@ export default function CompanyDashboard() {
             .from("candidates")
             .select("id")
             .eq("user_id", candidate.candidateId)
+            .eq("company_id", companyId)
             .maybeSingle();
           
           if (candidateError) {
@@ -830,6 +870,7 @@ export default function CompanyDashboard() {
               .from("candidates")
               .select("id")
               .eq("user_id", candidate.candidateId)
+              .eq("company_id", companyId)
               .maybeSingle();
             
             if (candidateError || !candidateDataResult) {
@@ -1277,8 +1318,10 @@ export default function CompanyDashboard() {
                 type: "plan",
                 label: "Interview planen",
                 loading: pendingActionId === candidate.id,
-                onConfirm: (plannedAt, interviewType, locationAddress, companyMessage) => 
-                  handlePlanInterview(candidate, plannedAt, interviewType, locationAddress, companyMessage),
+                onConfirm: async () => {
+                  // ScheduleInterviewAfterQuestions handles the API call internally
+                  // This callback is kept for compatibility but won't be called
+                },
               })}
               secondaryActionFactory={candidate => ({
                 label: "Absagen",
@@ -1317,8 +1360,10 @@ export default function CompanyDashboard() {
                 type: "plan",
                 label: "Interview planen",
                 loading: pendingActionId === candidate.id,
-                onConfirm: (plannedAt, interviewType, locationAddress, companyMessage) => 
-                  handlePlanInterview(candidate, plannedAt, interviewType, locationAddress, companyMessage),
+                onConfirm: async () => {
+                  // ScheduleInterviewAfterQuestions handles the API call internally
+                  // This callback is kept for compatibility but won't be called
+                },
               })}
               secondaryActionFactory={candidate => ({
                 label: "Absagen",
@@ -1389,6 +1434,11 @@ export default function CompanyDashboard() {
           loading={countsLoading}
           onManageSeats={() => navigate("/company/settings/team")}
         />
+
+        {/* Top Matches Banner - only show when not loading and count > 0 */}
+        {!topMatchCountLoading && topMatchCount > 0 && (
+          <CompanyTopMatchesBanner count={topMatchCount} />
+        )}
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
           <div className="space-y-6 xl:col-span-8">

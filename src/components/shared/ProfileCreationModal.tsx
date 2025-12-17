@@ -12,6 +12,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCVForm } from '@/contexts/CVFormContext';
 import { useAuth } from '@/hooks/useAuth';
 import { checkProfileUniqueness } from '@/lib/profile-validation';
+import { isPrivateEmail } from "@/lib/email-policy";
 
 interface ProfileCreationModalProps {
   isOpen: boolean;
@@ -64,6 +65,9 @@ export const ProfileCreationModal = ({
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return "Bitte geben Sie eine gültige E-Mail-Adresse ein";
+    }
+    if (!isPrivateEmail(email)) {
+      return "Bitte nutze eine private E‑Mail-Adresse (z.B. gmail, web.de, gmx). Firmen-E-Mails sind nur für Unternehmensaccounts.";
     }
     return null;
   };
@@ -167,7 +171,14 @@ export const ProfileCreationModal = ({
       // First try to create the account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/profile`,
+          data: {
+            role: "applicant",
+            is_company: false,
+          },
+        },
       });
 
       if (authError) {
@@ -215,6 +226,27 @@ export const ProfileCreationModal = ({
         if (authData.user) {
           console.log('New user created:', authData.user.id);
           var user = authData.user;
+
+          // Fire-and-forget Slack notification (only for true new signups)
+          try {
+            void supabase.functions.invoke('slack-signup-notify', {
+              body: {
+                kind: 'user',
+                test: false,
+                source: 'ProfileCreationModal.signUp',
+                user: {
+                  firstName: effectiveFormData?.vorname,
+                  lastName: effectiveFormData?.nachname,
+                  industry: effectiveFormData?.branche,
+                  zip: effectiveFormData?.plz,
+                  city: effectiveFormData?.ort,
+                  status: effectiveFormData?.status,
+                },
+              },
+            });
+          } catch {
+            // Never block signup UX on Slack failures
+          }
           
           // If user is not confirmed, show message but continue
           if (!authData.session) {

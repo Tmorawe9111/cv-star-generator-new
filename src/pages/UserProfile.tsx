@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useConnections, type ConnectionState } from "@/hooks/useConnections";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, UserPlus, Check, X, MessageSquareMore, ArrowLeft, HandHeart } from "lucide-react";
+import { Loader2, UserPlus, Check, X, MessageSquareMore, ArrowLeft, HandHeart, Lock, UserCheck } from "lucide-react";
 import { LinkedInProfileHeader } from "@/components/linkedin/LinkedInProfileHeader";
 import { LinkedInProfileMain } from "@/components/linkedin/LinkedInProfileMain";
 import { LinkedInProfileSidebar } from "@/components/linkedin/LinkedInProfileSidebar";
@@ -37,6 +37,9 @@ export default function UserProfilePage() {
   const [followLoading, setFollowLoading] = useState(false);
   const [pendingFollowRequest, setPendingFollowRequest] = useState<{ id: string; companyId: string; companyName: string } | null>(null);
   const { interested, loading: interestLoading, toggle: toggleInterest } = useCompanyInterest(profileId || id);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [interestRequestStatus, setInterestRequestStatus] = useState<'none' | 'pending' | 'accepted' | 'rejected'>('none');
+  const [creatingInterestRequest, setCreatingInterestRequest] = useState(false);
 
   const isOwner = !!user && user.id === (profileId || id);
   const isCompanyUser = !!company?.id;
@@ -87,6 +90,58 @@ export default function UserProfilePage() {
             setStatus(statusResult[data.id] || "none");
           }
         }
+
+        // Check unlock state for company users
+        if (isCompanyUser && company?.id && data.id) {
+          const { data: companyCandidate } = await supabase
+            .from('company_candidates')
+            .select('unlocked_at')
+            .eq('company_id', company.id)
+            .eq('candidate_id', data.id)
+            .not('unlocked_at', 'is', null)
+            .maybeSingle();
+          
+          setIsUnlocked(!!companyCandidate?.unlocked_at);
+
+          // Check existing interest request (get the most recent one)
+          const { data: interestData } = await supabase
+            .from("company_interest_requests")
+            .select("status, created_at")
+            .eq("company_id", company.id)
+            .eq("candidate_id", data.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (interestData) {
+            const status = interestData.status as 'pending' | 'accepted' | 'rejected';
+            setInterestRequestStatus(status);
+            
+            // If request was accepted, ensure isUnlocked is true
+            if (status === 'accepted' && !companyCandidate?.unlocked_at) {
+              // Double-check unlock status
+              const { data: recheckCandidate } = await supabase
+                .from('company_candidates')
+                .select('unlocked_at')
+                .eq('company_id', company.id)
+                .eq('candidate_id', data.id)
+                .not('unlocked_at', 'is', null)
+                .maybeSingle();
+              
+              if (recheckCandidate?.unlocked_at) {
+                setIsUnlocked(true);
+              }
+            }
+            
+            // If request was rejected, reset to 'none' so user can try again
+            if (status === 'rejected') {
+              setInterestRequestStatus('none');
+            }
+          } else {
+            // No interest request found, reset to 'none'
+            setInterestRequestStatus('none');
+          }
+        }
       } catch (e) {
         console.error(e);
         toast({ title: "Fehler", description: "Profil konnte nicht geladen werden.", variant: "destructive" });
@@ -95,7 +150,69 @@ export default function UserProfilePage() {
       }
     };
     load();
-  }, [id, username, user, getStatuses, navigate]);
+  }, [id, username, user, getStatuses, navigate, isCompanyUser, company?.id]);
+
+  // Realtime subscription for interest request status changes
+  useEffect(() => {
+    if (!isCompanyUser || !company?.id || !profileId) return;
+
+    const channel = supabase
+      .channel(`interest-request-${company.id}-${profileId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_interest_requests',
+          filter: `company_id=eq.${company.id},candidate_id=eq.${profileId}`,
+        },
+        async (payload: any) => {
+          console.log('Interest request changed:', payload);
+          
+          // Refresh unlock state
+          const { data: companyCandidate } = await supabase
+            .from('company_candidates')
+            .select('unlocked_at')
+            .eq('company_id', company.id)
+            .eq('candidate_id', profileId)
+            .not('unlocked_at', 'is', null)
+            .maybeSingle();
+          
+          setIsUnlocked(!!companyCandidate?.unlocked_at);
+
+          // Refresh interest request status
+          if (payload.new) {
+            setInterestRequestStatus(payload.new.status as 'pending' | 'accepted' | 'rejected');
+          } else if (payload.eventType === 'DELETE') {
+            setInterestRequestStatus('none');
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_candidates',
+          filter: `company_id=eq.${company.id},candidate_id=eq.${profileId}`,
+        },
+        async (payload: any) => {
+          console.log('Company candidate changed:', payload);
+          
+          // Refresh unlock state
+          if (payload.new?.unlocked_at) {
+            setIsUnlocked(true);
+          } else if (payload.eventType === 'DELETE' || !payload.new?.unlocked_at) {
+            setIsUnlocked(false);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isCompanyUser, company?.id, profileId]);
 
   useEffect(() => {
     if (profile) {
@@ -180,22 +297,16 @@ export default function UserProfilePage() {
 
   const displayProfile = useMemo(() => {
     if (!profile) return null;
-    // For company users: always show restricted view (no contact info) unless follow is accepted
+    // For company users: show restricted view unless unlocked
     if (isCompanyUser && !isOwner) {
-      if (followStatus === 'accepted') {
-        // Follow accepted: show profile but still hide contact info
-        return {
-          ...profile,
-          email: null,
-          telefon: null,
-          strasse: null,
-          hausnummer: null,
-        };
+      if (isUnlocked) {
+        // Unlocked: show full profile (including contact info and CV)
+        return profile;
       } else {
-        // No follow or pending: restricted view
+        // Not unlocked: restricted view - hide nachname completely, CV, and contact info
         return {
           ...profile,
-          nachname: profile.nachname ? `${String(profile.nachname).charAt(0)}.` : null,
+          nachname: null, // Completely hide nachname (not even first letter)
           email: null,
           telefon: null,
           strasse: null,
@@ -224,7 +335,7 @@ export default function UserProfilePage() {
       praktische_erfahrung: null,
       cv_url: null,
     };
-  }, [profile, isConnected, isCompanyUser, followStatus, isOwner]);
+  }, [profile, isConnected, isCompanyUser, isUnlocked, isOwner]);
 
   const onConnect = async () => {
     if (!id) return;
@@ -472,6 +583,94 @@ export default function UserProfilePage() {
     
     // Company user actions
     if (isCompanyUser) {
+      // If unlocked, don't show any action buttons (profile is already unlocked)
+      if (isUnlocked) {
+        return null; // Profile is unlocked, no action needed
+      }
+      
+      // If not unlocked, show "Interesse bekunden" button
+      if (interestRequestStatus === 'none') {
+        return (
+          <div className="flex gap-1 sm:gap-2">
+            <Button 
+              onClick={async () => {
+                if (!company?.id || !profileId || creatingInterestRequest) return;
+                setCreatingInterestRequest(true);
+                try {
+                  const { data, error } = await supabase.rpc('create_company_interest_request', {
+                    p_company_id: company.id,
+                    p_candidate_id: profileId,
+                  });
+
+                  if (error) throw error;
+
+                  if (data?.success) {
+                    setInterestRequestStatus('pending');
+                    toast({ 
+                      title: "Interesse-Anfrage gesendet", 
+                      description: "Der Nutzer wurde benachrichtigt und kann Ihr Interesse bestätigen." 
+                    });
+                    // Refetch to ensure state is synced
+                    const { data: updatedInterestData } = await supabase
+                      .from("company_interest_requests")
+                      .select("status")
+                      .eq("company_id", company.id)
+                      .eq("candidate_id", profileId)
+                      .order("created_at", { ascending: false })
+                      .limit(1)
+                      .maybeSingle();
+                    
+                    if (updatedInterestData) {
+                      setInterestRequestStatus(updatedInterestData.status as 'pending' | 'accepted' | 'rejected');
+                    }
+                  } else {
+                    toast({ 
+                      title: "Fehler", 
+                      description: data?.message || "Interesse-Anfrage konnte nicht gesendet werden.", 
+                      variant: "destructive" 
+                    });
+                  }
+                } catch (error: any) {
+                  console.error('Error creating interest request:', error);
+                  toast({ 
+                    title: "Fehler", 
+                    description: error?.message || "Interesse-Anfrage konnte nicht gesendet werden.", 
+                    variant: "destructive" 
+                  });
+                } finally {
+                  setCreatingInterestRequest(false);
+                }
+              }}
+              disabled={creatingInterestRequest}
+              className="min-h-[44px] px-2 sm:px-4 text-xs sm:text-sm"
+            >
+              {creatingInterestRequest ? (
+                <>
+                  <Loader2 className="h-4 w-4 sm:h-4 sm:w-4 sm:mr-1 animate-spin" />
+                  <span className="hidden sm:inline">Wird gesendet...</span>
+                </>
+              ) : (
+                <>
+                  <UserCheck className="h-4 w-4 sm:h-4 sm:w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Interesse bekunden</span>
+                </>
+              )}
+            </Button>
+          </div>
+        );
+      }
+      // If interest request is pending
+      if (interestRequestStatus === 'pending') {
+        return (
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button variant="secondary" disabled className="min-h-[44px] px-2 sm:px-4 text-xs sm:text-sm">
+              <Lock className="h-4 w-4 sm:h-4 sm:w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Interesse-Anfrage ausstehend</span>
+            </Button>
+          </div>
+        );
+      }
+      // If unlocked, show follow button
       if (followStatus === "accepted") {
         return (
           <div className="flex gap-1 sm:gap-2">
@@ -638,6 +837,23 @@ export default function UserProfilePage() {
             </div>
           </Card>
         )}
+
+        {/* Info Banner for company users: Contact details and CV only after interest confirmation */}
+        {isCompanyUser && !isOwner && !isUnlocked && (
+          <Card className="mb-4 p-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-3">
+              <Lock className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Kontaktdaten und Lebenslauf verborgen
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  Bekunden Sie Ihr Interesse, um Kontaktdaten und Lebenslauf zu sehen. Der Nutzer wird benachrichtigt und kann Ihr Interesse bestätigen.
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
         
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-3 sm:gap-3 md:gap-4">
           {/* Left column */}
@@ -669,7 +885,7 @@ export default function UserProfilePage() {
                 readOnly={!isOwner} 
                 showLanguagesAndSkills={isOwner && !isCompanyUser} 
                 showLicenseAndStats={isOwner && !isCompanyUser} 
-                showCVSection={isOwner && !isCompanyUser} 
+                showCVSection={(isOwner && !isCompanyUser) || (isCompanyUser && isUnlocked)} 
               />
               <RightRailAd variant="card" size="sm" />
               <InView rootMargin="300px" placeholder={<div className="h-32 rounded-md bg-muted/50 animate-pulse" />}> 

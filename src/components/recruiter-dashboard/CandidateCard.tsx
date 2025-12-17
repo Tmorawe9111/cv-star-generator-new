@@ -14,6 +14,8 @@ import { de } from "date-fns/locale";
 import { Calendar, ExternalLink, User, Briefcase } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createInterviewEvent, openCalendarEvent, getUserCalendarPreference } from "@/lib/calendar-integration";
+import { ScheduleInterviewAfterQuestions } from "@/components/jobs/ScheduleInterviewAfterQuestions";
+import { useCompanyId } from "@/hooks/useCompanyId";
 
 export interface CandidateCardData {
   id: string;
@@ -21,6 +23,7 @@ export interface CandidateCardData {
   jobCandidateId?: string | null;
   applicationId?: string | null;
   jobId?: string | null;
+  companyId?: string | null;
   name: string;
   city?: string | null;
   origin?: string | null;
@@ -95,12 +98,9 @@ export function CandidateCard({
   onDownloadCv,
 }: CandidateCardProps) {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
-  const [scheduleValue, setScheduleValue] = useState("");
-  const [interviewType, setInterviewType] = useState<"vor_ort" | "online">("online");
-  const [locationAddress, setLocationAddress] = useState("");
-  const [companyMessage, setCompanyMessage] = useState("");
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [completeValue, setCompleteValue] = useState("");
+  const companyId = useCompanyId();
 
   const isApplication = !!data.applicationId;
   const isUnlocked = data.isUnlocked ?? true; // Default to true for backwards compatibility
@@ -305,125 +305,26 @@ export function CandidateCard({
         </div>
       </Card>
 
-      {primaryAction?.type === "plan" && (
-        <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Interview planen</DialogTitle>
-              <DialogDescription>
-                Bitte wähle Datum, Uhrzeit und Art des Gesprächs mit {data.name}.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="planned_at" className="text-sm font-medium text-slate-700">
-                  Termin (Datum & Uhrzeit) *
-                </Label>
-                <Input
-                  id="planned_at"
-                  type="datetime-local"
-                  value={scheduleValue}
-                  onChange={event => setScheduleValue(event.target.value)}
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-slate-700">
-                  Art des Interviews *
-                </Label>
-                <RadioGroup 
-                  value={interviewType} 
-                  onValueChange={(value) => setInterviewType(value as "vor_ort" | "online")}
-                  className="space-y-3"
-                >
-                  <div className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-slate-50 transition-colors">
-                    <RadioGroupItem value="online" id="online" className="mt-1" />
-                    <div className="flex-1">
-                      <Label htmlFor="online" className="cursor-pointer font-medium">
-                        Online
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Video-Interview (Google Meet, Zoom, Teams)
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-slate-50 transition-colors">
-                    <RadioGroupItem value="vor_ort" id="vor_ort" className="mt-1" />
-                    <div className="flex-1">
-                      <Label htmlFor="vor_ort" className="cursor-pointer font-medium">
-                        Vor Ort
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Persönliches Treffen im Unternehmen
-                      </p>
-                    </div>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {interviewType === "vor_ort" && (
-                <div className="space-y-2">
-                  <Label htmlFor="location_address" className="text-sm font-medium text-slate-700">
-                    Adresse *
-                  </Label>
-                  <Textarea
-                    id="location_address"
-                    rows={2}
-                    value={locationAddress}
-                    onChange={event => setLocationAddress(event.target.value)}
-                    placeholder="Straße, Hausnummer, PLZ, Stadt"
-                  />
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="company_message" className="text-sm font-medium text-slate-700">
-                  Nachricht (optional)
-                </Label>
-                <Textarea
-                  id="company_message"
-                  rows={3}
-                  value={companyMessage}
-                  onChange={event => setCompanyMessage(event.target.value)}
-                  placeholder="Optionale Nachricht an den Kandidaten..."
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => {
-                setScheduleDialogOpen(false);
-                setScheduleValue("");
-                setInterviewType("online");
-                setLocationAddress("");
-                setCompanyMessage("");
-              }}>
-                Abbrechen
-              </Button>
-              <Button
-                onClick={async () => {
-                  if (!scheduleValue) return;
-                  if (interviewType === "vor_ort" && !locationAddress.trim()) {
-                    return;
-                  }
-                  await primaryAction.onConfirm(
-                    new Date(scheduleValue).toISOString(),
-                    interviewType,
-                    interviewType === "vor_ort" ? locationAddress : undefined,
-                    companyMessage.trim() || undefined
-                  );
-                  setScheduleDialogOpen(false);
-                  setScheduleValue("");
-                  setInterviewType("online");
-                  setLocationAddress("");
-                  setCompanyMessage("");
-                }}
-                disabled={!scheduleValue || primaryAction.loading || (interviewType === "vor_ort" && !locationAddress.trim())}
-              >
-                {primaryAction.loading ? "Wird gesendet..." : "Anfrage senden"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      {primaryAction?.type === "plan" && data.jobCandidateId && (
+        <ScheduleInterviewAfterQuestions
+          open={scheduleDialogOpen}
+          onOpenChange={setScheduleDialogOpen}
+          applicationId={data.applicationId || ""}
+          jobId={data.jobId || ""}
+          companyId={data.companyId || companyId || ""}
+          candidateName={data.name}
+          companyCandidateId={data.jobCandidateId}
+          onComplete={() => {
+            // The component handles the API call internally
+            // Reload or update the list if needed
+            if (primaryAction.onConfirm) {
+              // Callback is handled by the component, but we can trigger a refresh
+              setTimeout(() => {
+                // This will be handled by the parent component's refresh logic
+              }, 100);
+            }
+          }}
+        />
       )}
 
       {primaryAction?.type === "complete" && (

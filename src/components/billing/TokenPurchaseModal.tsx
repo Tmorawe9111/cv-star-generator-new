@@ -105,7 +105,12 @@ export function TokenPurchaseModal({ open, companyId, onClose }: TokenPurchaseMo
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (!next && !isSubmitting ? onClose() : undefined)}>
+    <Dialog open={open} onOpenChange={(next) => {
+      if (!next) {
+        // Allow closing even during submission - user can cancel
+        onClose();
+      }
+    }}>
       <DialogContent className="max-w-lg gap-6">
         <DialogHeader>
           <DialogTitle>Tokens kaufen</DialogTitle>

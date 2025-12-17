@@ -76,6 +76,34 @@ export function CompanyLayout() {
               account_status: 'pending' // Set to pending until admin verifies support code
             })
             .eq('id', companyId);
+
+          // Fire-and-forget Slack notification (magic link signup completion)
+          try {
+            void supabase.functions.invoke('slack-signup-notify', {
+              body: {
+                kind: 'company',
+                test: false,
+                source: 'CompanyLayout.pending_company_signup',
+                company: {
+                  companyName: data.companyName,
+                  industry: data.industry,
+                  zip: null,
+                  city: data.city,
+                  employeeCount: data.size,
+                  website: data.website || null,
+                  contactPerson: {
+                    // We only stored a combined name in localStorage; keep it in firstName for display.
+                    firstName: data.contactPerson,
+                    lastName: null,
+                    email: user.email,
+                    phone: data.phone,
+                  },
+                },
+              },
+            });
+          } catch {
+            // ignore
+          }
           
           localStorage.removeItem('pending_company_signup');
           await refetch();

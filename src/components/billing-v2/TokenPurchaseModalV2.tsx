@@ -53,6 +53,7 @@ export function TokenPurchaseModalV2({ open, companyId, onClose }: TokenPurchase
         body: {
           companyId,
           packageId: selected,
+          appUrl: window.location.origin, // Pass current origin so Edge Function knows where to redirect
         },
       });
 
@@ -87,7 +88,12 @@ export function TokenPurchaseModalV2({ open, companyId, onClose }: TokenPurchase
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (!next && !isSubmitting ? onClose() : undefined)}>
+    <Dialog open={open} onOpenChange={(next) => {
+      if (!next) {
+        // Allow closing even during submission - user can cancel
+        onClose();
+      }
+    }}>
       <DialogContent className="max-w-xl gap-6">
         <DialogHeader>
           <DialogTitle>Tokens kaufen</DialogTitle>

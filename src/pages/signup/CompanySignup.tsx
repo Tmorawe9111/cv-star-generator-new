@@ -13,6 +13,7 @@ import CompanySignupFooter from "./CompanySignupFooter";
 import { LocationAutocomplete } from "@/components/Company/LocationAutocomplete";
 import { saveCompanyLocation } from "@/lib/location-utils";
 import { generateSupportCode } from "@/lib/support-code";
+import { isPrivateEmail } from "@/lib/email-policy";
 
 function CompanySignup() {
   const navigate = useNavigate();
@@ -75,6 +76,15 @@ function CompanySignup() {
     setIsSubmitting(true);
 
     try {
+      if (isPrivateEmail(form.email)) {
+        toast({
+          title: "Bitte Firmen‑E‑Mail nutzen",
+          description: "Unternehmensaccounts müssen mit einer Firmen‑E‑Mail registriert werden (keine @gmail.com/@web.de etc.).",
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (usePassword) {
         // Password-based signup
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -148,6 +158,33 @@ function CompanySignup() {
                 account_status: 'pending' // Set to pending until admin verifies support code
               })
               .eq('id', companyId);
+
+            // Fire-and-forget Slack notification (never block signup UX)
+            try {
+              void supabase.functions.invoke('slack-signup-notify', {
+                body: {
+                  kind: 'company',
+                  test: false,
+                  source: 'CompanySignup.password',
+                  company: {
+                    companyName: form.companyName,
+                    industry: form.industry,
+                    zip: null,
+                    city: form.city,
+                    employeeCount: form.size,
+                    website: form.website || null,
+                    contactPerson: {
+                      firstName: form.adminFirst,
+                      lastName: form.adminLast,
+                      email: form.email,
+                      phone: form.phone,
+                    },
+                  },
+                },
+              });
+            } catch {
+              // ignore
+            }
             
             // Save location with coordinates if city is provided
             if (form.city) {

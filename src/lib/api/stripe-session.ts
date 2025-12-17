@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 export interface StripeSessionData {
   id: string;
   payment_status: string;
-  subscription?: string;
+  subscription?: string | null;
+  customer?: string | null;
   metadata: {
     kind?: string;
     companyId?: string;

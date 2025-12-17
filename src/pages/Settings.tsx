@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NotifSettingsPanel from '@/components/notifications/NotifSettingsPanel';
 import { ProfileEmployerSection } from '@/components/settings/ProfileEmployerSection';
+import { ChangePasswordCard } from "@/components/settings/ChangePasswordCard";
 
 const Settings = () => {
   const { profile, refetchProfile } = useAuth();
@@ -309,6 +310,9 @@ const Settings = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Password */}
+            <ChangePasswordCard />
 
             {/* Account Management */}
             <Card>

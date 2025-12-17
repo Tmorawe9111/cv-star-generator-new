@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Search, Briefcase, Bookmark, Building2 } from "lucide-react";
+import { Search, Briefcase, Bookmark, Building2, Sparkles } from "lucide-react";
 import { ApplicationsList } from "./ApplicationsList";
 import { SavedJobsList } from "./SavedJobsList";
 import { CompanyInterestsList } from "./CompanyInterestsList";
+import UserMatches from "./UserMatches";
 
 export default function MyCareer() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("applications");
+  const [activeTab, setActiveTab] = useState("matches");
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -35,7 +36,11 @@ export default function MyCareer() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8">
+        <TabsList className="grid w-full grid-cols-4 mb-8">
+          <TabsTrigger value="matches" className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">Matches</span>
+          </TabsTrigger>
           <TabsTrigger value="applications" className="flex items-center gap-2">
             <Briefcase className="h-4 w-4" />
             <span className="hidden sm:inline">Bewerbungen</span>
@@ -49,6 +54,10 @@ export default function MyCareer() {
             <span className="hidden sm:inline">Interessierte</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="matches">
+          <UserMatches />
+        </TabsContent>
 
         <TabsContent value="applications">
           <ApplicationsList searchQuery={searchQuery} />

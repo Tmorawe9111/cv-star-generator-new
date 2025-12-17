@@ -1,0 +1,4 @@
+company_external_id,name,primary_email,industry,website_url,description
+acme-001,ACME GmbH,admin@acme.de,Handwerk,https://acme.de,"Kurzbeschreibung des Unternehmens"
+
+

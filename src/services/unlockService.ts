@@ -323,8 +323,9 @@ export class UnlockService {
     try {
       const unlockState = await this.checkUnlockState(profileId);
       
+      // ✅ Source of truth: profiles (not candidates snapshot fields)
       const { data: profile, error } = await supabase
-        .from('candidates')
+        .from('profiles')
         .select('*')
         .eq('id', profileId)
         .single();
@@ -335,17 +336,17 @@ export class UnlockService {
 
       // Basis-Daten maskieren wenn nicht freigeschaltet
       if (!unlockState?.basic_unlocked) {
-        profile.vorname = profile.vorname?.charAt(0) + '***';
-        profile.nachname = profile.nachname?.charAt(0) + '***';
-        profile.email = null;
-        profile.phone = null;
-        profile.cv_url = null;
+        (profile as any).vorname = (profile as any).vorname ? String((profile as any).vorname).charAt(0) + '***' : null;
+        (profile as any).nachname = (profile as any).nachname ? String((profile as any).nachname).charAt(0) + '***' : null;
+        (profile as any).email = null;
+        (profile as any).telefon = null;
+        (profile as any).cv_url = null;
       }
 
       // Kontaktdaten maskieren wenn nicht freigeschaltet
       if (!unlockState?.contact_unlocked) {
-        profile.email = profile.email ? '***@***' : null;
-        profile.phone = profile.phone ? '+49 ***' : null;
+        (profile as any).email = (profile as any).email ? '***@***' : null;
+        (profile as any).telefon = (profile as any).telefon ? '+49 ***' : null;
       }
 
       return profile;

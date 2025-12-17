@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { isPrivateEmail } from "@/lib/email-policy";
 import { useToast } from "@/hooks/use-toast";
 import { Building2 } from "lucide-react";
 import { BranchSelector } from "@/components/Company/BranchSelector";
@@ -141,10 +142,25 @@ export default function CompanyOnboarding() {
       }
 
       // Create user account first
+      if (isPrivateEmail(data.email)) {
+        toast({
+          title: "Bitte Firmen‑E‑Mail nutzen",
+          description: "Unternehmensaccounts müssen mit einer Firmen‑E‑Mail registriert werden (keine @gmail.com/@web.de etc.).",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
-        options: { emailRedirectTo: `${window.location.origin}/company/dashboard` }
+        options: {
+          emailRedirectTo: `${window.location.origin}/company/dashboard`,
+          data: {
+            is_company: true,
+            role: "company-admin",
+          },
+        },
       });
       if (authError) throw new Error(`Registrierung fehlgeschlagen: ${authError.message}`);
       if (!authData.user) throw new Error('Benutzer konnte nicht erstellt werden');

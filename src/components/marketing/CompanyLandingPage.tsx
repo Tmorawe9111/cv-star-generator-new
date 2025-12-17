@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Header from './Header';
 import Footer from './Footer';
+import CareerFieldsSection from './CareerFieldsSection';
 
 export default function CompanyLandingPage() {
   // SEO Head Injection
@@ -87,6 +88,9 @@ export default function CompanyLandingPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <Header variant="business" />
+      
+      {/* Career Fields Section - B2C */}
+      <CareerFieldsSection />
       
       {/* Hero Section with Black Background */}
       <section className="hero-section relative overflow-hidden bg-[#0B0B0B] text-white">

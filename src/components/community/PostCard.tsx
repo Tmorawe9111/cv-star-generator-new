@@ -105,8 +105,41 @@ const getDisplayName = () => {
   if (post.author_type === 'company' && post.company?.name) {
     return post.company.name;
   }
+  
+  // For company users viewing user profiles: only show vorname if nachname is not available (not unlocked)
+  if (isCompanyUser && post.author_type === 'user') {
+    if (!post.author) {
+      console.log('[PostCard] No author data for company user');
+      return 'Nutzer';
+    }
+    
+    // Check if nachname exists and is not null/empty
+    const hasNachname = post.author.nachname && post.author.nachname.trim() !== '';
+    
+    if (post.author.vorname) {
+      const displayName = hasNachname 
+        ? `${post.author.vorname} ${post.author.nachname}` 
+        : post.author.vorname;
+      console.log('[PostCard] getDisplayName for company user:', {
+        author: post.author,
+        vorname: post.author.vorname,
+        nachname: post.author.nachname,
+        hasNachname,
+        displayName,
+        isCompanyUser,
+        authorType: post.author_type
+      });
+      return displayName;
+    }
+    return 'Nutzer';
+  }
+  
+  // For regular users: show full name if available
   if (post.author?.vorname && post.author?.nachname) {
     return `${post.author.vorname} ${post.author.nachname}`;
+  }
+  if (post.author?.vorname) {
+    return post.author.vorname;
   }
   return 'Unbekannter Nutzer';
 };
@@ -115,8 +148,21 @@ const getInitials = () => {
   if (post.author_type === 'company' && post.company?.name) {
     return post.company.name.slice(0, 2).toUpperCase();
   }
+  // For company users: only use vorname initial if nachname is not available
+  if (isCompanyUser && post.author_type === 'user') {
+    if (post.author?.vorname) {
+      return post.author.nachname 
+        ? `${post.author.vorname[0]}${post.author.nachname[0]}`.toUpperCase()
+        : post.author.vorname[0].toUpperCase();
+    }
+    return 'U';
+  }
+  // For regular users: use both initials
   if (post.author?.vorname && post.author?.nachname) {
-    return `${post.author.vorname[0]}${post.author.nachname[0]}`;
+    return `${post.author.vorname[0]}${post.author.nachname[0]}`.toUpperCase();
+  }
+  if (post.author?.vorname) {
+    return post.author.vorname[0].toUpperCase();
   }
   return 'U';
 };

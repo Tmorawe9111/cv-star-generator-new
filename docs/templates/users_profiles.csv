@@ -1,0 +1,4 @@
+user_external_id,email,first_name,last_name,telefon,headline,bio,branche,job_title,location_city,location_postal_code,cv_url,avatar_url,profile_published
+talent-001,vorname.nachname@gmail.com,Vorname,Nachname,+49 170 0000000,"Kurz-Headline","Kurz-Bio",Pflege,"Pflegefachkraft",Berlin,10115,https://.../cv.pdf,https://.../avatar.png,true
+
+

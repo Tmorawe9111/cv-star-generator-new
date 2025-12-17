@@ -34,11 +34,11 @@ export default function CompanyLocations() {
       {/* Upgrade Modal */}
       <UpgradePlanModalV2
         open={showUpgradeModal}
-        onOpenChange={setShowUpgradeModal}
         currentPlan={currentPlan}
-        onSelectPlan={(plan) => {
+        onClose={() => setShowUpgradeModal(false)}
+        onUpgrade={async (plan, interval) => {
           setShowUpgradeModal(false);
-          navigate('/unternehmen/abrechnung');
+          navigate('/unternehmen/abrechnung?open=upgrade');
         }}
       />
     </div>

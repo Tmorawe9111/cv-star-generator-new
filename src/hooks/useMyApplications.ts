@@ -53,7 +53,7 @@ export function useMyApplications() {
             )
           )
         `)
-        .eq("candidates.user_id", user!.id)
+        .eq("candidate_id", user!.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

@@ -83,7 +83,7 @@ export function UserProfileDetailView({ user, open, onOpenChange }: UserProfileD
             unlocked_at,
             job_posting_id,
             companies!inner(name),
-            job_postings(title)
+            job_posts(title)
           `)
           .eq('profile_id', user.id)
           .order('unlocked_at', { ascending: false });
@@ -99,7 +99,7 @@ export function UserProfileDetailView({ user, open, onOpenChange }: UserProfileD
           level: u.level,
           unlocked_at: u.unlocked_at,
           job_posting_id: u.job_posting_id,
-          job_title: u.job_postings?.title || null,
+          job_title: u.job_posts?.title || null,
         }));
 
         setUnlocks(unlockDetails);

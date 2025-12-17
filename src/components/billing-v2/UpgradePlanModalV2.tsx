@@ -24,6 +24,10 @@ interface UpgradePlanModalV2Props {
 }
 
 export function UpgradePlanModalV2({ open, currentPlan, onClose, onUpgrade, initialPlan, initialInterval }: UpgradePlanModalV2Props) {
+  // Validate required props
+  if (!onUpgrade || typeof onUpgrade !== 'function') {
+    console.error('[UpgradePlanModalV2] onUpgrade prop is missing or not a function:', onUpgrade);
+  }
   const [selectedPlan, setSelectedPlan] = useState<PlanKey>(initialPlan ?? "basic");
   const [interval, setInterval] = useState<PlanInterval>(initialInterval ?? "month");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,17 +80,33 @@ export function UpgradePlanModalV2({ open, currentPlan, onClose, onUpgrade, init
       return;
     }
 
+    if (!onUpgrade || typeof onUpgrade !== 'function') {
+      console.error('[UpgradePlanModalV2] onUpgrade is not a function:', onUpgrade);
+      alert('Fehler: Upgrade-Funktion nicht verfügbar. Bitte Seite neu laden.');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       await onUpgrade(selectedPlan, interval);
+    } catch (error) {
+      console.error('[UpgradePlanModalV2] Error in onUpgrade:', error);
+      throw error;
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      // Allow closing even during submission - user can cancel
+      onClose();
+    }
+  };
+
   if (availablePlans.length === 0) {
     return (
-      <Dialog open={open} onOpenChange={(next) => (!next && !isSubmitting ? onClose() : undefined)}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-2xl gap-6">
           <DialogHeader>
             <DialogTitle>Plan upgraden</DialogTitle>
@@ -105,8 +125,8 @@ export function UpgradePlanModalV2({ open, currentPlan, onClose, onUpgrade, init
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (!next && !isSubmitting ? onClose() : undefined)}>
-      <DialogContent className="max-w-6xl gap-6">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-6xl gap-6 flex flex-col max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Plan upgraden</DialogTitle>
           <DialogDescription>
@@ -114,7 +134,7 @@ export function UpgradePlanModalV2({ open, currentPlan, onClose, onUpgrade, init
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto flex-1 min-h-0 pr-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Abrechnungsintervall</p>
             <Tabs value={interval} onValueChange={(value: PlanInterval) => setInterval(value)} className="w-full">
@@ -264,7 +284,7 @@ export function UpgradePlanModalV2({ open, currentPlan, onClose, onUpgrade, init
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="mt-4 flex-shrink-0 border-t pt-4">
           <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
             Abbrechen
           </Button>

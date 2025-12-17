@@ -1,80 +1,282 @@
 /**
  * Calendar Integration Utilities
- * 
- * This module provides utilities for integrating with various calendar services:
- * - Google Calendar
- * - Microsoft Outlook
- * - Microsoft Teams
- * 
- * Future enhancements:
- * - Store user calendar preferences
- * - API integration for automatic calendar sync
- * - Webhook support for real-time updates
+ * Provides functions for generating calendar event URLs and video meeting links
  */
 
-export type CalendarProvider = 'google' | 'outlook' | 'teams';
+export type CalendarProvider = 'google' | 'outlook' | 'teams' | 'calendly' | 'zoom' | 'manual';
 
-export interface CalendarEvent {
+export interface CalendarEventParams {
   title: string;
   description?: string;
-  startDate: Date;
-  endDate: Date;
+  start: Date;
+  end: Date;
   location?: string;
+  videoLink?: string;
   attendees?: string[];
 }
 
 /**
- * Format date for calendar URLs (YYYYMMDDTHHmmssZ)
+ * Generate Google Calendar event URL
  */
-export function formatCalendarDate(date: Date): string {
-  return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-}
-
-/**
- * Generate Google Calendar URL
- */
-export function generateGoogleCalendarUrl(event: CalendarEvent): string {
-  const start = formatCalendarDate(event.startDate);
-  const end = formatCalendarDate(event.endDate);
-  const title = encodeURIComponent(event.title);
-  const details = encodeURIComponent(event.description || '');
-  const location = encodeURIComponent(event.location || '');
+export function generateGoogleCalendarUrl(params: CalendarEventParams): string {
+  const formatDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}`;
-}
-
-/**
- * Generate Outlook Calendar URL
- */
-export function generateOutlookCalendarUrl(event: CalendarEvent): string {
-  const title = encodeURIComponent(event.title);
-  const details = encodeURIComponent(event.description || '');
-  const location = encodeURIComponent(event.location || '');
-  const startdt = event.startDate.toISOString();
-  const enddt = event.endDate.toISOString();
+  const url = new URL('https://calendar.google.com/calendar/render');
+  url.searchParams.set('action', 'TEMPLATE');
+  url.searchParams.set('text', params.title);
+  url.searchParams.set('dates', `${formatDate(params.start)}/${formatDate(params.end)}`);
   
-  return `https://outlook.live.com/calendar/0/deeplink/compose?subject=${title}&startdt=${startdt}&enddt=${enddt}&body=${details}&location=${location}`;
+  if (params.description) {
+    url.searchParams.set('details', params.description);
+  }
+  
+  if (params.location) {
+    url.searchParams.set('location', params.location);
+  }
+  
+  if (params.videoLink) {
+    url.searchParams.set('add', params.videoLink);
+  }
+  
+  if (params.attendees && params.attendees.length > 0) {
+    url.searchParams.set('add', params.attendees.join(','));
+  }
+  
+  return url.toString();
 }
 
 /**
- * Generate Teams Meeting URL
- * 
- * TODO: Replace with actual Teams API integration
- * This is a placeholder that can be enhanced with:
- * - Microsoft Graph API integration
- * - Automatic meeting creation
- * - Meeting link generation
+ * Generate Outlook Calendar event URL
  */
-export function generateTeamsMeetingUrl(event: CalendarEvent): string {
-  const title = encodeURIComponent(event.title);
-  // Placeholder - will be replaced with actual Teams API integration
-  return `https://teams.microsoft.com/l/meeting/new?subject=${title}`;
+export function generateOutlookCalendarUrl(params: CalendarEventParams): string {
+  const formatDate = (date: Date) => date.toISOString();
+  
+  const url = new URL('https://outlook.live.com/calendar/0/deeplink/compose');
+  url.searchParams.set('subject', params.title);
+  url.searchParams.set('startdt', formatDate(params.start));
+  url.searchParams.set('enddt', formatDate(params.end));
+  
+  if (params.description) {
+    url.searchParams.set('body', params.description);
+  }
+  
+  if (params.location) {
+    url.searchParams.set('location', params.location);
+  }
+  
+  if (params.videoLink) {
+    url.searchParams.set('body', `${params.description || ''}\n\nVideo-Link: ${params.videoLink}`);
+  }
+  
+  if (params.attendees && params.attendees.length > 0) {
+    url.searchParams.set('to', params.attendees.join(';'));
+  }
+  
+  return url.toString();
 }
 
 /**
- * Open calendar event in the specified provider
+ * Generate Teams meeting link
  */
-export function openCalendarEvent(event: CalendarEvent, provider: CalendarProvider = 'google'): void {
+export function generateTeamsMeetingLink(): string {
+  // Teams meeting links are generated via Microsoft Graph API
+  // For now, return a placeholder that can be replaced with actual API call
+  return 'https://teams.microsoft.com/l/meetup-join/...';
+}
+
+/**
+ * Generate Google Meet link
+ */
+export function generateGoogleMeetLink(): string {
+  // Google Meet links are generated via Google Calendar API
+  // For now, return a placeholder
+  return 'https://meet.google.com/new';
+}
+
+/**
+ * Generate Zoom meeting link
+ */
+export function generateZoomMeetingLink(meetingId?: string, password?: string): string {
+  if (meetingId) {
+    const url = new URL(`https://zoom.us/j/${meetingId}`);
+    if (password) {
+      url.searchParams.set('pwd', password);
+    }
+    return url.toString();
+  }
+  // Placeholder for new meeting
+  return 'https://zoom.us/meeting/schedule';
+}
+
+/**
+ * Create calendar event via API (for integrated calendars)
+ */
+export async function createCalendarEvent(
+  provider: CalendarProvider,
+  params: CalendarEventParams,
+  accessToken?: string
+): Promise<{ eventId: string; videoLink?: string } | null> {
+  if (provider === 'manual' || !accessToken) {
+    return null;
+  }
+
+  try {
+    if (provider === 'google') {
+      return await createGoogleCalendarEvent(params, accessToken);
+    } else if (provider === 'outlook' || provider === 'teams') {
+      return await createMicrosoftCalendarEvent(params, accessToken, provider);
+    }
+  } catch (error) {
+    console.error(`Error creating ${provider} calendar event:`, error);
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Create Google Calendar event via API
+ */
+async function createGoogleCalendarEvent(
+  params: CalendarEventParams,
+  accessToken: string
+): Promise<{ eventId: string; videoLink?: string }> {
+  const event = {
+    summary: params.title,
+    description: params.description || '',
+    start: {
+      dateTime: params.start.toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    end: {
+      dateTime: params.end.toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    location: params.location,
+    attendees: params.attendees?.map(email => ({ email })),
+    conferenceData: {
+      createRequest: {
+        requestId: `meet-${Date.now()}`,
+        conferenceSolutionKey: { type: 'hangoutsMeet' },
+      },
+    },
+  };
+
+  const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(event),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Google Calendar API error: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  
+  return {
+    eventId: data.id,
+    videoLink: data.conferenceData?.entryPoints?.[0]?.uri || generateGoogleMeetLink(),
+  };
+}
+
+/**
+ * Create Microsoft Calendar event via API (Outlook/Teams)
+ */
+async function createMicrosoftCalendarEvent(
+  params: CalendarEventParams,
+  accessToken: string,
+  provider: 'outlook' | 'teams'
+): Promise<{ eventId: string; videoLink?: string }> {
+  const isOnline = provider === 'teams' || !!params.videoLink;
+  
+  const event = {
+    subject: params.title,
+    body: {
+      contentType: 'HTML',
+      content: params.description || '',
+    },
+    start: {
+      dateTime: params.start.toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    end: {
+      dateTime: params.end.toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    location: params.location ? {
+      displayName: params.location,
+    } : undefined,
+    attendees: params.attendees?.map(email => ({
+      emailAddress: { address: email },
+      type: 'required',
+    })),
+    isOnlineMeeting: isOnline,
+    onlineMeetingProvider: provider === 'teams' ? 'teamsForBusiness' : undefined,
+  };
+
+  const response = await fetch('https://graph.microsoft.com/v1.0/me/events', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(event),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Microsoft Graph API error: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  
+  return {
+    eventId: data.id,
+    videoLink: data.onlineMeeting?.joinUrl || (provider === 'teams' ? generateTeamsMeetingLink() : undefined),
+  };
+}
+
+/**
+ * Create a calendar event object for an interview
+ */
+export function createInterviewEvent(
+  candidateName: string,
+  plannedAt: string,
+  durationMinutes: number = 60
+): CalendarEventParams {
+  const start = new Date(plannedAt);
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  
+  return {
+    title: `Interview mit ${candidateName}`,
+    description: `Interview-Termin mit ${candidateName}`,
+    start,
+    end,
+  };
+}
+
+/**
+ * Get user's preferred calendar provider from localStorage
+ * Defaults to 'google' if not set
+ */
+export function getUserCalendarPreference(): CalendarProvider {
+  if (typeof window === 'undefined') return 'google';
+  
+  const stored = localStorage.getItem('calendar_preference');
+  if (stored && ['google', 'outlook', 'teams', 'calendly', 'zoom', 'manual'].includes(stored)) {
+    return stored as CalendarProvider;
+  }
+  
+  return 'google';
+}
+
+/**
+ * Open calendar event in user's preferred calendar provider
+ */
+export function openCalendarEvent(event: CalendarEventParams, provider: CalendarProvider = 'google'): void {
   let url: string;
   
   switch (provider) {
@@ -85,60 +287,17 @@ export function openCalendarEvent(event: CalendarEvent, provider: CalendarProvid
       url = generateOutlookCalendarUrl(event);
       break;
     case 'teams':
-      url = generateTeamsMeetingUrl(event);
+      // Teams uses Outlook calendar URL format
+      url = generateOutlookCalendarUrl(event);
       break;
+    case 'calendly':
+    case 'zoom':
+    case 'manual':
     default:
+      // Fallback to Google Calendar
       url = generateGoogleCalendarUrl(event);
+      break;
   }
   
-  window.open(url, '_blank');
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
-
-/**
- * Create calendar event for interview
- */
-export function createInterviewEvent(
-  candidateName: string,
-  plannedAt: string | Date,
-  durationMinutes: number = 60,
-  location?: string
-): CalendarEvent {
-  const startDate = typeof plannedAt === 'string' ? new Date(plannedAt) : plannedAt;
-  const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
-  
-  return {
-    title: `Interview mit ${candidateName}`,
-    description: `Interview-Termin mit ${candidateName}`,
-    startDate,
-    endDate,
-    location: location || '',
-  };
-}
-
-/**
- * Future: Get user's preferred calendar provider from settings
- * TODO: Implement user preference storage
- */
-export function getUserCalendarPreference(): CalendarProvider {
-  // TODO: Load from user settings/company settings
-  // For now, default to Google Calendar
-  return 'google';
-}
-
-/**
- * Future: Create calendar event via API (for automatic sync)
- * TODO: Implement API integration
- */
-export async function createCalendarEventViaAPI(
-  event: CalendarEvent,
-  provider: CalendarProvider
-): Promise<string | null> {
-  // TODO: Implement API calls for:
-  // - Google Calendar API
-  // - Microsoft Graph API (Outlook/Teams)
-  // - Return event ID or meeting link
-  
-  console.log('API integration not yet implemented', { event, provider });
-  return null;
-}
-

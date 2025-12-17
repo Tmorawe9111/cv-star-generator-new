@@ -83,6 +83,7 @@ function JobEdit() {
     contact_person_email: job.contact_person_email || '',
     contact_person_phone: job.contact_person_phone || '',
     contact_person_role: job.contact_person_role || '',
+    contact_person_photo_url: job.contact_person_photo_url || '',
     salary_min: job.salary_min || undefined,
     salary_max: job.salary_max || undefined,
     work_mode: job.work_mode || undefined,

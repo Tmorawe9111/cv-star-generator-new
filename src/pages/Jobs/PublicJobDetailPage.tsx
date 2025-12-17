@@ -26,7 +26,6 @@ import { LandingHeader } from "@/components/marketing/LandingHeader";
 import { cn } from "@/lib/utils";
 import { JobApplicationInterviewQuestions } from "@/components/jobs/JobApplicationInterviewQuestions";
 import { ScheduleInterviewAfterQuestions } from "@/components/jobs/ScheduleInterviewAfterQuestions";
-import { useSearchParams } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
 export default function PublicJobDetailPage() {
@@ -42,22 +41,10 @@ export default function PublicJobDetailPage() {
   const [jobLocation, setJobLocation] = useState("");
   const [interviewQuestionsOpen, setInterviewQuestionsOpen] = useState(false);
   const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [showScheduleInterview, setShowScheduleInterview] = useState(false);
   
   const { isSaved, toggleSave, isToggling } = useJobSave(id || "");
   const { hasApplied, applyToJob, isApplying, canApply, profileStatus } = useQuickApply(id || "");
-
-  // Check if we should show interview questions modal
-  useEffect(() => {
-    const showQuestions = searchParams.get('showQuestions') === 'true';
-    const appId = searchParams.get('application');
-    
-    if (showQuestions && appId && user && job) {
-      setApplicationId(appId);
-      setInterviewQuestionsOpen(true);
-      // Remove query params from URL
-      navigate(`/stelle/${id}`, { replace: true });
-    }
-  }, [searchParams, user, job, id, navigate]);
 
   const { data: job, isLoading } = useQuery({
     queryKey: ["public-job-detail", id],
@@ -76,6 +63,19 @@ export default function PublicJobDetailPage() {
     },
     enabled: !!id,
   });
+
+  // Check if we should show interview questions modal
+  useEffect(() => {
+    const showQuestions = searchParams.get('showQuestions') === 'true';
+    const appId = searchParams.get('application');
+    
+    if (showQuestions && appId && user && job) {
+      setApplicationId(appId);
+      setInterviewQuestionsOpen(true);
+      // Remove query params from URL
+      navigate(`/stelle/${id}`, { replace: true });
+    }
+  }, [searchParams, user, job, id, navigate]);
 
   const { data: applicationsCount } = useQuery<number>({
     queryKey: ["applications-count", id],

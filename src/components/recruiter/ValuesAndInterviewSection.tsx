@@ -72,15 +72,29 @@ export function ValuesAndInterviewSection({ profileId }: ValuesAndInterviewSecti
         // Don't set error state, just log it - RLS might prevent access
       } else if (interviewData && interviewData.length > 0) {
         console.log('[ValuesAndInterviewSection] Loaded interview answers:', interviewData);
+        
+        // Deduplicate by question_id (keep first occurrence)
+        const seenQuestionIds = new Set<number>();
         const formattedAnswers = interviewData
           .map((item: any) => ({
             question: item.interview_questions?.question || '',
             answer: item.answer || '',
             id: item.interview_questions?.id || 0,
           }))
-          .filter(item => item.question && item.id && item.answer?.trim());
+          .filter(item => {
+            // Filter out empty answers and duplicates
+            if (!item.question || !item.id || !item.answer?.trim()) {
+              return false;
+            }
+            // Check for duplicates by question_id
+            if (seenQuestionIds.has(item.id)) {
+              return false;
+            }
+            seenQuestionIds.add(item.id);
+            return true;
+          });
         
-        console.log('[ValuesAndInterviewSection] Formatted interview answers:', formattedAnswers);
+        console.log('[ValuesAndInterviewSection] Formatted interview answers (deduplicated):', formattedAnswers);
         setInterviewAnswers(formattedAnswers);
       } else {
         console.log('[ValuesAndInterviewSection] No interview answers found or empty');
@@ -107,7 +121,23 @@ export function ValuesAndInterviewSection({ profileId }: ValuesAndInterviewSecti
   }
 
   // Show section if there's any data
-  const hasValues = values && Object.values(values).some((v: any) => v && typeof v === 'string' && v.trim());
+  // Only check actual value fields (q1_team, q2_conflict, etc.), not metadata fields
+  const hasValues = values && Object.entries(values).some(([key, value]) => {
+    // Skip non-value fields like id, user_id, created_at, updated_at
+    if (['id', 'user_id', 'created_at', 'updated_at'].includes(key)) {
+      return false;
+    }
+    // Only count string values that are not UUIDs
+    if (typeof value !== 'string' || !value.trim()) {
+      return false;
+    }
+    // Filter out UUIDs
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidPattern.test(value.trim())) {
+      return false;
+    }
+    return true;
+  });
   const hasInterview = interviewAnswers.length > 0;
 
   console.log('[ValuesAndInterviewSection] Render check:', {
@@ -128,8 +158,24 @@ export function ValuesAndInterviewSection({ profileId }: ValuesAndInterviewSecti
   }
 
   const allValuesText = values
-    ? Object.values(values)
-        .filter(v => v && typeof v === 'string')
+    ? Object.entries(values)
+        .filter(([key, value]) => {
+          // Skip non-value fields like id, user_id, created_at, updated_at
+          if (['id', 'user_id', 'created_at', 'updated_at'].includes(key)) {
+            return false;
+          }
+          // Only include string values that are not UUIDs
+          if (typeof value !== 'string' || !value.trim()) {
+            return false;
+          }
+          // Filter out UUIDs (they match the pattern of UUIDs)
+          const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (uuidPattern.test(value.trim())) {
+            return false;
+          }
+          return true;
+        })
+        .map(([key, value]) => value as string)
         .join(' ')
     : '';
 
@@ -223,7 +269,13 @@ export function ValuesAndInterviewSection({ profileId }: ValuesAndInterviewSecti
           >
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="values" disabled={!hasValues}>
-                Werteprofil {hasValues && `(${Object.values(values || {}).filter((v: any) => v && typeof v === 'string' && v.trim()).length})`}
+                Werteprofil {hasValues && `(${VALUES_QUESTIONS.filter(q => {
+                  const value = values?.[q.key];
+                  if (!value || typeof value !== 'string' || !value.trim()) return false;
+                  // Filter out UUIDs
+                  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                  return !uuidPattern.test(value.trim());
+                }).length})`}
               </TabsTrigger>
               <TabsTrigger value="interview" disabled={!hasInterview}>
                 Interviewfragen {hasInterview && `(${interviewAnswers.length})`}
@@ -231,7 +283,7 @@ export function ValuesAndInterviewSection({ profileId }: ValuesAndInterviewSecti
             </TabsList>
             <div className="overflow-y-auto flex-1">
               <TabsContent value="values" className="mt-0 space-y-3">
-                {values && Object.values(values).some((v: any) => v && typeof v === 'string' && v.trim()) ? (
+                {hasValues ? (
                   VALUES_QUESTIONS.map((q) => {
                     const answer = values?.[q.key];
                     if (!answer || !answer.trim()) return null;
