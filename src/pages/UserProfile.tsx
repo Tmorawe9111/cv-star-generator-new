@@ -6,6 +6,16 @@ import { useConnections, type ConnectionState } from "@/hooks/useConnections";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2, UserPlus, Check, X, MessageSquareMore, ArrowLeft, HandHeart, Lock, UserCheck } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { LinkedInProfileHeader } from "@/components/linkedin/LinkedInProfileHeader";
 import { LinkedInProfileMain } from "@/components/linkedin/LinkedInProfileMain";
 import { LinkedInProfileSidebar } from "@/components/linkedin/LinkedInProfileSidebar";
@@ -40,6 +50,7 @@ export default function UserProfilePage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [interestRequestStatus, setInterestRequestStatus] = useState<'none' | 'pending' | 'accepted' | 'rejected'>('none');
   const [creatingInterestRequest, setCreatingInterestRequest] = useState(false);
+  const [showCancelRequestDialog, setShowCancelRequestDialog] = useState(false);
 
   const isOwner = !!user && user.id === (profileId || id);
   const isCompanyUser = !!company?.id;
@@ -339,6 +350,8 @@ export default function UserProfilePage() {
 
   const onConnect = async () => {
     if (!id) return;
+    // Optimistic update: show "Angefragt" immediately
+    setStatus("pending");
     try {
       await requestConnection(id);
       // Refresh status after successful request
@@ -361,9 +374,13 @@ export default function UserProfilePage() {
             toast({ title: "Anfrage gesendet", description: "Wartet auf Bestätigung." });
           }
         } catch (refreshError) {
+          // Revert optimistic update on error
+          setStatus("none");
           toast({ title: "Fehler", description: "Anfrage konnte nicht gesendet werden.", variant: "destructive" });
         }
       } else {
+        // Revert optimistic update on error
+        setStatus("none");
         toast({ title: "Fehler", description: e?.message || "Anfrage konnte nicht gesendet werden.", variant: "destructive" });
       }
     }
@@ -427,7 +444,8 @@ export default function UserProfilePage() {
         setFollowStatus('none');
         toast({ title: "Nicht mehr gefolgt", description: "Sie folgen diesem Profil nicht mehr." });
       } else if (followStatus === 'none') {
-        // Follow (send request)
+        // Follow (send request) - Optimistic update
+        setFollowStatus('pending');
         const { error } = await supabase
           .from('follows')
           .insert({
@@ -438,9 +456,26 @@ export default function UserProfilePage() {
             status: 'pending'
           });
         
-        if (error) throw error;
-        setFollowStatus('pending');
+        if (error) {
+          // Revert optimistic update on error
+          setFollowStatus('none');
+          throw error;
+        }
         toast({ title: "Follow-Anfrage gesendet", description: "Wartet auf Bestätigung." });
+      } else if (followStatus === 'pending') {
+        // Cancel follow request
+        const { error } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_type', 'company')
+          .eq('follower_id', company.id)
+          .eq('followee_type', 'profile')
+          .eq('followee_id', id)
+          .eq('status', 'pending');
+        
+        if (error) throw error;
+        setFollowStatus('none');
+        toast({ title: "Anfrage zurückgezogen", description: "Die Follow-Anfrage wurde zurückgezogen." });
       }
     } catch (error: any) {
       console.error('Error following:', error);
@@ -693,19 +728,37 @@ export default function UserProfilePage() {
       }
       if (followStatus === "pending") {
         return (
-          <div className="flex items-center gap-1 sm:gap-2">
-            <Button variant="secondary" disabled className="min-h-[44px] px-2 sm:px-4 text-xs sm:text-sm">
-              <Check className="h-4 w-4 sm:h-4 sm:w-4 sm:mr-1" /> <span className="hidden sm:inline">Ausstehend</span>
-            </Button>
+          <>
             <Button 
-              variant="ghost" 
-              onClick={handleFollow} 
-              disabled={followLoading}
-              className="min-h-[44px] px-1 sm:px-3 text-xs sm:text-sm"
+              variant="secondary" 
+              onClick={() => setShowCancelRequestDialog(true)}
+              className="min-h-[44px] px-4 text-sm"
             >
-              <X className="h-4 w-4 sm:h-4 sm:w-4" />
+              <Check className="h-4 w-4 mr-2" /> Angefragt
             </Button>
-          </div>
+            <AlertDialog open={showCancelRequestDialog} onOpenChange={setShowCancelRequestDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Anfrage zurückziehen?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Möchten Sie die Follow-Anfrage wirklich zurückziehen? Sie können später erneut folgen.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      await handleFollow();
+                      setShowCancelRequestDialog(false);
+                    }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Zurückziehen
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         );
       }
       // No follow - show follow button
@@ -761,10 +814,37 @@ export default function UserProfilePage() {
     }
     if (status === "pending") {
       return (
-        <div className="flex items-center gap-1 sm:gap-2">
-          <Button variant="secondary" disabled className="min-h-[44px] px-2 sm:px-4 text-xs sm:text-sm"><Check className="h-4 w-4 sm:h-4 sm:w-4 sm:mr-1" /> <span className="hidden sm:inline">Ausstehend</span></Button>
-          <Button variant="ghost" onClick={onCancel} className="min-h-[44px] px-1 sm:px-3 text-xs sm:text-sm"><X className="h-4 w-4 sm:h-4 sm:w-4" /></Button>
-        </div>
+        <>
+          <Button 
+            variant="secondary" 
+            onClick={() => setShowCancelRequestDialog(true)}
+            className="min-h-[44px] px-4 text-sm"
+          >
+            <Check className="h-4 w-4 mr-2" /> Angefragt
+          </Button>
+          <AlertDialog open={showCancelRequestDialog} onOpenChange={setShowCancelRequestDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Anfrage zurückziehen?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Möchten Sie die Verbindungsanfrage wirklich zurückziehen? Sie können später erneut eine Anfrage senden.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    await onCancel();
+                    setShowCancelRequestDialog(false);
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Zurückziehen
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
       );
     }
     if (status === "incoming") {
