@@ -3,7 +3,8 @@ import { ArrowLeft, Plug, Calendar, Mail, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIntegrationSettings } from "@/components/company/CalendarIntegrationSettings";
+// IMPORTANT: case-sensitive path for Linux/Vercel
+import { CalendarIntegrationSettings } from "@/components/Company/CalendarIntegrationSettings";
 
 export default function CompanySettingsIntegrations() {
   const navigate = useNavigate();
