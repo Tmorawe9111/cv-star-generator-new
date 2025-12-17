@@ -14,11 +14,12 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
     queryKey: ["application-status", jobId, user?.id],
     enabled: !!user?.id && !!jobId,
     queryFn: async () => {
+      // New canonical model: applications.candidate_id = profiles.id (= auth.uid())
       const { data, error } = await supabase
         .from("applications")
-        .select("id, candidates!inner(user_id)")
+        .select("id")
         .eq("job_id", jobId)
-        .eq("candidates.user_id", user!.id)
+        .eq("candidate_id", user!.id)
         .maybeSingle();
 
       if (error) throw error;
@@ -178,12 +179,15 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
       }
 
       // Prevent duplicate applications for same job
+      // Canonical: applications.candidate_id = profiles.id (= auth.uid()).
+      // For safety during migration, also check legacy rows where candidate_id referenced candidates.id.
+      const candidateIdsToCheck = [user.id, candidateId].filter(Boolean);
       const { data: existingApplication } = await supabase
         .from("applications")
         .select("id, status")
         .eq("company_id", job.company_id)
-        .eq("candidate_id", candidateId)
         .eq("job_id", jobId)
+        .in("candidate_id", candidateIdsToCheck as any)
         .maybeSingle();
 
       if (existingApplication) {
@@ -196,7 +200,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
         .insert({
           job_id: jobId,
           company_id: job.company_id,
-          candidate_id: candidateId,
+          candidate_id: user.id,
           status: "new",
           source: "applied",
         });
