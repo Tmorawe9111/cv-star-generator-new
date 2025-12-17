@@ -40,9 +40,14 @@ const CVStep1 = () => {
   const choiceSelected =
     "border-[#2563EB] ring-2 ring-[#2563EB] bg-[#EFF6FF] shadow-md";
 
+  const handleResetBranche = () => {
+    updateFormData({ branche: undefined });
+    setOtherOpen(false);
+  };
+
   return (
     <div className="h-full min-h-0 flex flex-col overflow-hidden">
-      <div className="flex-1 flex flex-col justify-center gap-6 py-2">
+      <div className="flex-1 flex flex-col justify-start gap-4 py-1">
         {/* Branche */}
         <section className="mx-auto w-full max-w-xl">
           <h2 className="text-base sm:text-lg font-semibold text-slate-900 text-center">
@@ -57,78 +62,106 @@ const CVStep1 = () => {
             </p>
           )}
 
-          <div className="mt-4 flex flex-col gap-3">
-            {(['gesundheit', 'handwerk'] as const).map((key) => {
-              const b = branches.find((x) => x.key === key)!;
-              const selected = formData.branche === key;
-              return (
+          {/* Apple-style: after selection, collapse Branche to a compact "selected" row to save height */}
+          {formData.branche ? (
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xl">{selectedBranchObj?.emoji || '✨'}</span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-900 truncate">
+                      {selectedBranchObj?.title || 'Branche ausgewählt'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 line-clamp-1">
+                      {selectedBranchObj?.desc || ''}
+                    </div>
+                  </div>
+                </div>
                 <button
-                  key={b.key}
                   type="button"
-                  aria-pressed={selected}
-                  onClick={() => updateFormData({ branche: b.key as any })}
-                  className={`${choiceBase} ${selected ? choiceSelected : choiceUnselected}`}
+                  onClick={handleResetBranche}
+                  className="shrink-0 text-xs font-semibold text-[#2563EB] hover:underline"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{b.emoji}</span>
-                        <div className="min-w-0">
-                          <div className="text-sm sm:text-base font-semibold text-slate-900 truncate">
-                            {b.title}
-                          </div>
-                          <div className="text-[11px] sm:text-xs text-slate-500 line-clamp-1">
-                            {b.desc}
+                  Ändern
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-col gap-2.5">
+              {(['gesundheit', 'handwerk'] as const).map((key) => {
+                const b = branches.find((x) => x.key === key)!;
+                const selected = formData.branche === key;
+                return (
+                  <button
+                    key={b.key}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => updateFormData({ branche: b.key as any })}
+                    className={`${choiceBase} ${selected ? choiceSelected : choiceUnselected} px-4 py-3 sm:px-5 sm:py-4`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl sm:text-2xl">{b.emoji}</span>
+                          <div className="min-w-0">
+                            <div className="text-sm sm:text-base font-semibold text-slate-900 truncate">
+                              {b.title}
+                            </div>
+                            <div className="text-[11px] sm:text-xs text-slate-500 line-clamp-1">
+                              {b.desc}
+                            </div>
                           </div>
                         </div>
                       </div>
+                      <div
+                        className={`h-5 w-5 sm:h-6 sm:w-6 rounded-full border flex items-center justify-center ${
+                          selected ? "border-[#2563EB] bg-[#2563EB]" : "border-slate-300 bg-white"
+                        }`}
+                      >
+                        <div className={`h-2.5 w-2.5 rounded-full ${selected ? "bg-white" : "bg-transparent"}`} />
+                      </div>
                     </div>
-                    <div
-                      className={`h-6 w-6 rounded-full border flex items-center justify-center ${
-                        selected ? "border-[#2563EB] bg-[#2563EB]" : "border-slate-300 bg-white"
-                      }`}
-                    >
-                      <div className={`h-2.5 w-2.5 rounded-full ${selected ? "bg-white" : "bg-transparent"}`} />
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
 
-            {/* Andere Branche */}
-            <button
-              type="button"
-              aria-pressed={isOtherSelected}
-              onClick={() => setOtherOpen(true)}
-              className={`${choiceBase} ${isOtherSelected ? choiceSelected : choiceUnselected}`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">✨</span>
-                    <div className="min-w-0">
-                      <div className="text-sm sm:text-base font-semibold text-slate-900 truncate">
-                        {isOtherSelected ? `Andere Branche: ${selectedBranchObj?.title}` : "Andere Branche"}
-                      </div>
-                      <div className="text-[11px] sm:text-xs text-slate-500 line-clamp-1">
-                        IT, Büro, Verkauf, Gastronomie, Bau
+              {/* Andere Branche */}
+              <button
+                type="button"
+                aria-pressed={isOtherSelected}
+                onClick={() => setOtherOpen(true)}
+                className={`${choiceBase} ${isOtherSelected ? choiceSelected : choiceUnselected} px-4 py-3 sm:px-5 sm:py-4`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl sm:text-2xl">✨</span>
+                      <div className="min-w-0">
+                        <div className="text-sm sm:text-base font-semibold text-slate-900 truncate">
+                          {isOtherSelected ? `Andere Branche: ${selectedBranchObj?.title}` : "Andere Branche"}
+                        </div>
+                        <div className="text-[11px] sm:text-xs text-slate-500 line-clamp-1">
+                          IT, Büro, Verkauf, Gastronomie, Bau
+                        </div>
                       </div>
                     </div>
                   </div>
+                  <div
+                    className={`h-5 w-5 sm:h-6 sm:w-6 rounded-full border flex items-center justify-center ${
+                      isOtherSelected ? "border-[#2563EB] bg-[#2563EB]" : "border-slate-300 bg-white"
+                    }`}
+                  >
+                    <div className={`h-2.5 w-2.5 rounded-full ${isOtherSelected ? "bg-white" : "bg-transparent"}`} />
+                  </div>
                 </div>
-                <div
-                  className={`h-6 w-6 rounded-full border flex items-center justify-center ${
-                    isOtherSelected ? "border-[#2563EB] bg-[#2563EB]" : "border-slate-300 bg-white"
-                  }`}
-                >
-                  <div className={`h-2.5 w-2.5 rounded-full ${isOtherSelected ? "bg-white" : "bg-transparent"}`} />
-                </div>
-              </div>
-            </button>
-          </div>
+              </button>
+            </div>
+          )}
         </section>
 
         {/* Status */}
+        {/* Mobile-first: show Status only after Branche selection to avoid clipping on small iPhones */}
+        {formData.branche && (
         <section className="mx-auto w-full max-w-xl">
           <h2 className="text-base sm:text-lg font-semibold text-slate-900 text-center">
             Deine aktuelle Situation
@@ -142,7 +175,7 @@ const CVStep1 = () => {
             </p>
           )}
 
-          <div className="mt-4 flex flex-col gap-3">
+          <div className="mt-3 flex flex-col gap-2.5">
             {statuses.map((status) => {
               const selected = formData.status === status.key;
               return (
@@ -151,11 +184,11 @@ const CVStep1 = () => {
                   type="button"
                   aria-pressed={selected}
                   onClick={() => updateFormData({ status: status.key })}
-                  className={`${choiceBase} ${selected ? choiceSelected : choiceUnselected}`}
+                  className={`${choiceBase} ${selected ? choiceSelected : choiceUnselected} px-4 py-3 sm:px-5 sm:py-4`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-2xl">{status.emoji}</span>
+                      <span className="text-xl sm:text-2xl">{status.emoji}</span>
                       <div className="min-w-0">
                         <div className="text-sm sm:text-base font-semibold text-slate-900 truncate">
                           {status.title}
@@ -166,7 +199,7 @@ const CVStep1 = () => {
                       </div>
                     </div>
                     <div
-                      className={`h-6 w-6 rounded-full border flex items-center justify-center ${
+                      className={`h-5 w-5 sm:h-6 sm:w-6 rounded-full border flex items-center justify-center ${
                         selected ? "border-[#2563EB] bg-[#2563EB]" : "border-slate-300 bg-white"
                       }`}
                     >
@@ -178,6 +211,7 @@ const CVStep1 = () => {
             })}
           </div>
         </section>
+        )}
 
         {formData.branche && formData.status && (
           <div className="mx-auto w-full max-w-xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center">
