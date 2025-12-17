@@ -151,32 +151,24 @@ const Settings = () => {
 
   // Get available months based on selected year
   const getAvailableMonths = (year?: string): typeof allMonthOptions => {
-    const yearToCheck = year || selectedYear;
-    if (!yearToCheck) {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth() + 1;
-      
-      if (currentMonth >= 12) {
-        return allMonthOptions;
-      }
-      
-      return allMonthOptions.filter(month => parseInt(month.value) > currentMonth);
+    const yearToCheck = year || selectedYear || '2026';
+    const selectedYearNum = parseInt(yearToCheck);
+
+    // For 2026 or later, always show all months
+    if (selectedYearNum >= 2026) {
+      return allMonthOptions;
     }
-    
+
+    // For current year, only show future months
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth() + 1;
-    const selectedYearNum = parseInt(yearToCheck);
 
     if (selectedYearNum === currentYear) {
       return allMonthOptions.filter(month => parseInt(month.value) > currentMonth);
     }
 
-    if (selectedYearNum > currentYear) {
-      return allMonthOptions;
-    }
-
+    // For past years, return empty
     return [];
   };
 
