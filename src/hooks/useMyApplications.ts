@@ -8,6 +8,7 @@ export type ApplicationStatus = "new" | "unlocked" | "interview" | "offer" | "re
 export type MyApplication = {
   id: string;
   job_id: string;
+  company_id?: string;
   status: ApplicationStatus;
   created_at: string;
   unlocked_at?: string;
@@ -16,17 +17,17 @@ export type MyApplication = {
   reason_short?: string | null;
   reason_custom?: string | null;
   rejection_reason?: string | null;
-  job: {
+  job?: {
     id: string;
     title: string;
-    city?: string;
-    employment_type?: string;
-    company: {
+    city?: string | null;
+    employment_type?: string | null;
+    company?: {
       id: string;
       name: string;
-      logo_url?: string;
-    };
-  };
+      logo_url?: string | null;
+    } | null;
+  } | null;
 };
 
 export function useMyApplications() {
@@ -36,20 +37,33 @@ export function useMyApplications() {
     queryKey: ["my-applications", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // IMPORTANT:
+      // We intentionally do NOT rely on PostgREST relationship embeds here.
+      // In this codebase the FK between applications(job_id) and job_posts(id) can be missing/changed,
+      // which would make embeds fail and "silently" look like an empty list in the UI.
+      const { data: apps, error: appsError } = await supabase
         .from("applications")
-        .select(`
-          id,
-          job_id,
-          status,
-          created_at,
-          updated_at,
-          unlocked_at,
-          is_new,
-          reason_short,
-          reason_custom,
-          rejection_reason,
-          job:job_posts!job_id (
+        .select(
+          "id, job_id, company_id, status, created_at, updated_at, unlocked_at, is_new, reason_short, reason_custom, rejection_reason"
+        )
+        .eq("candidate_id", user!.id)
+        .order("created_at", { ascending: false });
+
+      if (appsError) throw appsError;
+
+      const safeApps = (apps || []) as any[];
+      if (safeApps.length === 0) return [] as MyApplication[];
+
+      const jobIds = Array.from(new Set(safeApps.map((a) => a.job_id).filter(Boolean)));
+      const companyIds = Array.from(new Set(safeApps.map((a) => a.company_id).filter(Boolean)));
+
+      // Fetch job details (best effort — job might be private/inactive, still show application row)
+      const jobById = new Map<string, any>();
+      if (jobIds.length > 0) {
+        const { data: jobs, error: jobsError } = await supabase
+          .from("job_posts")
+          .select(
+            `
             id,
             title,
             city,
@@ -59,13 +73,52 @@ export function useMyApplications() {
               name,
               logo_url
             )
+          `
           )
-        `)
-        .eq("candidate_id", user!.id)
-        .order("created_at", { ascending: false });
+          .in("id", jobIds as any);
+        if (!jobsError) {
+          (jobs || []).forEach((j: any) => jobById.set(j.id, j));
+        }
+      }
 
-      if (error) throw error;
-      return data as unknown as MyApplication[];
+      // Fetch company fallback (for jobs that can't be loaded anymore)
+      const companyById = new Map<string, any>();
+      if (companyIds.length > 0) {
+        const { data: companies, error: companiesError } = await supabase
+          .from("companies")
+          .select("id, name, logo_url")
+          .in("id", companyIds as any);
+        if (!companiesError) {
+          (companies || []).forEach((c: any) => companyById.set(c.id, c));
+        }
+      }
+
+      return safeApps.map((a) => {
+        const job = a.job_id ? jobById.get(a.job_id) : null;
+        const companyFallback = a.company_id ? companyById.get(a.company_id) : null;
+
+        // If job can't be loaded (inactive/private/deleted), keep application visible with a placeholder job
+        const mergedJob =
+          job ??
+          (a.job_id
+            ? {
+                id: a.job_id,
+                title: "Stellenanzeige nicht mehr verfügbar",
+                city: null,
+                employment_type: null,
+                company: companyFallback,
+              }
+            : null);
+
+        if (mergedJob && !mergedJob.company && companyFallback) {
+          mergedJob.company = companyFallback;
+        }
+
+        return {
+          ...a,
+          job: mergedJob,
+        } as MyApplication;
+      });
     },
   });
 }

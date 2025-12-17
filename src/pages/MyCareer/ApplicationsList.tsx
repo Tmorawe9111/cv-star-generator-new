@@ -29,7 +29,7 @@ interface ApplicationsListProps {
 }
 
 export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
-  const { data: applications, isLoading } = useMyApplications();
+  const { data: applications, isLoading, error } = useMyApplications();
   const withdrawOne = useCandidateWithdrawApplication();
   const withdrawAll = useCandidateWithdrawAllApplications();
   const navigate = useNavigate();
@@ -145,6 +145,17 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
 
   if (isLoading) {
     return <div className="text-center py-12">Laden...</div>;
+  }
+
+  if (error) {
+    return (
+      <Card className="p-6">
+        <div className="font-semibold mb-1">Bewerbungen konnten nicht geladen werden</div>
+        <div className="text-sm text-muted-foreground">
+          {(error as any)?.message || "Unbekannter Fehler"}
+        </div>
+      </Card>
+    );
   }
 
   return (
