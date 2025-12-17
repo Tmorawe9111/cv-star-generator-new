@@ -195,11 +195,9 @@ export default function CommunityJobs() {
     if (!jobs) return [];
     
     return jobs.filter(job => {
-    // Hide rejected applications
+    // Hide jobs the user already applied to (any status) so "Neue Jobs" stays clean
     const application = applicationsByJobId[job.id];
-    if (application?.status === 'rejected') {
-      return false;
-    }
+    if (application) return false;
 
       // Search filter
     if (search) {
@@ -724,6 +722,7 @@ export default function CommunityJobs() {
                         job={job}
                         onClick={() => handleJobClick(job)}
                         compact={true}
+                        application={applicationsByJobId[job.id]}
                       />
                     ))}
                   </div>
