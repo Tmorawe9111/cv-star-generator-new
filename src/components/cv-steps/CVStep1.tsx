@@ -41,7 +41,7 @@ const CVStep1 = () => {
     "border-[#2563EB] ring-2 ring-[#2563EB] bg-[#EFF6FF] shadow-md";
 
   return (
-    <div className="h-full min-h-[calc(100dvh-210px)] flex flex-col">
+    <div className="h-full min-h-0 flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col justify-center gap-6 py-2">
         {/* Branche */}
         <section className="mx-auto w-full max-w-xl">

@@ -164,59 +164,76 @@ const CVGeneratorContent = () => {
       navigate('/');
     }
   };
-  return <div className="h-screen bg-background overflow-hidden flex flex-col" data-cv-preview>
-      <div className="flex-1 flex flex-col overflow-hidden container mx-auto px-2 md:px-4 max-w-full md:max-w-2xl w-full">
-        {/* Header - Ultra compact on mobile */}
-        <div className="flex-shrink-0 z-30 bg-background border-b py-1.5 md:py-3">
-          <Button variant="ghost" onClick={handleBackToHome} className="mb-1 md:mb-2 text-[10px] md:text-sm min-h-[28px] md:min-h-[36px] h-auto py-0.5 px-1.5 md:px-2" size="sm">
-            <ArrowLeft className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-            <span className="hidden sm:inline text-xs md:text-sm">Zurück</span>
-            <span className="sm:hidden text-[10px]">←</span>
-          </Button>
-          
-          <div className="space-y-1 md:space-y-2">
-            <h1 className="text-sm md:text-xl font-bold text-foreground leading-tight">
-              {isLayoutEditMode ? 'CV-Layout bearbeiten' : 'CV-Generator'}
-            </h1>
-            <div className="space-y-0.5 md:space-y-1">
-              <div className="flex justify-between text-[9px] md:text-xs text-muted-foreground">
-                {isLayoutEditMode ? <>
-                    <span>Schritt {currentStep - 4} von 2</span>
-                    <span>{Math.round((currentStep - 4) / 2 * 100)}%</span>
-                  </> : currentStep === 0 ? <>
-                    <span>Willkommen</span>
-                    <span>Wähle Option</span>
-                  </> : <>
-                    <span>Schritt {currentStep} von 7</span>
-                    <span>{Math.round(currentStep / 7 * 100)}%</span>
-                  </>}
+  const totalSteps = isLayoutEditMode ? 2 : 7;
+  const stepIndex = isLayoutEditMode ? Math.max(1, currentStep - 4) : Math.max(0, currentStep);
+  const progressValue = currentStep > 0
+    ? (isLayoutEditMode ? (stepIndex / totalSteps) * 100 : (stepIndex / totalSteps) * 100)
+    : 0;
+  const topTitle = isLayoutEditMode ? "CV Layout" : "CV-Generator";
+  const centerTitle =
+    isLayoutEditMode
+      ? (stepIndex === 1 ? "Layout" : "Vorschau")
+      : currentStep === 0
+      ? "Willkommen"
+      : stepNames[currentStep] || `Schritt ${currentStep}`;
+
+  return (
+    <div className="h-screen bg-background overflow-hidden flex flex-col" data-cv-preview>
+      <div className="flex-1 flex flex-col overflow-hidden container mx-auto px-3 md:px-4 max-w-full md:max-w-2xl w-full">
+        {/* Header (Apple-style, minimal height) */}
+        <div className="flex-shrink-0 z-30 bg-background/90 backdrop-blur border-b py-2">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleBackToHome}
+              className="h-10 w-10 rounded-full"
+              aria-label="Zurück"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+
+            <div className="min-w-0 text-center">
+              <div className="text-[11px] text-muted-foreground leading-tight">{topTitle}</div>
+              <div className="truncate text-sm font-semibold text-foreground leading-tight">
+                {centerTitle}
               </div>
-              {currentStep > 0 && <Progress value={isLayoutEditMode ? (currentStep - 4) / 2 * 100 : currentStep / 7 * 100} className="h-0.5 md:h-1" />}
             </div>
-          </div>
-        </div>
 
-        {/* Step Content - Scrollable except Step 5, 6, and 7 */}
-        <div className={`flex-1 min-h-0 flex flex-col ${currentStep === 5 || currentStep === 6 || currentStep === 7 ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-          <div className={`flex-1 ${currentStep === 5 || currentStep === 6 || currentStep === 7 ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-            <div className={`min-h-full ${currentStep === 5 || currentStep === 6 || currentStep === 7 ? 'overflow-hidden h-full p-0' : 'overflow-y-auto'}`}>
-              <div className={`${currentStep === 5 || currentStep === 6 || currentStep === 7 ? 'h-full p-0' : 'py-1 md:py-2'} break-words`}>
-                {renderStep()}
-              </div>
-
-              {/* Validation Errors */}
-              {Object.keys(validationErrors).length > 0 && (
-                <div className="mb-2 md:mb-3 p-2 md:p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                  <h3 className="text-[10px] md:text-sm font-medium text-destructive mb-1">
-                    Bitte füllen Sie alle Pflichtfelder aus:
-                  </h3>
-                  <ul className="text-[9px] md:text-xs text-destructive space-y-0.5">
-                    {Object.values(validationErrors).map((error, index) => <li key={index}>• {error}</li>)}
-                  </ul>
-                </div>
+            <div className="w-10 text-right">
+              {currentStep > 0 && (
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {stepIndex}/{totalSteps}
+                </span>
               )}
             </div>
           </div>
+          {currentStep > 0 && (
+            <div className="mt-2">
+              <Progress value={progressValue} className="h-1" />
+            </div>
+          )}
+        </div>
+
+        {/* Step Content (NO outer scrolling) */}
+        <div className="flex-1 min-h-0 overflow-hidden py-2">
+          <div className="h-full min-h-0 overflow-hidden break-words">
+            {renderStep()}
+          </div>
+
+          {/* Validation Errors (small, no layout shift) */}
+          {Object.keys(validationErrors).length > 0 && (
+            <div className="mt-2 rounded-xl border border-destructive/30 bg-destructive/10 p-2">
+              <div className="text-xs font-semibold text-destructive">
+                Bitte fülle die Pflichtfelder aus
+              </div>
+              <ul className="mt-1 max-h-20 overflow-y-auto text-[11px] text-destructive space-y-0.5">
+                {Object.values(validationErrors).map((error, index) => (
+                  <li key={index}>• {error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Navigation - Fixed at bottom - Hidden for Step 7 */}
@@ -252,7 +269,8 @@ const CVGeneratorContent = () => {
           </div>
         )}
       </div>
-    </div>;
+    </div>
+  );
 };
 const CVGenerator = () => {
   return <CVGeneratorContent />;

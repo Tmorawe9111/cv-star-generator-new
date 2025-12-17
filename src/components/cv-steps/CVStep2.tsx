@@ -102,30 +102,6 @@ const CVStep2 = () => {
     }
   };
 
-  // Calculate progress
-  const requiredFields = useMemo(() => {
-    const base = ['profilbild', 'vorname', 'nachname', 'geburtsdatum', 'strasse', 'hausnummer', 'plz', 'ort', 'telefon', 'email', 'has_drivers_license'];
-    if (formData.status === 'schueler') {
-      return [...base, 'schule', 'geplanter_abschluss', 'abschlussjahr'];
-    }
-    return base;
-  }, [formData.status]);
-
-  const filledFields = useMemo(() => {
-    return requiredFields.filter(field => {
-      const value = formData[field as keyof typeof formData];
-      if (field === 'has_drivers_license') {
-        return value !== undefined && value !== null;
-      }
-      if (field === 'profilbild') {
-        return !!formData.profilbild;
-      }
-      return !!value && value !== '';
-    }).length;
-  }, [formData, requiredFields]);
-
-  const progressPercentage = (filledFields / requiredFields.length) * 100;
-
   // Calculate max date (16 years ago)
   const getMaxDate = () => {
     const today = new Date();
@@ -135,24 +111,9 @@ const CVStep2 = () => {
   const maxDate = getMaxDate();
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-2 md:space-y-3 px-2 md:px-4">
-      {/* Progress Indicator */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-[10px] md:text-xs text-gray-600">
-          <span className="font-medium">{filledFields} von {requiredFields.length} Feldern ausgefüllt</span>
-          <span className="text-gray-500">{Math.round(progressPercentage)}%</span>
-        </div>
-        <Progress value={progressPercentage} className="h-1 bg-gray-100" />
-      </div>
-
-      {/* Title */}
-      <div>
-        <h2 className="text-base md:text-lg font-semibold text-gray-900 tracking-tight">Persönliche Daten</h2>
-        <p className="text-[10px] md:text-xs text-gray-500 mt-0.5">Bitte füllen Sie alle Pflichtfelder aus</p>
-      </div>
-
-      <Card className="p-2.5 md:p-4 border-0 shadow-sm bg-white">
-        <div className="space-y-2.5 md:space-y-3">
+    <div className="h-full min-h-0 w-full max-w-2xl mx-auto px-2 md:px-4 overflow-hidden flex flex-col justify-center">
+      <Card className="p-3 md:p-4 border-0 shadow-sm bg-white">
+        <div className="space-y-2 md:space-y-3">
           {/* Row 1: Profilbild + Name + Geburtsdatum */}
           <div className="flex flex-col md:flex-row items-start gap-2 md:gap-3">
             {/* Profilbild - Circle */}
@@ -626,57 +587,8 @@ const CVStep2 = () => {
           </div>
 
           {/* Schüler-spezifische Felder */}
-          {formData.status === 'schueler' && (
-            <>
-              <div className="border-t border-gray-200"></div>
-              <div className="space-y-2 md:space-y-2.5">
-                <div className="space-y-1 md:space-y-1.5">
-                  <Label htmlFor="schule" className="text-[10px] md:text-xs font-medium text-gray-700">Schule *</Label>
-                  <Input
-                    id="schule"
-                    value={formData.schule || ''}
-                    onChange={(e) => updateFormData({ schule: e.target.value })}
-                    placeholder="Musterschule Musterstadt"
-                    className="h-9 md:h-10 text-xs md:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors touch-manipulation"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-2.5">
-                  <div className="space-y-1 md:space-y-1.5">
-                    <Label htmlFor="geplanter_abschluss" className="text-[10px] md:text-xs font-medium text-gray-700">Geplanter Abschluss *</Label>
-                    <Select 
-                      value={formData.geplanter_abschluss || ''} 
-                      onValueChange={(value) => updateFormData({ geplanter_abschluss: value })}
-                    >
-                      <SelectTrigger className="h-9 md:h-10 text-xs md:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 touch-manipulation">
-                        <SelectValue placeholder="Abschluss wählen" />
-                      </SelectTrigger>
-                      <SelectContent className="z-50">
-                        {abschlussOptions.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1 md:space-y-1.5">
-                    <Label htmlFor="abschlussjahr" className="text-[10px] md:text-xs font-medium text-gray-700">Abschlussjahr *</Label>
-                    <Input
-                      id="abschlussjahr"
-                      type="number"
-                      value={formData.abschlussjahr || ''}
-                      onChange={(e) => updateFormData({ abschlussjahr: e.target.value })}
-                      placeholder="2024"
-                      min="2020"
-                      max="2030"
-                      className="h-9 md:h-10 text-xs md:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors touch-manipulation"
-                    />
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+          {/* NOTE: school details for Schüler/Azubi/Fachkraft are captured in the Werdegang step (Step 4).
+              Keeping Step 2 compact avoids any scrolling. */}
         </div>
       </Card>
     </div>

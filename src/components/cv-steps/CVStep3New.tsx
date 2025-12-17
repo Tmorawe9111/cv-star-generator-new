@@ -8,6 +8,7 @@ import { SkillSelector } from '@/components/shared/SkillSelector';
 import { Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SprachEntry } from '@/contexts/CVFormContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -258,276 +259,328 @@ const CVStep3New = () => {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold mb-2">Kenntnisse, Skills & Motivation</h2>
-        <p className="text-muted-foreground mb-6">
-          Zeige deine Stärken, Fähigkeiten und was dich motiviert.
-        </p>
-      </div>
+    <div className="h-full min-h-0 overflow-hidden">
+      <Tabs defaultValue="skills" className="h-full min-h-0 flex flex-col overflow-hidden">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="skills" className="text-xs md:text-sm">Skills</TabsTrigger>
+          <TabsTrigger value="languages" className="text-xs md:text-sm">Sprachen</TabsTrigger>
+          <TabsTrigger value="about" className="text-xs md:text-sm">Text</TabsTrigger>
+          <TabsTrigger value="extras" className="text-xs md:text-sm">Extras</TabsTrigger>
+        </TabsList>
 
-      {/* Skills Section */}
-      <Card className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-lg">Fähigkeiten & Skills</h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleGenerateSkills}
-            disabled={generatingSkills || !formData.branche}
-          >
-            {generatingSkills ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4 mr-2" />
-            )}
-            AI Vorschläge
-          </Button>
-        </div>
-        
-        <SkillSelector
-          selectedSkills={formData.faehigkeiten || []}
-          onSkillsChange={(skills) => updateFormData({ faehigkeiten: skills })}
-          branch={formData.branche}
-          statusLevel={formData.status}
-          maxSkills={10}
-          label="Deine wichtigsten Fähigkeiten"
-          placeholder="Fähigkeit auswählen..."
-        />
-      </Card>
-
-      {/* Sprachen */}
-      <Card className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-lg">Sprachen</h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addSprache}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Sprache hinzufügen
-          </Button>
-        </div>
-
-        <div className="space-y-3">
-          {formData.sprachen?.map((sprache, index) => {
-            // Get all languages, but mark selected ones as disabled
-            const selectedLanguages = (formData.sprachen || [])
-              .map((s, idx) => idx !== index ? s.sprache : null)
-              .filter((lang): lang is string => Boolean(lang));
-            
-            return (
-              <div key={index} className="flex gap-2 items-start">
-                <Select
-                  value={sprache.sprache || ''}
-                  onValueChange={(value) => updateSprache(index, 'sprache', value)}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Sprache auswählen..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {LANGUAGES_LIST.map((language) => {
-                      const isSelected = selectedLanguages.includes(language);
-                      const isCurrent = sprache.sprache === language;
-                      
-                      return (
-                        <SelectItem
-                          key={language}
-                          value={language}
-                          disabled={isSelected && !isCurrent}
-                          className={isSelected && !isCurrent ? 'opacity-50 cursor-not-allowed' : ''}
-                        >
-                          {language}
-                          {isCurrent && ' ✓'}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={sprache.niveau}
-                  onValueChange={(value) => updateSprache(index, 'niveau', value)}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sprachNiveaus.map(niveau => (
-                      <SelectItem key={niveau} value={niveau}>{niveau}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {/* Skills */}
+          <TabsContent value="skills" className="mt-3 h-full">
+            <Card className="h-full p-3 md:p-4 flex flex-col min-h-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-base leading-tight">Fähigkeiten</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Wähle bis zu 10 Skills, die dich am besten beschreiben.
+                  </p>
+                </div>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={() => removeSprache(index)}
+                  onClick={handleGenerateSkills}
+                  disabled={generatingSkills || !formData.branche}
+                  className="shrink-0"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {generatingSkills ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 mr-2" />
+                  )}
+                  AI
                 </Button>
               </div>
-            );
-          })}
-        </div>
-      </Card>
 
+              <div className="mt-3 flex-1 min-h-0">
+                <SkillSelector
+                  selectedSkills={formData.faehigkeiten || []}
+                  onSkillsChange={(skills) => updateFormData({ faehigkeiten: skills })}
+                  branch={formData.branche}
+                  statusLevel={formData.status}
+                  maxSkills={10}
+                  label="Deine wichtigsten Fähigkeiten"
+                  placeholder="Fähigkeit auswählen..."
+                />
+              </div>
+            </Card>
+          </TabsContent>
 
-      {/* Qualifikationen (Optional) */}
-      <Card className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-lg">Qualifikationen (Optional)</h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addQualifikation}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Hinzufügen
-          </Button>
-        </div>
+          {/* Sprachen */}
+          <TabsContent value="languages" className="mt-3 h-full">
+            <Card className="h-full p-3 md:p-4 flex flex-col min-h-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-base leading-tight">Sprachen</h3>
+                  <p className="text-xs text-muted-foreground">Füge deine Sprachen und Niveaus hinzu.</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={addSprache} className="shrink-0">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Hinzufügen
+                </Button>
+              </div>
 
-        <div className="space-y-2">
-          {formData.qualifikationen?.map((qual, index) => (
-            <div key={index} className="flex gap-2">
-              <Input
-                placeholder="z.B. Erste-Hilfe-Kurs"
-                value={qual}
-                onChange={(e) => updateQualifikation(index, e.target.value)}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => removeQualifikation(index)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      </Card>
+              <div className="mt-3 flex-1 min-h-0 overflow-hidden">
+                {(formData.sprachen?.length || 0) === 0 ? (
+                  <div className="h-full grid place-items-center text-sm text-muted-foreground">
+                    Noch keine Sprache hinzugefügt.
+                  </div>
+                ) : (
+                  <div className="h-full min-h-0 overflow-y-auto space-y-2 pr-1">
+                    {formData.sprachen?.map((sprache, index) => {
+                      const selectedLanguages = (formData.sprachen || [])
+                        .map((s, idx) => (idx !== index ? s.sprache : null))
+                        .filter((lang): lang is string => Boolean(lang));
 
-      {/* Zertifikate (Optional) */}
-      <Card className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-lg">Zertifikate (Optional)</h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addZertifikat}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Hinzufügen
-          </Button>
-        </div>
+                      return (
+                        <div key={index} className="flex gap-2 items-start">
+                          <Select
+                            value={sprache.sprache || ''}
+                            onValueChange={(value) => updateSprache(index, 'sprache', value)}
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Sprache auswählen..." />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px]">
+                              {LANGUAGES_LIST.map((language) => {
+                                const isSelected = selectedLanguages.includes(language);
+                                const isCurrent = sprache.sprache === language;
+                                return (
+                                  <SelectItem
+                                    key={language}
+                                    value={language}
+                                    disabled={isSelected && !isCurrent}
+                                    className={isSelected && !isCurrent ? 'opacity-50 cursor-not-allowed' : ''}
+                                  >
+                                    {language}
+                                    {isCurrent && ' ✓'}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
 
-        <div className="space-y-2">
-          {formData.zertifikate?.map((zert, index) => (
-            <div key={index} className="flex gap-2">
-              <Input
-                placeholder="z.B. Microsoft Office Specialist"
-                value={zert}
-                onChange={(e) => updateZertifikat(index, e.target.value)}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => removeZertifikat(index)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      </Card>
+                          <Select
+                            value={sprache.niveau}
+                            onValueChange={(value) => updateSprache(index, 'niveau', value)}
+                          >
+                            <SelectTrigger className="w-28 md:w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sprachNiveaus.map((niveau) => (
+                                <SelectItem key={niveau} value={niveau}>
+                                  {niveau}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
 
-      {/* Interessen (Optional) */}
-      <Card className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-lg">Interessen & Hobbys (Optional)</h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addInteresse}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Hinzufügen
-          </Button>
-        </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSprache(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </Card>
+          </TabsContent>
 
-        <div className="space-y-2">
-          {formData.interessen?.map((interesse, index) => (
-            <div key={index} className="flex gap-2">
-              <Input
-                placeholder="z.B. Fußball, Fotografie, Programmieren"
-                value={interesse}
-                onChange={(e) => updateInteresse(index, e.target.value)}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => removeInteresse(index)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      </Card>
+          {/* Motivation & Persönlichkeit */}
+          <TabsContent value="about" className="mt-3 h-full">
+            <Card className="h-full p-3 md:p-4 flex flex-col min-h-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-base leading-tight">Motivation & Persönlichkeit</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Kurzer Text für deinen Lebenslauf (optional, aber empfohlen).
+                  </p>
+                </div>
+                <Button
+                  onClick={handleGenerateSummary}
+                  disabled={generatingSummary || !canGenerateSummary()}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 shrink-0"
+                >
+                  {generatingSummary ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      ...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      KI
+                    </>
+                  )}
+                </Button>
+              </div>
 
-      {/* Motivation & Persönlichkeit */}
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-lg">💬 Motivation & Persönlichkeit</h3>
-            <Button
-              onClick={handleGenerateSummary}
-              disabled={generatingSummary || !canGenerateSummary()}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              {generatingSummary ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generiere...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Mit KI generieren
-                </>
+              {!canGenerateSummary() && (
+                <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  Bitte wähle zuerst mindestens eine Fähigkeit und eine Sprache aus, um den Text generieren zu können.
+                </div>
               )}
-            </Button>
-          </div>
-          {!canGenerateSummary() && (
-            <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded">
-              ⚠️ Bitte wähle zuerst mindestens eine Fähigkeit und eine Sprache aus, um den Text generieren zu können.
-            </p>
-          )}
-          <p className="text-sm text-muted-foreground">
-            Beschreibe dich selbst, deine Motivation und deine Persönlichkeit. Du kannst den Text selbst schreiben oder mit KI generieren lassen.
-          </p>
-          <Textarea
-            value={formData.ueberMich || ''}
-            onChange={(e) => updateFormData({ ueberMich: e.target.value })}
-            placeholder="Ich bin... Besonders interessiere ich mich für... Meine Stärken sind..."
-            rows={6}
-            className="resize-none"
-          />
-          <p className="text-xs text-muted-foreground">
-            💡 Tipp: Dieser Text erscheint in deinem Lebenslauf und gibt Arbeitgebern einen persönlichen Einblick.
-          </p>
+
+              <Textarea
+                value={formData.ueberMich || ''}
+                onChange={(e) => updateFormData({ ueberMich: e.target.value })}
+                placeholder="Ich bin... Besonders interessiere ich mich für... Meine Stärken sind..."
+                className="mt-3 flex-1 min-h-[140px] resize-none"
+              />
+
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Tipp: Der Text ist kurz, persönlich und konkret (2–4 Sätze).
+              </p>
+            </Card>
+          </TabsContent>
+
+          {/* Extras */}
+          <TabsContent value="extras" className="mt-3 h-full">
+            <Card className="h-full p-3 md:p-4 flex flex-col min-h-0">
+              <div className="min-w-0">
+                <h3 className="font-semibold text-base leading-tight">Extras (optional)</h3>
+                <p className="text-xs text-muted-foreground">
+                  Ergänze Qualifikationen, Zertifikate oder Interessen.
+                </p>
+              </div>
+
+              <Tabs defaultValue="qual" className="mt-3 flex-1 min-h-0 flex flex-col overflow-hidden">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="qual" className="text-xs md:text-sm">Qualis</TabsTrigger>
+                  <TabsTrigger value="certs" className="text-xs md:text-sm">Zertis</TabsTrigger>
+                  <TabsTrigger value="hobbies" className="text-xs md:text-sm">Hobbys</TabsTrigger>
+                </TabsList>
+
+                <div className="mt-3 flex-1 min-h-0 overflow-hidden">
+                  <TabsContent value="qual" className="mt-0 h-full">
+                    <div className="h-full flex flex-col min-h-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs text-muted-foreground">Qualifikationen</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={addQualifikation}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Hinzufügen
+                        </Button>
+                      </div>
+                      <div className="mt-2 flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+                        {(formData.qualifikationen?.length || 0) === 0 ? (
+                          <div className="grid place-items-center h-full text-sm text-muted-foreground">
+                            Noch keine Qualifikation hinzugefügt.
+                          </div>
+                        ) : (
+                          formData.qualifikationen?.map((qual, index) => (
+                            <div key={index} className="flex gap-2">
+                              <Input
+                                placeholder="z.B. Erste-Hilfe-Kurs"
+                                value={qual}
+                                onChange={(e) => updateQualifikation(index, e.target.value)}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeQualifikation(index)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="certs" className="mt-0 h-full">
+                    <div className="h-full flex flex-col min-h-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs text-muted-foreground">Zertifikate</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={addZertifikat}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Hinzufügen
+                        </Button>
+                      </div>
+                      <div className="mt-2 flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+                        {(formData.zertifikate?.length || 0) === 0 ? (
+                          <div className="grid place-items-center h-full text-sm text-muted-foreground">
+                            Noch kein Zertifikat hinzugefügt.
+                          </div>
+                        ) : (
+                          formData.zertifikate?.map((zert, index) => (
+                            <div key={index} className="flex gap-2">
+                              <Input
+                                placeholder="z.B. Microsoft Office Specialist"
+                                value={zert}
+                                onChange={(e) => updateZertifikat(index, e.target.value)}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeZertifikat(index)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="hobbies" className="mt-0 h-full">
+                    <div className="h-full flex flex-col min-h-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs text-muted-foreground">Interessen & Hobbys</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={addInteresse}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Hinzufügen
+                        </Button>
+                      </div>
+                      <div className="mt-2 flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+                        {(formData.interessen?.length || 0) === 0 ? (
+                          <div className="grid place-items-center h-full text-sm text-muted-foreground">
+                            Noch kein Interesse hinzugefügt.
+                          </div>
+                        ) : (
+                          formData.interessen?.map((interesse, index) => (
+                            <div key={index} className="flex gap-2">
+                              <Input
+                                placeholder="z.B. Fußball, Fotografie, Programmieren"
+                                value={interesse}
+                                onChange={(e) => updateInteresse(index, e.target.value)}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeInteresse(index)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+                </div>
+              </Tabs>
+            </Card>
+          </TabsContent>
         </div>
-      </Card>
+      </Tabs>
     </div>
   );
 };

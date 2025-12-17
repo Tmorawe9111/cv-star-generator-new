@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, CalendarIcon, Sparkles, Loader2 } from 'lucide-react';
 import { SchulbildungEntry, BerufserfahrungEntry } from '@/contexts/CVFormContext';
 import { PLZOrtSelector } from '@/components/shared/PLZOrtSelector';
@@ -504,389 +505,289 @@ const CVStep4 = () => {
   const hasMinimumSchulbildung = (formData.schulbildung?.length || 0) > 0;
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold mb-2">Schulische & Praktische Erfahrungen</h2>
-        <p className="text-muted-foreground mb-6">
-          Erzähle von deiner Schullaufbahn und praktischen Erfahrungen. Mindestens eine schulische Erfahrung ist erforderlich.
-        </p>
-      </div>
+    <div className="h-full min-h-0 overflow-hidden flex flex-col">
+      <Tabs defaultValue="school" className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="school" className="text-xs md:text-sm">Schule</TabsTrigger>
+          <TabsTrigger value="work" className="text-xs md:text-sm">Erfahrung</TabsTrigger>
+        </TabsList>
 
-      {/* Schulbildung Section */}
-      <Card className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-lg">Schulbildung</h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addSchulbildungEntry}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Eintrag hinzufügen
-          </Button>
-        </div>
-
-        {!formData.schulbildung?.length && (
-          <p className="text-muted-foreground text-sm mb-4 p-4 bg-muted/20 rounded">
-            Du hast noch keine Schulbildung hinzugefügt. Klicke auf "Eintrag hinzufügen" um zu beginnen.
-          </p>
-        )}
-
-        <div className="space-y-4">
-          {formData.schulbildung?.map((schule, index) => (
-            <div key={index} className="border rounded-lg p-4 space-y-4">
-              <div className="flex justify-between items-center">
-                <h4 className="font-medium">Schulbildung {index + 1}</h4>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeSchulbildungEntry(index)}
-                >
-                  <Trash2 className="h-4 w-4" />
+        <div className="mt-3 flex-1 min-h-0 overflow-hidden">
+          {/* Schulbildung */}
+          <TabsContent value="school" className="mt-0 h-full">
+            <Card className="h-full p-3 md:p-4 flex flex-col min-h-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-base leading-tight">Schulbildung</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Mindestens ein Eintrag ist erforderlich.
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={addSchulbildungEntry} className="shrink-0">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Hinzufügen
                 </Button>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor={`schulform-${index}`}>Schulform/Titel *</Label>
-                  <Select 
-                    value={schule.schulform || ''} 
-                    onValueChange={(value) => updateSchulbildungEntry(index, 'schulform', value)}
-                  >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Schulform wählen" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg z-50">
-                      {schulformOptions.map((option) => (
-                        <SelectItem key={option} value={option} className="hover:bg-muted">
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor={`schulname-${index}`}>Name der Schule *</Label>
-                  <Input
-                    id={`schulname-${index}`}
-                    placeholder="z.B. Friedrich-Schiller-Gymnasium"
-                    value={getLocalInputValue('schul', index, 'name', schule.name)}
-                    onChange={(e) => handleDynamicInputChange('schul', index, 'name', e.target.value)}
-                    onBlur={(e) => handleDynamicInputBlur('schul', index, 'name', e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <Label htmlFor={`schule-plz-${index}`}>PLZ</Label>
-                    <Input
-                      id={`schule-plz-${index}`}
-                      placeholder="12345"
-                      value={getLocalInputValue('schul', index, 'plz', schule.plz || '')}
-                      onChange={(e) => handleDynamicInputChange('schul', index, 'plz', e.target.value)}
-                      onBlur={(e) => handleDynamicInputBlur('schul', index, 'plz', e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label htmlFor={`schule-ort-${index}`}>Ort *</Label>
-                    <Input
-                      id={`schule-ort-${index}`}
-                      placeholder="z.B. Berlin"
-                      value={getLocalInputValue('schul', index, 'ort', schule.ort)}
-                      onChange={(e) => handleDynamicInputChange('schul', index, 'ort', e.target.value)}
-                      onBlur={(e) => handleDynamicInputBlur('schul', index, 'ort', e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label>Von (Jahr) *</Label>
-                    <Select 
-                      value={schule.zeitraum_von} 
-                      onValueChange={(value) => updateSchulbildungDate(index, 'zeitraum_von', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Jahr wählen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {yearOptions.map((year) => (
-                          <SelectItem key={year} value={year.toString()}>
-                            {year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Bis (Jahr) *</Label>
-                    <Select 
-                      value={schule.zeitraum_bis} 
-                      onValueChange={(value) => updateSchulbildungDate(index, 'zeitraum_bis', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Voraussichtlicher Abschluss" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {yearOptions.map((year) => (
-                          <SelectItem key={year} value={year.toString()}>
-                            {year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <Label htmlFor={`schulbeschreibung-${index}`}>Beschreibung (optional)</Label>
-                <Textarea
-                  id={`schulbeschreibung-${index}`}
-                  placeholder="z.B. Schwerpunkte, besondere Leistungen, Projekte..."
-                  value={getLocalInputValue('schul', index, 'beschreibung', schule.beschreibung || '')}
-                  onChange={(e) => handleDynamicInputChange('schul', index, 'beschreibung', e.target.value)}
-                  onBlur={(e) => handleDynamicInputBlur('schul', index, 'beschreibung', e.target.value)}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Berufserfahrung Section */}
-      <Card className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-lg">Praktische Erfahrung (optional)</h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addBerufserfahrungEntry}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Eintrag hinzufügen
-          </Button>
-        </div>
-
-        {!formData.berufserfahrung?.length && (
-          <p className="text-muted-foreground text-sm mb-4 p-4 bg-muted/20 rounded">
-            Hier kannst du Praktika, Ferienjobs oder andere praktische Erfahrungen eintragen.
-          </p>
-        )}
-
-        <div className="space-y-4">
-          {formData.berufserfahrung?.map((arbeit, index) => (
-            <div key={index} className="border rounded-lg p-4 space-y-4">
-              <div className="flex justify-between items-center">
-                <h4 className="font-medium">Erfahrung {index + 1}</h4>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeBerufserfahrungEntry(index)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor={`titel-${index}`}>Titel *</Label>
-                  <Input
-                    id={`titel-${index}`}
-                    placeholder="z.B. Praktikum, Ferienjob"
-                    value={getLocalInputValue('berufs', index, 'titel', arbeit.titel)}
-                    onChange={(e) => handleDynamicInputChange('berufs', index, 'titel', e.target.value)}
-                    onBlur={(e) => handleDynamicInputBlur('berufs', index, 'titel', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`unternehmen-${index}`}>Unternehmen/Einrichtung *</Label>
-                  <Input
-                    id={`unternehmen-${index}`}
-                    placeholder="z.B. Müller GmbH"
-                    value={getLocalInputValue('berufs', index, 'unternehmen', arbeit.unternehmen)}
-                    onChange={(e) => handleDynamicInputChange('berufs', index, 'unternehmen', e.target.value)}
-                    onBlur={(e) => handleDynamicInputBlur('berufs', index, 'unternehmen', e.target.value)}
-                  />
-                </div>
-                {isAusbildung(arbeit) && (
-                  <div>
-                    <Label htmlFor={`abschluss-${index}`}>Abschluss (optional)</Label>
-                    <Select 
-                      value={arbeit.abschluss || ''} 
-                      onValueChange={(value) => {
-                        if (value === 'Andere') {
-                          // Allow free text input
-                          const input = prompt('Bitte geben Sie den Abschluss ein:');
-                          if (input) {
-                            handleDynamicInputChange('berufs', index, 'abschluss', input);
-                            handleDynamicInputBlur('berufs', index, 'abschluss', input);
-                          }
-                        } else {
-                          handleDynamicInputChange('berufs', index, 'abschluss', value);
-                          handleDynamicInputBlur('berufs', index, 'abschluss', value);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="bg-background">
-                        <SelectValue placeholder="Abschluss wählen" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-lg z-50">
-                        {abschlussOptions.map((option) => (
-                          <SelectItem key={option} value={option} className="hover:bg-muted">
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
+                {!formData.schulbildung?.length && (
+                  <div className="rounded-lg bg-muted/20 p-3 text-sm text-muted-foreground">
+                    Noch keine Schulbildung hinzugefügt.
                   </div>
                 )}
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <Label htmlFor={`arbeit-plz-${index}`}>PLZ</Label>
-                    <Input
-                      id={`arbeit-plz-${index}`}
-                      placeholder="12345"
-                      value={getLocalInputValue('berufs', index, 'plz', arbeit.plz || '')}
-                      onChange={(e) => handleDynamicInputChange('berufs', index, 'plz', e.target.value)}
-                      onBlur={(e) => handleDynamicInputBlur('berufs', index, 'plz', e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label htmlFor={`arbeit-ort-${index}`}>Ort *</Label>
-                    <Input
-                      id={`arbeit-ort-${index}`}
-                      placeholder="z.B. München"
-                      value={getLocalInputValue('berufs', index, 'ort', arbeit.ort)}
-                      onChange={(e) => handleDynamicInputChange('berufs', index, 'ort', e.target.value)}
-                      onBlur={(e) => handleDynamicInputBlur('berufs', index, 'ort', e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label>Von Monat *</Label>
-                      <Select 
-                        value={arbeit.zeitraum_von ? (arbeit.zeitraum_von.split('-')[1] || '') : ''} 
-                        onValueChange={(month) => {
-                          const currentValue = arbeit.zeitraum_von || '';
-                          const parts = currentValue.split('-');
-                          const currentYear = parts[0] === '0000' ? '' : (parts[0] || '');
-                          updateBerufserfahrungDate(index, 'zeitraum_von', month, currentYear);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Monat" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {monthOptions.map((month) => (
-                            <SelectItem key={month.value} value={month.value}>
-                              {month.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Von Jahr *</Label>
-                      <Select 
-                        value={arbeit.zeitraum_von && arbeit.zeitraum_von.split('-')[0] !== '0000' ? (arbeit.zeitraum_von.split('-')[0] || '') : ''} 
-                        onValueChange={(year) => {
-                          const currentValue = arbeit.zeitraum_von || '';
-                          const parts = currentValue.split('-');
-                          const currentMonth = parts[1] || '';
-                          updateBerufserfahrungDate(index, 'zeitraum_von', currentMonth, year);
-                        }}
-                        disabled={!arbeit.zeitraum_von || (arbeit.zeitraum_von.split('-')[0] !== '0000' && !arbeit.zeitraum_von.split('-')[1])}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Jahr" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {yearOptions.map((year) => (
-                            <SelectItem key={year} value={year.toString()}>
-                              {year}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={`current-job-${index}`}
-                      checked={isCurrentJob(arbeit)}
-                      onCheckedChange={(checked) => toggleCurrentJob(index, checked as boolean)}
-                    />
-                    <Label htmlFor={`current-job-${index}`}>
-                      Aktueller Job (bis heute)
-                    </Label>
-                  </div>
+                {formData.schulbildung?.map((schule, index) => (
+                  <div key={index} className="border rounded-lg p-4 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-medium">Schulbildung {index + 1}</h4>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeSchulbildungEntry(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
 
-                  {!isCurrentJob(arbeit) && (() => {
-                    const bisOptions = getAvailableBisOptions(arbeit.zeitraum_von || '');
-                    const currentBisValue = arbeit.zeitraum_bis || '';
-                    const bisParts = currentBisValue.split('-');
-                    const bisYear = bisParts[0] === '0000' ? '' : (bisParts[0] || '');
-                    const bisMonth = bisParts[1] || '';
-                    
-                    // Check if current bis date is valid (not before von)
-                    let isValidBisDate = true;
-                    if (arbeit.zeitraum_von && arbeit.zeitraum_von.split('-')[0] !== '0000' && bisYear && bisMonth) {
-                      const vonYear = parseInt(arbeit.zeitraum_von.split('-')[0] || '0');
-                      const vonMonth = parseInt(arbeit.zeitraum_von.split('-')[1] || '0');
-                      const bisYearNum = parseInt(bisYear);
-                      const bisMonthNum = parseInt(bisMonth);
-                      
-                      if (bisYearNum < vonYear || (bisYearNum === vonYear && bisMonthNum < vonMonth)) {
-                        isValidBisDate = false;
-                      }
-                    }
-                    
-                    // Filter available months based on selected year
-                    const getAvailableMonthsForBis = () => {
-                      if (!bisYear || bisYear === '0000') {
-                        return bisOptions.availableMonths;
-                      }
-                      
-                      const bisYearNum = parseInt(bisYear);
-                      const vonYear = arbeit.zeitraum_von ? parseInt(arbeit.zeitraum_von.split('-')[0] || '0') : 0;
-                      const vonMonth = arbeit.zeitraum_von ? parseInt(arbeit.zeitraum_von.split('-')[1] || '0') : 0;
-                      
-                      if (bisYearNum === vonYear && vonMonth > 0) {
-                        // Same year: only allow months >= vonMonth
-                        return monthOptions.filter((month, index) => {
-                          const monthNum = index + 1;
-                          return monthNum >= vonMonth;
-                        });
-                      }
-                      
-                      // Different year: all months available
-                      return monthOptions;
-                    };
-                    
-                    return (
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor={`schulform-${index}`}>Schulform/Titel *</Label>
+                        <Select
+                          value={schule.schulform || ''}
+                          onValueChange={(value) => updateSchulbildungEntry(index, 'schulform', value)}
+                        >
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="Schulform wählen" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-lg z-50">
+                            {schulformOptions.map((option) => (
+                              <SelectItem key={option} value={option} className="hover:bg-muted">
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor={`schulname-${index}`}>Name der Schule *</Label>
+                        <Input
+                          id={`schulname-${index}`}
+                          placeholder="z.B. Friedrich-Schiller-Gymnasium"
+                          value={getLocalInputValue('schul', index, 'name', schule.name)}
+                          onChange={(e) => handleDynamicInputChange('schul', index, 'name', e.target.value)}
+                          onBlur={(e) => handleDynamicInputBlur('schul', index, 'name', e.target.value)}
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <Label htmlFor={`schule-plz-${index}`}>PLZ</Label>
+                          <Input
+                            id={`schule-plz-${index}`}
+                            placeholder="12345"
+                            value={getLocalInputValue('schul', index, 'plz', schule.plz || '')}
+                            onChange={(e) => handleDynamicInputChange('schul', index, 'plz', e.target.value)}
+                            onBlur={(e) => handleDynamicInputBlur('schul', index, 'plz', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label htmlFor={`schule-ort-${index}`}>Ort *</Label>
+                          <Input
+                            id={`schule-ort-${index}`}
+                            placeholder="z.B. Berlin"
+                            value={getLocalInputValue('schul', index, 'ort', schule.ort)}
+                            onChange={(e) => handleDynamicInputChange('schul', index, 'ort', e.target.value)}
+                            onBlur={(e) => handleDynamicInputBlur('schul', index, 'ort', e.target.value)}
+                          />
+                        </div>
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <Label>Bis Monat</Label>
-                          <Select 
-                            value={arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute' ? (arbeit.zeitraum_bis.split('-')[1] || '') : ''} 
+                          <Label>Von (Jahr) *</Label>
+                          <Select
+                            value={schule.zeitraum_von}
+                            onValueChange={(value) => updateSchulbildungDate(index, 'zeitraum_von', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Jahr wählen" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {yearOptions.map((year) => (
+                                <SelectItem key={year} value={year.toString()}>
+                                  {year}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Bis (Jahr) *</Label>
+                          <Select
+                            value={schule.zeitraum_bis}
+                            onValueChange={(value) => updateSchulbildungDate(index, 'zeitraum_bis', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Voraussichtlicher Abschluss" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {yearOptions.map((year) => (
+                                <SelectItem key={year} value={year.toString()}>
+                                  {year}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor={`schulbeschreibung-${index}`}>Beschreibung (optional)</Label>
+                      <Textarea
+                        id={`schulbeschreibung-${index}`}
+                        placeholder="z.B. Schwerpunkte, besondere Leistungen, Projekte..."
+                        value={getLocalInputValue('schul', index, 'beschreibung', schule.beschreibung || '')}
+                        onChange={(e) => handleDynamicInputChange('schul', index, 'beschreibung', e.target.value)}
+                        onBlur={(e) => handleDynamicInputBlur('schul', index, 'beschreibung', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* Berufserfahrung */}
+          <TabsContent value="work" className="mt-0 h-full">
+            <Card className="h-full p-3 md:p-4 flex flex-col min-h-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-base leading-tight">Praktische Erfahrung</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Optional: Praktika, Ferienjobs oder Nebenjobs.
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={addBerufserfahrungEntry} className="shrink-0">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Hinzufügen
+                </Button>
+              </div>
+
+              <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
+                {!formData.berufserfahrung?.length && (
+                  <div className="rounded-lg bg-muted/20 p-3 text-sm text-muted-foreground">
+                    Noch keine praktische Erfahrung hinzugefügt.
+                  </div>
+                )}
+
+                {formData.berufserfahrung?.map((arbeit, index) => (
+                  <div key={index} className="border rounded-lg p-4 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-medium">Erfahrung {index + 1}</h4>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeBerufserfahrungEntry(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor={`titel-${index}`}>Titel *</Label>
+                        <Input
+                          id={`titel-${index}`}
+                          placeholder="z.B. Praktikum, Ferienjob"
+                          value={getLocalInputValue('berufs', index, 'titel', arbeit.titel)}
+                          onChange={(e) => handleDynamicInputChange('berufs', index, 'titel', e.target.value)}
+                          onBlur={(e) => handleDynamicInputBlur('berufs', index, 'titel', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`unternehmen-${index}`}>Unternehmen/Einrichtung *</Label>
+                        <Input
+                          id={`unternehmen-${index}`}
+                          placeholder="z.B. Müller GmbH"
+                          value={getLocalInputValue('berufs', index, 'unternehmen', arbeit.unternehmen)}
+                          onChange={(e) => handleDynamicInputChange('berufs', index, 'unternehmen', e.target.value)}
+                          onBlur={(e) => handleDynamicInputBlur('berufs', index, 'unternehmen', e.target.value)}
+                        />
+                      </div>
+                      {isAusbildung(arbeit) && (
+                        <div>
+                          <Label htmlFor={`abschluss-${index}`}>Abschluss (optional)</Label>
+                          <Select
+                            value={arbeit.abschluss || ''}
+                            onValueChange={(value) => {
+                              if (value === 'Andere') {
+                                const input = prompt('Bitte geben Sie den Abschluss ein:');
+                                if (input) {
+                                  handleDynamicInputChange('berufs', index, 'abschluss', input);
+                                  handleDynamicInputBlur('berufs', index, 'abschluss', input);
+                                }
+                              } else {
+                                handleDynamicInputChange('berufs', index, 'abschluss', value);
+                                handleDynamicInputBlur('berufs', index, 'abschluss', value);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="bg-background">
+                              <SelectValue placeholder="Abschluss wählen" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background border shadow-lg z-50">
+                              {abschlussOptions.map((option) => (
+                                <SelectItem key={option} value={option} className="hover:bg-muted">
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <Label htmlFor={`arbeit-plz-${index}`}>PLZ</Label>
+                          <Input
+                            id={`arbeit-plz-${index}`}
+                            placeholder="12345"
+                            value={getLocalInputValue('berufs', index, 'plz', arbeit.plz || '')}
+                            onChange={(e) => handleDynamicInputChange('berufs', index, 'plz', e.target.value)}
+                            onBlur={(e) => handleDynamicInputBlur('berufs', index, 'plz', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label htmlFor={`arbeit-ort-${index}`}>Ort *</Label>
+                          <Input
+                            id={`arbeit-ort-${index}`}
+                            placeholder="z.B. München"
+                            value={getLocalInputValue('berufs', index, 'ort', arbeit.ort)}
+                            onChange={(e) => handleDynamicInputChange('berufs', index, 'ort', e.target.value)}
+                            onBlur={(e) => handleDynamicInputBlur('berufs', index, 'ort', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label>Von Monat *</Label>
+                          <Select
+                            value={arbeit.zeitraum_von ? (arbeit.zeitraum_von.split('-')[1] || '') : ''}
                             onValueChange={(month) => {
-                              const currentValue = arbeit.zeitraum_bis || '';
+                              const currentValue = arbeit.zeitraum_von || '';
                               const parts = currentValue.split('-');
                               const currentYear = parts[0] === '0000' ? '' : (parts[0] || '');
-                              updateBerufserfahrungDate(index, 'zeitraum_bis', month, currentYear);
+                              updateBerufserfahrungDate(index, 'zeitraum_von', month, currentYear);
                             }}
-                            disabled={!arbeit.zeitraum_von || arbeit.zeitraum_von.split('-')[0] === '0000' || !arbeit.zeitraum_von.split('-')[1]}
                           >
-                            <SelectTrigger className={!isValidBisDate ? 'border-destructive' : ''}>
+                            <SelectTrigger>
                               <SelectValue placeholder="Monat" />
                             </SelectTrigger>
                             <SelectContent>
-                              {getAvailableMonthsForBis().map((month) => (
+                              {monthOptions.map((month) => (
                                 <SelectItem key={month.value} value={month.value}>
                                   {month.label}
                                 </SelectItem>
@@ -895,22 +796,29 @@ const CVStep4 = () => {
                           </Select>
                         </div>
                         <div>
-                          <Label>Bis Jahr</Label>
-                          <Select 
-                            value={arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute' && arbeit.zeitraum_bis.split('-')[0] !== '0000' ? (arbeit.zeitraum_bis.split('-')[0] || '') : ''} 
+                          <Label>Von Jahr *</Label>
+                          <Select
+                            value={
+                              arbeit.zeitraum_von && arbeit.zeitraum_von.split('-')[0] !== '0000'
+                                ? (arbeit.zeitraum_von.split('-')[0] || '')
+                                : ''
+                            }
                             onValueChange={(year) => {
-                              const currentValue = arbeit.zeitraum_bis || '';
+                              const currentValue = arbeit.zeitraum_von || '';
                               const parts = currentValue.split('-');
                               const currentMonth = parts[1] || '';
-                              updateBerufserfahrungDate(index, 'zeitraum_bis', currentMonth, year);
+                              updateBerufserfahrungDate(index, 'zeitraum_von', currentMonth, year);
                             }}
-                            disabled={!arbeit.zeitraum_bis || arbeit.zeitraum_bis === 'heute' || (arbeit.zeitraum_bis.split('-')[0] !== '0000' && !arbeit.zeitraum_bis.split('-')[1]) || !arbeit.zeitraum_von || arbeit.zeitraum_von.split('-')[0] === '0000' || !arbeit.zeitraum_von.split('-')[1]}
+                            disabled={
+                              !arbeit.zeitraum_von ||
+                              (arbeit.zeitraum_von.split('-')[0] !== '0000' && !arbeit.zeitraum_von.split('-')[1])
+                            }
                           >
-                            <SelectTrigger className={!isValidBisDate ? 'border-destructive' : ''}>
+                            <SelectTrigger>
                               <SelectValue placeholder="Jahr" />
                             </SelectTrigger>
                             <SelectContent>
-                              {bisOptions.availableYears.map((year) => (
+                              {yearOptions.map((year) => (
                                 <SelectItem key={year} value={year.toString()}>
                                   {year}
                                 </SelectItem>
@@ -918,55 +826,178 @@ const CVStep4 = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                        {!isValidBisDate && (
-                          <div className="col-span-2">
-                            <p className="text-xs text-destructive mt-1">
-                              ⚠️ Das Enddatum muss nach dem Startdatum liegen.
-                            </p>
-                          </div>
-                        )}
                       </div>
-                    );
-                  })()}
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label htmlFor={`arbeitbeschreibung-${index}`}>Beschreibung (optional)</Label>
-                  <Button
-                    onClick={() => handleGenerateJobBullets(index)}
-                    disabled={generatingBulletsFor === index || !arbeit.titel || !arbeit.unternehmen}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {generatingBulletsFor === index ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Sparkles className="h-4 w-4 mr-2" />
-                    )}
-                    KI-Aufgaben
-                  </Button>
-                </div>
-                <Textarea
-                  id={`arbeitbeschreibung-${index}`}
-                  placeholder="z.B. Tätigkeiten, erworbene Fähigkeiten..."
-                  value={getLocalInputValue('berufs', index, 'beschreibung', arbeit.beschreibung || '')}
-                  onChange={(e) => handleDynamicInputChange('berufs', index, 'beschreibung', e.target.value)}
-                  onBlur={(e) => handleDynamicInputBlur('berufs', index, 'beschreibung', e.target.value)}
-                  rows={5}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
 
-      {/* Validation Message */}
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`current-job-${index}`}
+                          checked={isCurrentJob(arbeit)}
+                          onCheckedChange={(checked) => toggleCurrentJob(index, checked as boolean)}
+                        />
+                        <Label htmlFor={`current-job-${index}`}>Aktueller Job (bis heute)</Label>
+                      </div>
+
+                      {!isCurrentJob(arbeit) &&
+                        (() => {
+                          const bisOptions = getAvailableBisOptions(arbeit.zeitraum_von || '');
+                          const currentBisValue = arbeit.zeitraum_bis || '';
+                          const bisParts = currentBisValue.split('-');
+                          const bisYear = bisParts[0] === '0000' ? '' : (bisParts[0] || '');
+                          const bisMonth = bisParts[1] || '';
+
+                          let isValidBisDate = true;
+                          if (
+                            arbeit.zeitraum_von &&
+                            arbeit.zeitraum_von.split('-')[0] !== '0000' &&
+                            bisYear &&
+                            bisMonth
+                          ) {
+                            const vonYear = parseInt(arbeit.zeitraum_von.split('-')[0] || '0');
+                            const vonMonth = parseInt(arbeit.zeitraum_von.split('-')[1] || '0');
+                            const bisYearNum = parseInt(bisYear);
+                            const bisMonthNum = parseInt(bisMonth);
+                            if (bisYearNum < vonYear || (bisYearNum === vonYear && bisMonthNum < vonMonth)) {
+                              isValidBisDate = false;
+                            }
+                          }
+
+                          const getAvailableMonthsForBis = () => {
+                            if (!bisYear || bisYear === '0000') return bisOptions.availableMonths;
+                            const bisYearNum = parseInt(bisYear);
+                            const vonYear = arbeit.zeitraum_von
+                              ? parseInt(arbeit.zeitraum_von.split('-')[0] || '0')
+                              : 0;
+                            const vonMonth = arbeit.zeitraum_von
+                              ? parseInt(arbeit.zeitraum_von.split('-')[1] || '0')
+                              : 0;
+                            if (bisYearNum === vonYear && vonMonth > 0) {
+                              return monthOptions.filter((month, index) => index + 1 >= vonMonth);
+                            }
+                            return monthOptions;
+                          };
+
+                          return (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label>Bis Monat</Label>
+                                <Select
+                                  value={
+                                    arbeit.zeitraum_bis && arbeit.zeitraum_bis !== 'heute'
+                                      ? (arbeit.zeitraum_bis.split('-')[1] || '')
+                                      : ''
+                                  }
+                                  onValueChange={(month) => {
+                                    const currentValue = arbeit.zeitraum_bis || '';
+                                    const parts = currentValue.split('-');
+                                    const currentYear = parts[0] === '0000' ? '' : (parts[0] || '');
+                                    updateBerufserfahrungDate(index, 'zeitraum_bis', month, currentYear);
+                                  }}
+                                  disabled={
+                                    !arbeit.zeitraum_von ||
+                                    arbeit.zeitraum_von.split('-')[0] === '0000' ||
+                                    !arbeit.zeitraum_von.split('-')[1]
+                                  }
+                                >
+                                  <SelectTrigger className={!isValidBisDate ? 'border-destructive' : ''}>
+                                    <SelectValue placeholder="Monat" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {getAvailableMonthsForBis().map((month) => (
+                                      <SelectItem key={month.value} value={month.value}>
+                                        {month.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label>Bis Jahr</Label>
+                                <Select
+                                  value={
+                                    arbeit.zeitraum_bis &&
+                                    arbeit.zeitraum_bis !== 'heute' &&
+                                    arbeit.zeitraum_bis.split('-')[0] !== '0000'
+                                      ? (arbeit.zeitraum_bis.split('-')[0] || '')
+                                      : ''
+                                  }
+                                  onValueChange={(year) => {
+                                    const currentValue = arbeit.zeitraum_bis || '';
+                                    const parts = currentValue.split('-');
+                                    const currentMonth = parts[1] || '';
+                                    updateBerufserfahrungDate(index, 'zeitraum_bis', currentMonth, year);
+                                  }}
+                                  disabled={
+                                    !arbeit.zeitraum_bis ||
+                                    arbeit.zeitraum_bis === 'heute' ||
+                                    (arbeit.zeitraum_bis.split('-')[0] !== '0000' &&
+                                      !arbeit.zeitraum_bis.split('-')[1]) ||
+                                    !arbeit.zeitraum_von ||
+                                    arbeit.zeitraum_von.split('-')[0] === '0000' ||
+                                    !arbeit.zeitraum_von.split('-')[1]
+                                  }
+                                >
+                                  <SelectTrigger className={!isValidBisDate ? 'border-destructive' : ''}>
+                                    <SelectValue placeholder="Jahr" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {bisOptions.availableYears.map((year) => (
+                                      <SelectItem key={year} value={year.toString()}>
+                                        {year}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {!isValidBisDate && (
+                                <div className="col-span-2">
+                                  <p className="text-xs text-destructive mt-1">
+                                    ⚠️ Das Enddatum muss nach dem Startdatum liegen.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor={`arbeitbeschreibung-${index}`}>Beschreibung (optional)</Label>
+                        <Button
+                          onClick={() => handleGenerateJobBullets(index)}
+                          disabled={generatingBulletsFor === index || !arbeit.titel || !arbeit.unternehmen}
+                          variant="outline"
+                          size="sm"
+                        >
+                          {generatingBulletsFor === index ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 mr-2" />
+                          )}
+                          KI-Aufgaben
+                        </Button>
+                      </div>
+                      <Textarea
+                        id={`arbeitbeschreibung-${index}`}
+                        placeholder="z.B. Tätigkeiten, erworbene Fähigkeiten..."
+                        value={getLocalInputValue('berufs', index, 'beschreibung', arbeit.beschreibung || '')}
+                        onChange={(e) => handleDynamicInputChange('berufs', index, 'beschreibung', e.target.value)}
+                        onBlur={(e) => handleDynamicInputBlur('berufs', index, 'beschreibung', e.target.value)}
+                        rows={5}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </TabsContent>
+        </div>
+      </Tabs>
+
       {!hasMinimumSchulbildung && (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <div className="mt-2 shrink-0 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
           <p className="text-sm text-yellow-800">
-            ⚠️ <strong>Hinweis:</strong> Du musst mindestens eine schulische Erfahrung hinzufügen, 
-            um fortfahren zu können.
+            ⚠️ <strong>Hinweis:</strong> Du musst mindestens eine schulische Erfahrung hinzufügen, um fortfahren zu können.
           </p>
         </div>
       )}
