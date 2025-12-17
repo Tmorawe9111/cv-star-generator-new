@@ -22,6 +22,7 @@ export interface PipelineCandidateRow {
   match_score: number | null;
   linked_job_ids: string[] | null;
   unlocked_at: string | null;
+  created_at: string | null;
   updated_at: string | null;
   interview_date: string | null;
   next_action_at: string | null;
@@ -89,6 +90,7 @@ export async function fetchPipelineSnapshot(
        match_score,
        linked_job_ids,
        unlocked_at,
+       created_at,
        updated_at,
        interview_date,
        next_action_at,

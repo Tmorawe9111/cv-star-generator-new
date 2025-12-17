@@ -277,6 +277,7 @@ function toCandidateItem(
     completeness: candidate.match_score != null ? Math.min(100, Math.max(30, candidate.match_score)) : 65,
     headline: profile?.headline ?? profile?.branche ?? undefined,
     seeking: formatSeeking(profile?.job_search_preferences),
+    appliedAt: isFromApplication ? (candidate.created_at ?? candidate.updated_at ?? null) : null,
     plannedAt: candidate.status === "INTERVIEW_GEPLANT" 
       ? (candidate.interview_date ?? candidate.next_action_at ?? candidate.updated_at ?? undefined)
       : undefined,
@@ -528,7 +529,7 @@ export default function CompanyDashboard() {
     try {
       console.log("Dashboard: Starting to load pipeline snapshot...");
       const pipelineSnapshot = await fetchPipelineSnapshot(companyId, {
-        limitPerStage: 6,
+        limitPerStage: 4,
         scopedJobIds: assignedJobIds ?? [],
         role,
       });

@@ -30,6 +30,7 @@ export interface CandidateCardData {
   completeness?: number | null;
   headline?: string | null;
   seeking?: string | null;
+  appliedAt?: string | null;
   plannedAt?: string | null;
   jobTitle?: string | null;
   avatarUrl?: string | null;
@@ -215,6 +216,11 @@ export function CandidateCard({
                   {data.city ? `${data.city} · ` : ""}
                   {data.jobTitle ?? data.headline ?? "Profil"}
                 </p>
+                {isApplication && !isUnlocked && data.appliedAt && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Beworben am {format(new Date(data.appliedAt), "dd.MM.yyyy", { locale: de })}
+                  </p>
+                )}
               </div>
               {badge && (
                 <Badge
