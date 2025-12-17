@@ -431,47 +431,53 @@ export default function PublicJobDetailPage() {
                   )}
                 </>
               ) : (
-                <div className="space-y-2">
-                  <Button 
-                    className="w-full bg-green-600 hover:bg-green-700 text-white" 
-                    size="lg"
-                    onClick={() => setApplicationStatusOpen(true)}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    {String((myApplication as any)?.status) === "archived"
-                      ? "Bewerbung abgesagt"
-                      : String((myApplication as any)?.status) === "rejected"
-                      ? "Bewerbung abgelehnt"
-                      : "Bereits beworben"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setApplicationStatusOpen(true)}
-                  >
-                    Bewerbungsstatus ansehen
-                  </Button>
-                  <div className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground">
-                    <div className="flex items-center justify-between gap-3">
-                      <span>Status</span>
-                      <span className="font-medium text-foreground">{statusLabel((myApplication as any)?.status)}</span>
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-green-600 text-white">
+                        <CheckCircle className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-green-900">
+                          {String((myApplication as any)?.status) === "archived"
+                            ? "Bewerbung abgesagt"
+                            : String((myApplication as any)?.status) === "rejected"
+                              ? "Bewerbung abgelehnt"
+                              : "Du hast dich beworben"}
+                        </div>
+                        <div className="mt-1 text-sm text-green-900/80">
+                          Beworben am{" "}
+                          <span className="font-medium text-green-900">
+                            {formatDateTime((myApplication as any)?.created_at)}
+                          </span>
+                        </div>
+                        {(myApplication as any)?.unlocked_at ? (
+                          <div className="mt-1 text-sm text-green-900/80">
+                            Freigeschaltet am{" "}
+                            <span className="font-medium text-green-900">
+                              {formatDateTime((myApplication as any)?.unlocked_at)}
+                            </span>
+                          </div>
+                        ) : null}
+                        {(myApplication as any)?.updated_at ? (
+                          <div className="mt-1 text-xs text-green-900/60">
+                            Zuletzt aktualisiert: {formatDateTime((myApplication as any)?.updated_at)}
+                          </div>
+                        ) : null}
+                      </div>
+                      <Badge className="bg-green-600 text-white hover:bg-green-600">
+                        {statusLabel((myApplication as any)?.status)}
+                      </Badge>
                     </div>
-                    {(myApplication as any)?.unlocked_at ? (
-                      <div className="flex items-center justify-between gap-3 mt-1">
-                        <span>Freigeschaltet</span>
-                        <span className="font-medium text-foreground">
-                          {formatDateTime((myApplication as any)?.unlocked_at)}
-                        </span>
-                      </div>
-                    ) : null}
-                    {(myApplication as any)?.updated_at ? (
-                      <div className="flex items-center justify-between gap-3 mt-1">
-                        <span>Aktualisiert</span>
-                        <span className="font-medium text-foreground">
-                          {formatDateTime((myApplication as any)?.updated_at)}
-                        </span>
-                      </div>
-                    ) : null}
+                    <div className="mt-3">
+                      <Button
+                        variant="outline"
+                        className="w-full border-green-200 bg-white hover:bg-white"
+                        onClick={() => setApplicationStatusOpen(true)}
+                      >
+                        Bewerbungsstatus öffnen
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

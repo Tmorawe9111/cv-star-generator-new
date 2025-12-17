@@ -83,6 +83,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
           variant: "secondary" as const,
           icon: Clock,
           color: "text-yellow-600",
+          banner: "bg-green-50 border-green-200 text-green-900",
         };
       case "unlocked":
         return {
@@ -90,6 +91,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
           variant: "default" as const,
           icon: CheckCircle,
           color: "text-blue-600",
+          banner: "bg-blue-50 border-blue-200 text-blue-900",
         };
       case "interview":
         return {
@@ -97,6 +99,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
           variant: "default" as const,
           icon: Calendar,
           color: "text-purple-600",
+          banner: "bg-purple-50 border-purple-200 text-purple-900",
         };
       case "offer":
         return {
@@ -104,6 +107,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
           variant: "default" as const,
           icon: CheckCircle,
           color: "text-indigo-600",
+          banner: "bg-indigo-50 border-indigo-200 text-indigo-900",
         };
       case "hired":
         return {
@@ -111,6 +115,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
           variant: "default" as const,
           icon: CheckCircle,
           color: "text-green-600",
+          banner: "bg-emerald-50 border-emerald-200 text-emerald-900",
         };
       case "rejected":
         return {
@@ -118,6 +123,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
           variant: "destructive" as const,
           icon: XCircle,
           color: "text-red-600",
+          banner: "bg-red-50 border-red-200 text-red-900",
         };
       case "archived":
         return {
@@ -125,6 +131,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
           variant: "outline" as const,
           icon: AlertCircle,
           color: "text-gray-600",
+          banner: "bg-orange-50 border-orange-200 text-orange-900",
         };
     }
   };
@@ -248,6 +255,40 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                         <p className="text-sm text-muted-foreground">
                           {application.job?.city} • {application.job?.employment_type}
                         </p>
+
+                        {/* Status banner (Apple-style) */}
+                        <div className={`mt-3 rounded-xl border p-3 ${statusConfig.banner}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold flex items-center gap-2">
+                                <StatusIcon className="h-4 w-4" />
+                                {statusConfig.label}
+                              </div>
+                              <div className="mt-1 text-xs opacity-90">
+                                Beworben am{" "}
+                                <span className="font-medium">
+                                  {format(new Date(application.created_at), "dd.MM.yyyy HH:mm", { locale: de })}
+                                </span>
+                              </div>
+                              {application.unlocked_at && (
+                                <div className="mt-1 text-xs opacity-90">
+                                  Freigeschaltet am{" "}
+                                  <span className="font-medium">
+                                    {format(new Date(application.unlocked_at), "dd.MM.yyyy HH:mm", { locale: de })}
+                                  </span>
+                                </div>
+                              )}
+                              {getRejectionReason(application) && (application.status === "rejected" || application.status === "archived") && (
+                                <div className="mt-2 text-xs opacity-90 break-words">
+                                  Grund: <span className="font-medium">{getRejectionReason(application)}</span>
+                                </div>
+                              )}
+                            </div>
+                            <Badge variant="outline" className="bg-white/60">
+                              Status
+                            </Badge>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Actions Menu */}
