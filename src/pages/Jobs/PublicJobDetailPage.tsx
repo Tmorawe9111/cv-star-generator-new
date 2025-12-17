@@ -698,7 +698,11 @@ export default function PublicJobDetailPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Du hast dich hier schon beworben</AlertDialogTitle>
+            <AlertDialogTitle>
+              {companyHistory?.kind === "same_job"
+                ? "Du hast dich auf diese Stelle bereits beworben"
+                : "Du hast dich hier schon beworben"}
+            </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>
                 Es gibt bereits eine Bewerbung bei{" "}
@@ -730,22 +734,32 @@ export default function PublicJobDetailPage() {
                   </div>
                 ) : null}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Wenn du trotzdem fortfährst, wird eine neue Bewerbung auf diese Stelle gesendet.
-              </p>
+              {companyHistory?.kind !== "same_job" && (
+                <p className="text-xs text-muted-foreground">
+                  Wenn du trotzdem fortfährst, wird eine neue Bewerbung auf diese Stelle gesendet.
+                </p>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => clearCompanyHistory()}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                clearCompanyHistory();
-                applyToJob({ ignoreCompanyHistory: true } as any);
-              }}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Trotzdem bewerben
-            </AlertDialogAction>
+            {companyHistory?.kind === "same_job" ? (
+              <AlertDialogAction onClick={() => clearCompanyHistory()} className="bg-blue-600 hover:bg-blue-700">
+                Okay
+              </AlertDialogAction>
+            ) : (
+              <>
+                <AlertDialogCancel onClick={() => clearCompanyHistory()}>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    clearCompanyHistory();
+                    applyToJob({ ignoreCompanyHistory: true } as any);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Trotzdem bewerben
+                </AlertDialogAction>
+              </>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

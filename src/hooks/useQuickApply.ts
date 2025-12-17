@@ -11,6 +11,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
   const queryClient = useQueryClient();
   const { track } = useTrackInteraction();
   const [companyHistory, setCompanyHistory] = useState<null | {
+    kind?: "same_job" | "company_history";
     companyId: string;
     companyName?: string | null;
     previousJobId?: string | null;
@@ -207,6 +208,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
           (existingApplication as any).reason_short ||
           null;
         setCompanyHistory({
+          kind: "same_job",
           companyId: job.company_id,
           companyName: (job as any)?.company?.name ?? null,
           previousJobId: jobId,
@@ -245,6 +247,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
             (lastCompanyApp as any).reason_short ||
             null;
           setCompanyHistory({
+            kind: "company_history",
             companyId: job.company_id,
             companyName: (job as any)?.company?.name ?? null,
             previousJobId: (lastCompanyApp as any).job_id ?? null,
@@ -268,7 +271,55 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
           source: "applied",
         });
 
-      if (appError) throw appError;
+      if (appError) {
+        // Graceful handling: unique constraint means user already applied (race / double click / out-of-date UI)
+        const code = (appError as any)?.code;
+        const message = String((appError as any)?.message || "");
+        const details = String((appError as any)?.details || "");
+        const isDuplicate =
+          code === "23505" ||
+          message.toLowerCase().includes("duplicate key") ||
+          message.includes("applications_unique_per_job_idx") ||
+          details.includes("applications_unique_per_job_idx") ||
+          message.includes("uniq_applications_candidate_job") ||
+          details.includes("uniq_applications_candidate_job");
+
+        if (isDuplicate) {
+          // Load existing application details and show the already-applied dialog
+          const { data: existingNow } = await supabase
+            .from("applications")
+            .select("id, status, created_at, reason_short, reason_custom, rejection_reason")
+            .eq("company_id", job.company_id)
+            .eq("job_id", jobId)
+            .eq("candidate_id", user.id)
+            .maybeSingle();
+
+          const reason =
+            (existingNow as any)?.reason_custom ||
+            (existingNow as any)?.rejection_reason ||
+            (existingNow as any)?.reason_short ||
+            null;
+
+          setCompanyHistory({
+            kind: "same_job",
+            companyId: job.company_id,
+            companyName: (job as any)?.company?.name ?? null,
+            previousJobId: jobId,
+            previousJobTitle: (job as any)?.title ?? null,
+            status: (existingNow as any)?.status ?? null,
+            appliedAt: (existingNow as any)?.created_at ?? null,
+            reason,
+          });
+
+          // Ensure UI refreshes the disabled state
+          queryClient.invalidateQueries({ queryKey: ["application-status", jobId, user?.id] });
+          queryClient.invalidateQueries({ queryKey: ["my-applications", user?.id] });
+
+          throw new Error("COMPANY_HISTORY_DUPLICATE_JOB");
+        }
+
+        throw appError;
+      }
       
       // Track application for personalization (strongest signal!)
       track('apply', 'job', jobId, jobMetadata || {});
