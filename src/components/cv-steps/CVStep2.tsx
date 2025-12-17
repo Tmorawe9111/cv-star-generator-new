@@ -298,7 +298,8 @@ const CVStep2 = () => {
             {/* Name + Geburtsdatum */}
             <div className="flex-1 space-y-2 md:space-y-2.5 min-w-0 w-full">
               {/* Vorname + Nachname */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-2.5">
+              {/* Mobile: side-by-side to reduce vertical scrolling */}
+              <div className="grid grid-cols-2 gap-2 md:gap-2.5">
                 <FormFieldError error={validationErrors.vorname}>
                   <div className="space-y-1 md:space-y-1.5">
                     <Label htmlFor="vorname" className="text-[10px] md:text-xs font-medium text-gray-700">Vorname *</Label>
@@ -362,7 +363,8 @@ const CVStep2 = () => {
                             ? maxDate.getDate()
                             : daysInMonth;
                           return Array.from({ length: maxDay }, (_, i) => i + 1).map((day) => (
-                            <SelectItem key={day} value={String(day)}>
+                          // IMPORTANT: keep values zero-padded to match the Select value (prevents "day not selectable" on mobile)
+                          <SelectItem key={day} value={String(day).padStart(2, '0')}>
                               {String(day).padStart(2, '0')}
                             </SelectItem>
                           ));
@@ -505,8 +507,9 @@ const CVStep2 = () => {
           <div className="border-t border-gray-200"></div>
 
           {/* Row 3: Straße + Nr. */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-2.5 relative z-10">
-            <FormFieldError error={validationErrors.strasse} className="md:col-span-2">
+          {/* Mobile: Straße & Hausnummer side-by-side */}
+          <div className="grid grid-cols-3 gap-2 md:gap-2.5 relative z-10">
+            <FormFieldError error={validationErrors.strasse} className="col-span-2 md:col-span-2">
               <div className="space-y-1 md:space-y-1.5">
                 <Label htmlFor="strasse" className="text-[10px] md:text-xs font-medium text-gray-700">Straße *</Label>
                 <Input
