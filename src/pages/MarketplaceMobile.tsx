@@ -947,7 +947,8 @@ export default function MarketplaceMobile() {
   return (
     <div 
       ref={containerRef}
-      className="min-h-screen bg-gray-50/50 pb-24 overflow-y-auto"
+      className="h-[100dvh] bg-gray-50/50 pb-24 overflow-y-auto"
+      style={{ WebkitOverflowScrolling: 'touch' }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -998,7 +999,7 @@ export default function MarketplaceMobile() {
         <div
           data-hscroll="true"
           className="overflow-x-auto no-scrollbar scroll-smooth"
-          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div className="flex gap-3 px-4 pb-2">
             {forYouItems.length > 0 ? forYouItems.map(({ item, type }, index) => (
@@ -1034,7 +1035,7 @@ export default function MarketplaceMobile() {
           <div
             data-hscroll="true"
             className="overflow-x-auto no-scrollbar scroll-smooth"
-            style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+            style={{ WebkitOverflowScrolling: 'touch' }}
           >
             <div className="flex gap-3 px-4 pb-2">
               {allCompanies.slice(0, 8).map((company, idx) => (
@@ -1064,7 +1065,7 @@ export default function MarketplaceMobile() {
               ref={postsScrollRef}
               data-hscroll="true"
               className="overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth"
-              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
             >
               <div className="flex gap-3" style={{ width: `${posts.slice(0, 5).length * 296}px` }}>
                 {posts.slice(0, 5).map((post, idx) => (
@@ -1117,7 +1118,7 @@ export default function MarketplaceMobile() {
         <div
           data-hscroll="true"
           className="overflow-x-auto no-scrollbar"
-          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div className="flex gap-3 px-4 pb-2">
             {(jobs.length > 0 ? jobs : DUMMY_JOBS).slice(0, 6).map((job) => (
@@ -1144,7 +1145,7 @@ export default function MarketplaceMobile() {
         <div
           data-hscroll="true"
           className="overflow-x-auto no-scrollbar"
-          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div className="flex gap-3 px-4 pb-2">
             {peopleQuery.isLoading ? (
