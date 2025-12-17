@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLoginCounter } from '@/hooks/useLoginCounter';
 import { saveProfileLocation, parseLocation } from '@/lib/location-utils';
+import { openVisibilityPrompt } from '@/lib/event-bus';
 
 interface AddressData {
   zip: string;
@@ -15,7 +16,6 @@ interface AddressData {
 
 interface EntryGateState {
   showAddressModal: boolean;
-  showVisibilityModal: boolean;
   showVisibilityBanner: boolean;
   addressData: AddressData | null;
   loading: boolean;
@@ -26,7 +26,6 @@ export function useEntryGates() {
   const { loginCount } = useLoginCounter();
   const [state, setState] = useState<EntryGateState>({
     showAddressModal: false,
-    showVisibilityModal: false,
     showVisibilityBanner: false,
     addressData: null,
     loading: false
@@ -77,10 +76,23 @@ export function useEntryGates() {
       profile.visibility_prompt_shown;
 
     if (qualifiesFirstPrompt || needsCyclicPrompt) {
-      setState(prev => ({
-        ...prev,
-        showVisibilityModal: true
-      }));
+      // Use the same VisibilityPrompt everywhere (the one used in the profile)
+      openVisibilityPrompt();
+
+      // Mark prompt as shown so we don't keep re-opening it on every navigation
+      if (!profile.visibility_prompt_shown) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ visibility_prompt_shown: true })
+            .eq('id', user.id);
+        } catch (e) {
+          console.warn('Failed to mark visibility_prompt_shown', e);
+        }
+      }
+
+      // Hide banner when opening the prompt
+      setState(prev => ({ ...prev, showVisibilityBanner: false }));
     } else if (isInvisible && !needsCyclicPrompt) {
       // Allow dismissing the banner (so it doesn't block BottomNav on mobile)
       const dismissKey = `visibility_banner_dismissed_until_${profile.id}`;
@@ -228,48 +240,6 @@ export function useEntryGates() {
     }
   }, [user, refetchProfile, checkVisibilityPrompt]);
 
-  const saveVisibilityChoice = useCallback(async (choice: 'visible' | 'invisible') => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          visibility_mode: choice,
-          visibility_prompt_shown: true
-        })
-        .eq('id', user.id);
-
-      if (error) {
-        console.error('Failed to save visibility choice:', error);
-        return;
-      }
-
-      setState(prev => ({
-        ...prev,
-        showVisibilityModal: false,
-        showVisibilityBanner: choice === 'invisible'
-      }));
-    } catch (error) {
-      console.error('Failed to save visibility choice:', error);
-    }
-  }, [user]);
-
-  const closeVisibilityModal = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      showVisibilityModal: false
-    }));
-  }, []);
-
-  const openVisibilityModal = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      showVisibilityModal: true,
-      showVisibilityBanner: false
-    }));
-  }, []);
-
   const closeVisibilityBanner = useCallback(() => {
     // Dismiss for 24h
     if (profile?.id) {
@@ -286,9 +256,6 @@ export function useEntryGates() {
     ...state,
     onNavigate,
     saveAddress,
-    saveVisibilityChoice,
-    closeVisibilityModal,
-    openVisibilityModal,
     closeVisibilityBanner,
     closeAddressModal: () => setState(prev => ({ ...prev, showAddressModal: false }))
   };

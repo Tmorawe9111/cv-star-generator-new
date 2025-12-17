@@ -6,9 +6,10 @@ import { AppSidebar } from "@/components/AppSidebar";
 import BottomNav from "@/components/navigation/BottomNav";
 import NewPostComposer from "@/components/community/NewPostComposer";
 import { VisibilityPrompt } from "@/components/modals/VisibilityPrompt";
-import { VisibilityNudge, VisibilityInfoBanner } from "@/components/modals/VisibilityNudge";
+import { VisibilityInfoBanner } from "@/components/modals/VisibilityNudge";
 import { useEntryGates } from "@/hooks/useEntryGates";
 import { cn } from "@/lib/utils";
+import { openVisibilityPrompt } from "@/lib/event-bus";
 
 export function AuthenticatedLayout() {
   const { profile, isLoading, user } = useAuth();
@@ -77,15 +78,9 @@ export function AuthenticatedLayout() {
         <NewPostComposer />
         
         {/* Entry Gates - Address confirmation removed */}
-        
-        <VisibilityNudge
-          open={entryGates.showVisibilityModal}
-          onClose={entryGates.closeVisibilityModal}
-          onChoose={entryGates.saveVisibilityChoice}
-        />
-        
+
         {entryGates.showVisibilityBanner && (
-          <VisibilityInfoBanner onOpen={entryGates.openVisibilityModal} onDismiss={entryGates.closeVisibilityBanner} />
+          <VisibilityInfoBanner onOpen={openVisibilityPrompt} onDismiss={entryGates.closeVisibilityBanner} />
         )}
       </main>
     </div>

@@ -10,6 +10,7 @@ interface VisibilityNudgeProps {
   allowClose?: boolean;
 }
 
+// NOTE: Deprecated. We use the unified `VisibilityPrompt` everywhere now.
 export function VisibilityNudge({ open, onClose, onChoose, allowClose = true }: VisibilityNudgeProps) {
   const handleChoice = (choice: 'visible' | 'invisible') => {
     onChoose(choice);
