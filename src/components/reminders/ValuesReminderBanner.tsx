@@ -11,6 +11,7 @@ export function ValuesReminderBanner() {
   const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const dismissedKey = profile?.id ? `values_reminder_dismissed_${profile.id}` : null;
 
   useEffect(() => {
     checkCompletion();
@@ -33,12 +34,8 @@ export function ValuesReminderBanner() {
 
       if (data && (!(data as any).values_completed || !(data as any).interview_completed)) {
         // Check if dismissed in localStorage
-        const dismissedKey = `values_reminder_dismissed_${profile.id}`;
-        const wasDismissed = localStorage.getItem(dismissedKey);
-        
-        if (!wasDismissed) {
-          setShow(true);
-        }
+        const wasDismissed = dismissedKey ? localStorage.getItem(dismissedKey) : null;
+        if (!wasDismissed) setShow(true);
       }
     } catch (error) {
       console.error('Error checking completion:', error);
@@ -46,12 +43,9 @@ export function ValuesReminderBanner() {
   };
 
   const handleDismiss = () => {
-    if (profile?.id) {
-      const dismissedKey = `values_reminder_dismissed_${profile.id}`;
-      localStorage.setItem(dismissedKey, 'true');
-      setDismissed(true);
-      setShow(false);
-    }
+    if (dismissedKey) localStorage.setItem(dismissedKey, 'true');
+    setDismissed(true);
+    setShow(false);
   };
 
   const handleComplete = () => {
@@ -60,39 +54,43 @@ export function ValuesReminderBanner() {
 
   const handleModalComplete = () => {
     setModalOpen(false);
-    // Reload to check completion status
-    window.location.reload();
+    // Re-check completion (avoid hard reload)
+    checkCompletion();
   };
 
   if (!show || dismissed) return null;
 
   return (
     <>
-      <Card className="mb-4 border-blue-200 bg-blue-50">
-        <div className="p-4 flex items-center justify-between">
-          <div className="flex-1">
-            <p className="font-medium text-blue-900">
-              Vervollständige deine Werte – bessere Matches!
-            </p>
-            <p className="text-sm text-blue-700 mt-1">
-              Unternehmen möchten mehr über dich erfahren.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={handleComplete}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Jetzt vervollständigen
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDismiss}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+      <Card className="mb-4 border-[#c7ddff] bg-gradient-to-b from-[#eff6ff] to-white shadow-sm rounded-2xl">
+        <div className="p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-semibold text-[#0f172a] leading-snug">
+                Vervollständige deine Werte – bessere Matches.
+              </div>
+              <div className="mt-1 text-[13px] text-muted-foreground">
+                Unternehmen möchten mehr über dich erfahren.
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleComplete}
+                  className="h-10 rounded-full px-5 bg-[#2563eb] hover:bg-[#1d4ed8]"
+                >
+                  Jetzt vervollständigen
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleDismiss}
+                  className="h-10 w-10 rounded-full"
+                  aria-label="Banner schließen"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </Card>

@@ -3,7 +3,7 @@ import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { X } from 'lucide-react';
 import { CompanyValuesOverviewModal } from '@/components/modals/CompanyValuesOverviewModal';
 
 export function CompanyValuesReminderBanner() {
@@ -11,6 +11,7 @@ export function CompanyValuesReminderBanner() {
   const [showReminder, setShowReminder] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const dismissedKey = company?.id ? `company_values_reminder_dismissed_${company.id}` : null;
 
   useEffect(() => {
     if (company?.id) {
@@ -30,7 +31,8 @@ export function CompanyValuesReminderBanner() {
 
       if (data) {
         const needsReminder = !data.values_completed || !data.interview_questions_completed;
-        setShowReminder(needsReminder);
+        const wasDismissed = dismissedKey ? localStorage.getItem(dismissedKey) : null;
+        setShowReminder(needsReminder && !wasDismissed);
       }
     } catch (error) {
       console.error('Error checking completion status:', error);
@@ -45,26 +47,40 @@ export function CompanyValuesReminderBanner() {
 
   return (
     <>
-      <Card className="p-4 bg-yellow-50 border-yellow-200 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-yellow-600" />
-            <div>
-              <h3 className="font-semibold text-sm text-yellow-900">
-                Vervollständige deine Werte – bessere Matches!
-              </h3>
-              <p className="text-xs text-yellow-700 mt-0.5">
+      <Card className="mb-4 border-[#fde68a] bg-gradient-to-b from-[#fffbeb] to-white shadow-sm rounded-2xl">
+        <div className="p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-semibold text-[#0f172a] leading-snug">
+                Werteprofil vervollständigen – bessere Matches.
+              </div>
+              <div className="mt-1 text-[13px] text-muted-foreground">
                 Bewerber sehen deine Werte und Erwartungen im Profil.
-              </p>
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setShowModal(true)}
+                  className="h-10 rounded-full px-5 bg-[#f59e0b] hover:bg-[#d97706] text-white"
+                >
+                  Jetzt vervollständigen
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    if (dismissedKey) localStorage.setItem(dismissedKey, 'true');
+                    setShowReminder(false);
+                  }}
+                  className="h-10 w-10 rounded-full"
+                  aria-label="Banner schließen"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
           </div>
-          <Button
-            size="sm"
-            onClick={() => setShowModal(true)}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white"
-          >
-            Jetzt vervollständigen
-          </Button>
         </div>
       </Card>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
 
 interface VisibilityNudgeProps {
   open: boolean;
@@ -48,19 +49,44 @@ export function VisibilityNudge({ open, onClose, onChoose, allowClose = true }: 
   );
 }
 
-export function VisibilityInfoBanner({ onOpen }: { onOpen: () => void }) {
+export function VisibilityInfoBanner({ onOpen, onDismiss }: { onOpen: () => void; onDismiss: () => void }) {
   return (
-    <div className="fixed inset-x-0 bottom-3 z-[9996] mx-auto w-[min(640px,92vw)] rounded-xl bg-amber-50 text-amber-900 shadow ring-1 ring-amber-200 px-3 py-2 flex items-center gap-2"
-         style={{ bottom: 'env(safe-area-inset-bottom, 12px)' }}>
-      <span className="text-sm">
+    <div
+      className={[
+        // Mobile: centered and ABOVE BottomNav so it never blocks it
+        "fixed inset-x-0 z-[9996] mx-auto w-[min(680px,92vw)]",
+        "rounded-2xl bg-white/85 backdrop-blur shadow-lg ring-1 ring-black/10",
+        "px-3 py-2.5 flex items-center gap-2",
+        // Desktop: bottom-right toast style
+        "md:left-auto md:right-6 md:bottom-6 md:w-[min(520px,40vw)]",
+      ].join(" ")}
+      style={{
+        // BottomNav sits at bottom:0 with its own height. We place this ABOVE it.
+        bottom: "calc(env(safe-area-inset-bottom) + 72px)",
+      }}
+      role="status"
+      aria-live="polite"
+    >
+      <span className="text-sm text-foreground">
         Aktuell <strong>unsichtbar</strong> für Unternehmen.
       </span>
-      <button 
-        className="ml-auto text-sm underline hover:no-underline min-h-[44px] px-2" 
+      <Button
+        variant="ghost"
+        size="sm"
+        className="ml-auto h-9 rounded-full px-3 text-sm underline-offset-4 hover:underline"
         onClick={onOpen}
       >
         Sichtbarkeit ändern
-      </button>
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-9 w-9 rounded-full"
+        onClick={onDismiss}
+        aria-label="Banner schließen"
+      >
+        <X className="h-5 w-5" />
+      </Button>
     </div>
   );
 }

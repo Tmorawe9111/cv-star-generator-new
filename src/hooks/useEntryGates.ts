@@ -82,6 +82,13 @@ export function useEntryGates() {
         showVisibilityModal: true
       }));
     } else if (isInvisible && !needsCyclicPrompt) {
+      // Allow dismissing the banner (so it doesn't block BottomNav on mobile)
+      const dismissKey = `visibility_banner_dismissed_until_${profile.id}`;
+      const dismissedUntilRaw = localStorage.getItem(dismissKey);
+      const dismissedUntil = dismissedUntilRaw ? parseInt(dismissedUntilRaw, 10) : 0;
+      if (dismissedUntil && dismissedUntil > Date.now()) {
+        return;
+      }
       // Show info banner when invisible but not on 3rd login
       setState(prev => ({
         ...prev,
@@ -264,11 +271,16 @@ export function useEntryGates() {
   }, []);
 
   const closeVisibilityBanner = useCallback(() => {
+    // Dismiss for 24h
+    if (profile?.id) {
+      const dismissKey = `visibility_banner_dismissed_until_${profile.id}`;
+      localStorage.setItem(dismissKey, String(Date.now() + 24 * 60 * 60 * 1000));
+    }
     setState(prev => ({
       ...prev,
       showVisibilityBanner: false
     }));
-  }, []);
+  }, [profile?.id]);
 
   return {
     ...state,

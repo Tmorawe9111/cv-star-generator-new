@@ -85,7 +85,7 @@ export function AuthenticatedLayout() {
         />
         
         {entryGates.showVisibilityBanner && (
-          <VisibilityInfoBanner onOpen={entryGates.openVisibilityModal} />
+          <VisibilityInfoBanner onOpen={entryGates.openVisibilityModal} onDismiss={entryGates.closeVisibilityBanner} />
         )}
       </main>
     </div>
