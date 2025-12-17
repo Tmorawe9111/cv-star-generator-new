@@ -219,23 +219,33 @@ const CVGeneratorContent = () => {
           </div>
         </div>
 
-        {/* Navigation - Fixed at bottom, compact on mobile - Hidden for Step 7 */}
+        {/* Navigation - Fixed at bottom - Hidden for Step 7 */}
         {currentStep > 0 && currentStep !== 7 && (
-          <div className="flex-shrink-0 border-t bg-background px-2 md:px-4 py-2 md:py-3">
-            <div className="flex justify-between gap-1.5 md:gap-2">
-              <Button variant="outline" onClick={handlePrevious} disabled={isLayoutEditMode ? currentStep === 5 : currentStep === 1} size="sm" className="flex-shrink-0 h-9 md:h-11 text-[10px] md:text-sm px-2 md:px-4">
-                <ArrowLeft className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-                <span className="hidden sm:inline">Zurück</span>
-                <span className="sm:hidden text-[10px]">←</span>
+          <div className="flex-shrink-0 border-t bg-background/90 backdrop-blur px-3 md:px-4 py-3 md:py-4">
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={handlePrevious}
+                disabled={isLayoutEditMode ? currentStep === 5 : currentStep === 1}
+                className="h-12 flex-1 rounded-full text-sm font-semibold"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Zurück
               </Button>
 
               {(isLayoutEditMode ? currentStep < 6 : currentStep < 7) && (
-                <Button onClick={handleNext} size="sm" className="flex-shrink-0 h-9 md:h-11 text-[10px] md:text-sm px-2 md:px-4">
-                  <span className="hidden sm:inline">
-                    {currentStep === 5 ? 'Weiter zum Download' : currentStep === 6 ? 'Weiter zum Download' : 'Weiter'}
+                <Button
+                  onClick={handleNext}
+                  className="h-12 flex-1 rounded-full text-sm font-semibold bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] shadow-md hover:shadow-lg"
+                >
+                  <span>
+                    {currentStep === 5
+                      ? 'Weiter zum Download'
+                      : currentStep === 6
+                      ? 'Weiter zum Download'
+                      : 'Weiter'}
                   </span>
-                  <span className="sm:hidden text-[10px]">→</span>
-                  <ArrowRight className="h-3 w-3 md:h-4 md:w-4 ml-1" />
+                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               )}
             </div>

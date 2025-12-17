@@ -1,19 +1,31 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useCVForm } from '@/contexts/CVFormContext';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { BRANCHES } from '@/lib/branches';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const CVStep1 = () => {
   const { formData, updateFormData, validationErrors } = useCVForm();
+  const [otherOpen, setOtherOpen] = useState(false);
 
   // Use centralized branch definitions
-  const branches = BRANCHES.map(branch => ({
-    key: branch.key,
-    emoji: branch.emoji || '',
-    title: branch.label,
-    desc: branch.desc || ''
-  }));
+  const branches = useMemo(() => {
+    return BRANCHES.map((branch) => ({
+      key: branch.key,
+      emoji: branch.emoji || '',
+      title: branch.label,
+      desc: branch.desc || ''
+    }));
+  }, []);
+
+  const primaryBranchKeys = useMemo(() => ['gesundheit', 'handwerk'] as const, []);
+  const otherBranches = useMemo(
+    () => branches.filter((b) => !primaryBranchKeys.includes(b.key as any)),
+    [branches, primaryBranchKeys]
+  );
+
+  const selectedBranch = formData.branche;
+  const selectedBranchObj = branches.find((b) => b.key === selectedBranch);
+  const isOtherSelected = !!selectedBranch && !primaryBranchKeys.includes(selectedBranch as any);
 
   const statuses = [
     { key: 'schueler', emoji: '🧑‍🎓', title: 'Schüler:in', desc: 'Ich gehe noch zur Schule' },
@@ -21,92 +33,199 @@ const CVStep1 = () => {
     { key: 'fachkraft', emoji: '✅', title: 'Fachkraft', desc: 'Ich habe eine Ausbildung abgeschlossen' }
   ] as const;
 
+  const choiceBase =
+    "w-full rounded-3xl border bg-white px-5 py-4 text-left shadow-sm transition-all duration-200 active:scale-[0.99]";
+  const choiceUnselected =
+    "border-slate-200 hover:border-slate-300 hover:shadow-md";
+  const choiceSelected =
+    "border-[#2563EB] ring-2 ring-[#2563EB] bg-[#EFF6FF] shadow-md";
+
   return (
-    <div className="space-y-2 md:space-y-4">
-      <div>
-        <h2 className="text-sm md:text-lg font-semibold mb-0.5 md:mb-1">Wähle deine Branche</h2>
-        <p className="text-[10px] md:text-sm text-muted-foreground mb-1.5 md:mb-2">
-          In welchem Bereich möchtest du arbeiten?
-        </p>
-        {validationErrors.branche && (
-          <p className="text-[9px] md:text-xs text-destructive font-medium mb-1.5">
-            {validationErrors.branche}
+    <div className="h-full min-h-[calc(100dvh-210px)] flex flex-col">
+      <div className="flex-1 flex flex-col justify-center gap-6 py-2">
+        {/* Branche */}
+        <section className="mx-auto w-full max-w-xl">
+          <h2 className="text-base sm:text-lg font-semibold text-slate-900 text-center">
+            Welche Branche passt zu dir?
+          </h2>
+          <p className="mt-1 text-xs sm:text-sm text-muted-foreground text-center">
+            Wähle zuerst deinen Bereich.
           </p>
-        )}
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-1 md:gap-2">
-          {branches.map((branch) => (
-            <Card 
-              key={branch.key}
-              className={`p-1.5 md:p-3 cursor-pointer transition-all hover:shadow-md min-w-0 overflow-hidden ${
-                formData.branche === branch.key 
-                  ? 'ring-2 ring-blue-600 bg-blue-50 border-blue-600 shadow-sm' 
-                  : validationErrors.branche 
-                    ? 'border-destructive ring-1 ring-destructive/20 hover:bg-accent/50'
-                    : 'hover:bg-accent/50 border-gray-200'
-              }`}
-              onClick={() => updateFormData({ branche: branch.key })}
+          {validationErrors.branche && (
+            <p className="mt-2 text-xs text-destructive font-medium text-center">
+              {validationErrors.branche}
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-col gap-3">
+            {(['gesundheit', 'handwerk'] as const).map((key) => {
+              const b = branches.find((x) => x.key === key)!;
+              const selected = formData.branche === key;
+              return (
+                <button
+                  key={b.key}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => updateFormData({ branche: b.key as any })}
+                  className={`${choiceBase} ${selected ? choiceSelected : choiceUnselected}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{b.emoji}</span>
+                        <div className="min-w-0">
+                          <div className="text-sm sm:text-base font-semibold text-slate-900 truncate">
+                            {b.title}
+                          </div>
+                          <div className="text-[11px] sm:text-xs text-slate-500 line-clamp-1">
+                            {b.desc}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      className={`h-6 w-6 rounded-full border flex items-center justify-center ${
+                        selected ? "border-[#2563EB] bg-[#2563EB]" : "border-slate-300 bg-white"
+                      }`}
+                    >
+                      <div className={`h-2.5 w-2.5 rounded-full ${selected ? "bg-white" : "bg-transparent"}`} />
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+
+            {/* Andere Branche */}
+            <button
+              type="button"
+              aria-pressed={isOtherSelected}
+              onClick={() => setOtherOpen(true)}
+              className={`${choiceBase} ${isOtherSelected ? choiceSelected : choiceUnselected}`}
             >
-              <div className="text-center min-w-0 w-full">
-                <div className="text-lg md:text-2xl mb-0.5 md:mb-1">{branch.emoji}</div>
-                <h3 className={`text-[9px] md:text-xs font-semibold mb-0.5 px-0.5 md:px-1 break-words hyphens-auto leading-tight ${
-                  formData.branche === branch.key ? 'text-blue-700' : ''
-                }`}>{branch.title}</h3>
-                <p className={`text-[8px] md:text-[10px] leading-tight px-0.5 md:px-1 break-words line-clamp-2 ${
-                  formData.branche === branch.key ? 'text-blue-600' : 'text-muted-foreground'
-                }`}>{branch.desc}</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">✨</span>
+                    <div className="min-w-0">
+                      <div className="text-sm sm:text-base font-semibold text-slate-900 truncate">
+                        {isOtherSelected ? `Andere Branche: ${selectedBranchObj?.title}` : "Andere Branche"}
+                      </div>
+                      <div className="text-[11px] sm:text-xs text-slate-500 line-clamp-1">
+                        IT, Büro, Verkauf, Gastronomie, Bau
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className={`h-6 w-6 rounded-full border flex items-center justify-center ${
+                    isOtherSelected ? "border-[#2563EB] bg-[#2563EB]" : "border-slate-300 bg-white"
+                  }`}
+                >
+                  <div className={`h-2.5 w-2.5 rounded-full ${isOtherSelected ? "bg-white" : "bg-transparent"}`} />
+                </div>
               </div>
-            </Card>
-          ))}
-        </div>
+            </button>
+          </div>
+        </section>
+
+        {/* Status */}
+        <section className="mx-auto w-full max-w-xl">
+          <h2 className="text-base sm:text-lg font-semibold text-slate-900 text-center">
+            Deine aktuelle Situation
+          </h2>
+          <p className="mt-1 text-xs sm:text-sm text-muted-foreground text-center">
+            Was beschreibt dich am besten?
+          </p>
+          {validationErrors.status && (
+            <p className="mt-2 text-xs text-destructive font-medium text-center">
+              {validationErrors.status}
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-col gap-3">
+            {statuses.map((status) => {
+              const selected = formData.status === status.key;
+              return (
+                <button
+                  key={status.key}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => updateFormData({ status: status.key })}
+                  className={`${choiceBase} ${selected ? choiceSelected : choiceUnselected}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-2xl">{status.emoji}</span>
+                      <div className="min-w-0">
+                        <div className="text-sm sm:text-base font-semibold text-slate-900 truncate">
+                          {status.title}
+                        </div>
+                        <div className="text-[11px] sm:text-xs text-slate-500 line-clamp-1">
+                          {status.desc}
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      className={`h-6 w-6 rounded-full border flex items-center justify-center ${
+                        selected ? "border-[#2563EB] bg-[#2563EB]" : "border-slate-300 bg-white"
+                      }`}
+                    >
+                      <div className={`h-2.5 w-2.5 rounded-full ${selected ? "bg-white" : "bg-transparent"}`} />
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {formData.branche && formData.status && (
+          <div className="mx-auto w-full max-w-xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center">
+            <p className="text-xs sm:text-sm text-slate-700">
+              ✅ Perfekt! <strong>{selectedBranchObj?.title}</strong> ·{" "}
+              <strong>{statuses.find((s) => s.key === formData.status)?.title}</strong>
+            </p>
+          </div>
+        )}
       </div>
 
-      <div>
-        <h2 className="text-sm md:text-lg font-semibold mb-0.5 md:mb-1">Deine aktuelle Situation</h2>
-        <p className="text-[10px] md:text-sm text-muted-foreground mb-1.5 md:mb-2">
-          Was beschreibt dich am besten?
-        </p>
-        {validationErrors.status && (
-          <p className="text-[9px] md:text-xs text-destructive font-medium mb-1.5">
-            {validationErrors.status}
-          </p>
-        )}
-        
-        <div className="grid grid-cols-3 gap-1 md:gap-2">
-          {statuses.map((status) => (
-            <Card 
-              key={status.key}
-              className={`p-1.5 md:p-3 cursor-pointer transition-all hover:shadow-md min-w-0 overflow-hidden ${
-                formData.status === status.key 
-                  ? 'ring-2 ring-blue-600 bg-blue-50 border-blue-600 shadow-sm' 
-                  : validationErrors.status 
-                    ? 'border-destructive ring-1 ring-destructive/20 hover:bg-accent/50'
-                    : 'hover:bg-accent/50 border-gray-200'
-              }`}
-              onClick={() => updateFormData({ status: status.key })}
-            >
-              <div className="text-center min-w-0 w-full">
-                <div className="text-lg md:text-2xl mb-0.5 md:mb-1">{status.emoji}</div>
-                <h3 className={`text-[9px] md:text-xs font-semibold mb-0.5 px-0.5 md:px-1 break-words hyphens-auto leading-tight ${
-                  formData.status === status.key ? 'text-blue-700' : ''
-                }`}>{status.title}</h3>
-                <p className={`text-[8px] md:text-[10px] leading-tight px-0.5 md:px-1 break-words ${
-                  formData.status === status.key ? 'text-blue-600' : 'text-muted-foreground'
-                }`}>{status.desc}</p>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {formData.branche && formData.status && (
-        <div className="p-1.5 md:p-2.5 bg-primary/5 rounded-lg border">
-          <p className="text-[9px] md:text-xs text-foreground leading-tight">
-            ✅ Perfekt! Du hast <strong>{branches.find(b => b.key === formData.branche)?.title}</strong> und 
-            <strong> {statuses.find(s => s.key === formData.status)?.title}</strong> gewählt.
-          </p>
-        </div>
-      )}
+      {/* Dialog: Andere Branche */}
+      <Dialog open={otherOpen} onOpenChange={setOtherOpen}>
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-lg max-h-[80dvh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Andere Branche wählen</DialogTitle>
+          </DialogHeader>
+          <div className="mt-3 flex flex-col gap-2">
+            {otherBranches.map((b) => {
+              const selected = formData.branche === b.key;
+              return (
+                <button
+                  key={b.key}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => {
+                    updateFormData({ branche: b.key as any });
+                    setOtherOpen(false);
+                  }}
+                  className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${
+                    selected
+                      ? "border-[#2563EB] bg-[#EFF6FF] ring-1 ring-[#2563EB]"
+                      : "border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{b.emoji}</span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900">{b.title}</div>
+                      <div className="text-xs text-slate-500 line-clamp-1">{b.desc}</div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
