@@ -4,11 +4,14 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PostCard from './PostCard';
 import NewPostsNotification from './NewPostsNotification';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompany } from '@/hooks/useCompany';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { LogoSpinner } from '@/components/shared/LoadingSkeleton';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 type PostWithAuthor = {
   id: string;
@@ -57,6 +60,14 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
   const queryClient = useQueryClient();
   const viewerId = user?.id || null;
   const [sort, setSort] = useState<FeedSortOption>((localStorage.getItem('feed_sort') as FeedSortOption) || 'relevant');
+  const isMobile = useIsMobile();
+  
+  // Pull-to-refresh state
+  const containerRef = useRef<HTMLDivElement>(null);
+  const startY = useRef(0);
+  const startX = useRef(0);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Debug: Log auth state
   console.log('[feed] Auth state:', { user: !!user, userId: user?.id, viewerId });
@@ -71,7 +82,7 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
     queryKey: ['home-feed', viewerId, sort],
     enabled: true, // Always enabled to load posts
     staleTime: 1 * 60 * 1000, // 1 Minute - Feed aktualisiert sich häufiger
-    cacheTime: 3 * 60 * 1000, // 3 Minuten
+    gcTime: 3 * 60 * 1000, // 3 Minuten (formerly cacheTime in React Query v4)
     initialPageParam: { after_published: null as string | null, after_id: null as string | null },
     queryFn: async ({ pageParam }) => {
       console.log('[feed] fetching page', pageParam, sort);
@@ -373,8 +384,69 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
     getNextPageParam: (lastPage) => lastPage.nextPage,
   });
 
-  const posts = feedQuery.data?.pages.flatMap(page => page.posts) ?? [];
+  const posts = feedQuery.data?.pages.flatMap((page: { posts: PostWithAuthor[] }) => page.posts) ?? [];
   const postIds = posts.map(post => post.id);
+
+  // Pull-to-refresh handlers (mobile only)
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const target = e.target as unknown as HTMLElement;
+    // If touch starts inside a horizontal scroller, never start pull-to-refresh
+    if (target?.closest?.('[data-hscroll="true"]')) return;
+
+    if (containerRef.current?.scrollTop === 0) {
+      startY.current = e.touches[0].clientY;
+      startX.current = e.touches[0].clientX;
+    }
+  }, [isMobile]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const target = e.target as unknown as HTMLElement;
+    // If touch is happening inside a horizontal scroller, let it scroll horizontally
+    if (target?.closest?.('[data-hscroll="true"]')) return;
+
+    if (containerRef.current?.scrollTop === 0 && !isRefreshing) {
+      const currentY = e.touches[0].clientY;
+      const currentX = e.touches[0].clientX;
+
+      const dy = currentY - startY.current;
+      const dx = currentX - startX.current;
+
+      // If user is swiping horizontally, do not trigger pull-to-refresh
+      if (Math.abs(dx) > Math.abs(dy) + 6) return;
+
+      if (dy > 0 && dy < 150) {
+        // small deadzone to reduce accidental pulls while swiping
+        if (dy < 6) return;
+        setPullDistance(dy);
+      }
+    }
+  }, [isMobile, isRefreshing]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (!isMobile) return;
+    if (pullDistance > 80 && !isRefreshing) {
+      setIsRefreshing(true);
+      
+      // Haptic feedback
+      if ('vibrate' in navigator) {
+        navigator.vibrate(25);
+      }
+      
+      // Refresh feed query
+      await queryClient.invalidateQueries({ queryKey: ['home-feed', viewerId, sort] });
+      await feedQuery.refetch();
+      
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setPullDistance(0);
+        toast({ title: '✨ Feed aktualisiert!' });
+      }, 800);
+    } else {
+      setPullDistance(0);
+    }
+  }, [isMobile, pullDistance, isRefreshing, queryClient, viewerId, sort, feedQuery]);
 
   if (feedQuery.isLoading && posts.length === 0) {
     return <LogoSpinner size="lg" text="Posts werden geladen..." />;
@@ -414,7 +486,29 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
   }
 
   return (
-    <div className="space-y-1 md:space-y-4 w-full max-w-full overflow-x-hidden -mx-0 md:mx-0">
+    <div 
+      ref={containerRef}
+      className="space-y-1 md:space-y-4 w-full max-w-full overflow-x-hidden -mx-0 md:mx-0"
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchMove={isMobile ? handleTouchMove : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
+    >
+      {/* Pull-to-refresh indicator (mobile only) */}
+      {isMobile && (
+        <div 
+          className="flex items-center justify-center overflow-hidden transition-all duration-200"
+          style={{ height: isRefreshing ? 60 : Math.min(pullDistance, 80) }}
+        >
+          <div className={cn(
+            "flex items-center gap-2 text-gray-500 text-sm",
+            isRefreshing && "animate-pulse"
+          )}>
+            <RefreshCw className={cn("h-5 w-5", isRefreshing && "animate-spin")} />
+            <span>{isRefreshing ? 'Aktualisiere...' : pullDistance > 80 ? 'Loslassen' : 'Runterziehen'}</span>
+          </div>
+        </div>
+      )}
+
       <NewPostsNotification 
         onRefresh={() => feedQuery.refetch()} 
         currentPostIds={postIds}
