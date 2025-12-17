@@ -191,14 +191,31 @@ export function PublicJobCard({ job, onClick, compact = false, application }: Pu
         {/* Application Status */}
         {application && (
           <div className="pt-2 border-t">
-            <Button 
-              size="sm" 
-              variant="outline"
-              className="w-full pointer-events-none"
-            >
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              Bereits beworben am {format(new Date(application.created_at), "dd.MM.yyyy", { locale: de })}
-            </Button>
+            <div className="w-full rounded-xl border border-green-200 bg-green-50 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-green-900">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Beworben
+                  </div>
+                  <div className="mt-1 text-xs text-green-900/80">
+                    Beworben am{" "}
+                    <span className="font-medium text-green-900">
+                      {format(new Date(application.created_at), "dd.MM.yyyy", { locale: de })}
+                    </span>
+                  </div>
+                  {(application as any)?.unlocked_at && (
+                    <div className="mt-1 text-xs text-green-900/80">
+                      Freigeschaltet am{" "}
+                      <span className="font-medium text-green-900">
+                        {format(new Date((application as any).unlocked_at), "dd.MM.yyyy", { locale: de })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <Badge className="bg-green-600 text-white hover:bg-green-600">Status</Badge>
+              </div>
+            </div>
           </div>
         )}
       </div>

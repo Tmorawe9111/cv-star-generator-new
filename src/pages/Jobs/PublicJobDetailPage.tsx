@@ -33,7 +33,8 @@ import { ScheduleInterviewAfterQuestions } from "@/components/jobs/ScheduleInter
 import { toast } from "@/hooks/use-toast";
 
 export default function PublicJobDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; slug?: string }>();
+  const jobId = params.id ?? params.slug;
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -50,13 +51,13 @@ export default function PublicJobDetailPage() {
   const [withdrawReason, setWithdrawReason] = useState("");
   const [withdrawSetInvisible, setWithdrawSetInvisible] = useState(true);
   
-  const { isSaved, toggleSave, isToggling } = useJobSave(id || "");
+  const { isSaved, toggleSave, isToggling } = useJobSave(jobId || "");
   const { hasApplied, myApplication, applyToJob, isApplying, isLoading: isCheckingApply, canApply, profileStatus, companyHistory, clearCompanyHistory } =
-    useQuickApply(id || "");
+    useQuickApply(jobId || "");
   const withdrawApplication = useCandidateWithdrawApplication();
 
   const { data: job, isLoading } = useQuery({
-    queryKey: ["public-job-detail", id],
+    queryKey: ["public-job-detail", jobId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("job_posts")
@@ -64,13 +65,13 @@ export default function PublicJobDetailPage() {
           *,
           company:companies!job_posts_company_id_fkey(*)
         `)
-        .eq("id", id)
+        .eq("id", jobId)
         .single();
 
       if (error) throw error;
       return data;
     },
-    enabled: !!id,
+    enabled: !!jobId,
   });
 
   // Check if we should show interview questions modal
@@ -82,22 +83,22 @@ export default function PublicJobDetailPage() {
       setApplicationId(appId);
       setInterviewQuestionsOpen(true);
       // Remove query params from URL
-      navigate(`/stelle/${id}`, { replace: true });
+      navigate(`/stelle/${jobId}`, { replace: true });
     }
-  }, [searchParams, user, job, id, navigate]);
+  }, [searchParams, user, job, jobId, navigate]);
 
   const { data: applicationsCount } = useQuery<number>({
-    queryKey: ["applications-count", id],
+    queryKey: ["applications-count", jobId],
     queryFn: async (): Promise<number> => {
       const { count, error } = await supabase
         .from("applications")
         .select("*", { count: "exact", head: true })
-        .eq("job_id", id);
+        .eq("job_id", jobId);
       
       if (error) throw error;
       return count || 0;
     },
-    enabled: !!id,
+    enabled: !!jobId,
   });
 
   const getEmploymentTypeLabel = (type: string) => {

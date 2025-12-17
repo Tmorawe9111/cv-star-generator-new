@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useMyApplications } from '@/hooks/useMyApplications';
 import { useConnections, type ConnectionState } from '@/hooks/useConnections';
 import { useFollowCompany } from '@/hooks/useFollowCompany';
 import { toast } from '@/hooks/use-toast';
@@ -480,7 +481,8 @@ const JobCard: React.FC<{
   companyName?: string; 
   companyLogo?: string | null;
   onApply?: (job: Job) => void;
-}> = ({ job, companyName, companyLogo, onApply }) => {
+  application?: { created_at?: string | null; unlocked_at?: string | null; status?: string | null } | null;
+}> = ({ job, companyName, companyLogo, onApply, application }) => {
   const gradients = [
     'from-blue-500/10 via-indigo-500/5 to-violet-500/10',
     'from-emerald-500/10 via-teal-500/5 to-cyan-500/10',
@@ -539,13 +541,24 @@ const JobCard: React.FC<{
       
       {/* Bewerben Button */}
       <div className="mt-auto pt-2 relative z-10">
-        <Button 
-          size="sm"
-          onClick={(e) => { e.preventDefault(); onApply?.(job); }}
-          className="w-full h-9 text-xs rounded-full bg-black hover:bg-gray-800 text-white font-semibold shadow-lg shadow-black/20 active:scale-95 transition-all"
-        >
-          Bewerben
-        </Button>
+        {application ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full h-9 text-[11px] rounded-full border-green-200 bg-green-50 text-green-900 hover:bg-green-50 pointer-events-none"
+          >
+            Beworben am{" "}
+            {application.created_at ? new Date(application.created_at).toLocaleDateString("de-DE") : "—"}
+          </Button>
+        ) : (
+          <Button 
+            size="sm"
+            onClick={(e) => { e.preventDefault(); onApply?.(job); }}
+            className="w-full h-9 text-xs rounded-full bg-black hover:bg-gray-800 text-white font-semibold shadow-lg shadow-black/20 active:scale-95 transition-all"
+          >
+            Bewerben
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -565,6 +578,7 @@ const DUMMY_JOBS: Job[] = [
 export default function MarketplaceMobile() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { data: myApplications } = useMyApplications();
   const { getStatuses, requestConnection } = useConnections();
   const [statusMap, setStatusMap] = React.useState<Record<string, ConnectionState>>({});
   const [authors, setAuthors] = React.useState<Record<string, { name: string; avatar_url: string | null }>>({});
@@ -573,6 +587,11 @@ export default function MarketplaceMobile() {
   const [postIndex, setPostIndex] = React.useState(0);
   const [applyJob, setApplyJob] = React.useState<Job | null>(null);
   const [applySuccess, setApplySuccess] = React.useState(false);
+
+  const applicationsByJobId = (myApplications || []).reduce((acc: Record<string, any>, app: any) => {
+    acc[app.job_id] = app;
+    return acc;
+  }, {});
   
   // Pull-to-refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1075,6 +1094,7 @@ export default function MarketplaceMobile() {
                 job={job} 
                 companyName={companyMap[job.company_id]?.name || (job.id.startsWith('demo') ? 'Top Unternehmen' : undefined)}
                 companyLogo={companyMap[job.company_id]?.logo_url}
+                application={applicationsByJobId[job.id] ?? null}
                 onApply={(j) => setApplyJob(j)}
               />
             ))}
