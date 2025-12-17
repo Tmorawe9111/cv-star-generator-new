@@ -56,6 +56,19 @@ export const notifyVisibilityPromptOpened = () => {
   }
 };
 
+export const openVisibilityPrompt = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('open-visibility-prompt'));
+  }
+};
+
+export const subscribeOpenVisibilityPrompt = (handler: () => void) => {
+  if (typeof window === 'undefined') return () => {};
+  const listener = () => handler();
+  window.addEventListener('open-visibility-prompt', listener);
+  return () => window.removeEventListener('open-visibility-prompt', listener);
+};
+
 export const subscribeVisibilityPromptOpened = (handler: () => void) => {
   if (typeof window === 'undefined') return () => {};
   const listener = () => handler();

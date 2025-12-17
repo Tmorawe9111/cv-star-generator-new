@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { notifyVisibilityPromptOpened, notifyVisibilityPromptClosed } from "@/lib/event-bus";
+import { notifyVisibilityPromptOpened, notifyVisibilityPromptClosed, subscribeOpenVisibilityPrompt } from "@/lib/event-bus";
 
 const JOB_OPTIONS = [
   { value: "Praktikum", label: "Praktikum" },
@@ -103,6 +103,14 @@ export function VisibilityPrompt() {
       }
     }
   }, [isLoading, profile, session, allowedOptions, defaultByStatus]);
+
+  // Allow opening the prompt explicitly from UI (e.g. "Offen für Jobs" button)
+  useEffect(() => {
+    const unsubscribe = subscribeOpenVisibilityPrompt(() => {
+      setOpen(true);
+    });
+    return unsubscribe;
+  }, []);
 
   // Notify when dialog opens/closes
   useEffect(() => {
