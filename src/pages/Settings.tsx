@@ -215,21 +215,8 @@ const Settings = () => {
   // Validate custom date selection
   const isCustomDateValid = (): boolean => {
     if (availabilityType === 'immediate') return true;
-    if (!selectedMonth || !selectedYear) return false;
-
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth() + 1;
-    const selectedYearNum = parseInt(selectedYear);
-    const selectedMonthNum = parseInt(selectedMonth);
-
-    if (selectedYearNum < currentYear) return false;
-    if (selectedYearNum === currentYear && selectedMonthNum <= currentMonth) return false;
-
-    const maxYear = currentYear + 1;
-    if (selectedYearNum > maxYear) return false;
-    if (selectedYearNum === maxYear && selectedMonthNum > currentMonth) return false;
-
+    if (!selectedMonth) return false;
+    // Year is always 2026, so we just need to check if month is selected
     return true;
   };
 
@@ -262,6 +249,10 @@ const Settings = () => {
 
   const handleVisibilityToggle = async (checked: boolean) => {
     if (checked) {
+      // Set default year to 2026 when opening dialog
+      setSelectedYear('2026');
+      setSelectedMonth('');
+      setAvailabilityType('immediate');
       // Open dialog to configure visibility
       setShowVisibilityDialog(true);
     } else {
@@ -619,43 +610,27 @@ const Settings = () => {
               </RadioGroup>
 
               {availabilityType === 'custom' && (
-                <div className="grid grid-cols-2 gap-3 pl-6">
+                <div className="pl-6">
                   <div className="space-y-2">
-                    <Label htmlFor="year-select">Jahr</Label>
-                    <Select value={selectedYear} onValueChange={(value) => {
-                      setSelectedYear(value);
-                      setSelectedMonth(''); // Reset month when year changes
-                    }}>
-                      <SelectTrigger id="year-select">
-                        <SelectValue placeholder="Jahr wählen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {yearOptions.map((year) => (
-                          <SelectItem key={year.value} value={year.value}>
-                            {year.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="month-select">Monat</Label>
+                    <Label htmlFor="month-select">Monat (2026)</Label>
                     <Select 
                       value={selectedMonth} 
                       onValueChange={setSelectedMonth}
-                      disabled={!selectedYear}
                     >
                       <SelectTrigger id="month-select">
                         <SelectValue placeholder="Monat wählen" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getAvailableMonths().map((month) => (
+                        {getAvailableMonths('2026').map((month) => (
                           <SelectItem key={month.value} value={month.value}>
                             {month.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Das Jahr ist auf 2026 festgelegt
+                    </p>
                   </div>
                 </div>
               )}
