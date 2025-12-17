@@ -17,7 +17,7 @@ import { COMMON_LANGUAGES } from '@/data/commonLanguages';
 const LANGUAGES_LIST = Array.isArray(COMMON_LANGUAGES) ? COMMON_LANGUAGES : [];
 
 const CVStep3New = () => {
-  const { formData, updateFormData } = useCVForm();
+  const { formData, updateFormData, validationErrors } = useCVForm();
   const { toast } = useToast();
   const [generatingSkills, setGeneratingSkills] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState(false);
@@ -45,10 +45,11 @@ const CVStep3New = () => {
     }
     
     // Add with first available language or empty
+    // Best practice: First language defaults to "Muttersprache"
     updateFormData({ 
       sprachen: [...sprachen, { 
         sprache: availableLanguages[0] || '', 
-        niveau: 'B1' 
+        niveau: sprachen.length === 0 ? 'Muttersprache' : 'B1'
       }] 
     });
   };
@@ -268,7 +269,7 @@ const CVStep3New = () => {
           <div className="min-w-0">
             <h3 className="font-semibold text-base leading-tight">Fähigkeiten</h3>
             <p className="text-xs text-muted-foreground">
-              Wähle bis zu 10 Skills, die dich am besten beschreiben.
+              Wähle mindestens 3 (bis zu 10) Skills, die dich am besten beschreiben.
             </p>
           </div>
           <Button
@@ -289,15 +290,20 @@ const CVStep3New = () => {
         </div>
 
         <div className="mt-3">
-          <SkillSelector
-            selectedSkills={formData.faehigkeiten || []}
-            onSkillsChange={(skills) => updateFormData({ faehigkeiten: skills })}
-            branch={formData.branche}
-            statusLevel={formData.status}
-            maxSkills={10}
-            label="Deine wichtigsten Fähigkeiten"
-            placeholder="Fähigkeit auswählen..."
-          />
+          <div className={validationErrors.faehigkeiten ? 'border border-destructive rounded-xl p-2' : ''}>
+            <SkillSelector
+              selectedSkills={formData.faehigkeiten || []}
+              onSkillsChange={(skills) => updateFormData({ faehigkeiten: skills })}
+              branch={formData.branche}
+              statusLevel={formData.status}
+              maxSkills={10}
+              label="Deine wichtigsten Fähigkeiten"
+              placeholder="Fähigkeit auswählen..."
+            />
+          </div>
+          {validationErrors.faehigkeiten && (
+            <p className="mt-2 text-sm text-destructive font-medium">{validationErrors.faehigkeiten}</p>
+          )}
         </div>
       </Card>
 
@@ -316,8 +322,15 @@ const CVStep3New = () => {
 
         <div className="mt-3">
           {(formData.sprachen?.length || 0) === 0 ? (
-            <div className="rounded-lg bg-muted/20 p-3 text-sm text-muted-foreground">
+            <div
+              className={
+                validationErrors.sprachen
+                  ? 'rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive'
+                  : 'rounded-lg bg-muted/20 p-3 text-sm text-muted-foreground'
+              }
+            >
               Noch keine Sprache hinzugefügt.
+              {validationErrors.sprachen && <div className="mt-1 font-medium">{validationErrors.sprachen}</div>}
             </div>
           ) : (
             <div className="space-y-2">
@@ -421,8 +434,11 @@ const CVStep3New = () => {
           value={formData.ueberMich || ''}
           onChange={(e) => updateFormData({ ueberMich: e.target.value })}
           placeholder="Ich bin... Besonders interessiere ich mich für... Meine Stärken sind..."
-          className="mt-3 min-h-[160px] resize-none"
+          className={validationErrors.ueberMich ? 'mt-3 min-h-[160px] resize-none border-destructive' : 'mt-3 min-h-[160px] resize-none'}
         />
+        {validationErrors.ueberMich && (
+          <p className="mt-2 text-sm text-destructive font-medium">{validationErrors.ueberMich}</p>
+        )}
 
         <p className="mt-2 text-[11px] text-muted-foreground">
           Tipp: Der Text ist kurz, persönlich und konkret (2–4 Sätze).

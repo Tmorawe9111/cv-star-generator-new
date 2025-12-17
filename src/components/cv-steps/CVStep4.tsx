@@ -710,7 +710,9 @@ const CVStep4 = () => {
                 <div className="min-w-0">
                   <h3 className="font-semibold text-base leading-tight">Praktische Erfahrung</h3>
                   <p className="text-xs text-muted-foreground">
-                    Optional: Praktika, Ferienjobs oder Nebenjobs.
+                    {formData.status === 'azubi' || formData.status === 'fachkraft'
+                      ? 'Mindestens ein Eintrag ist erforderlich.'
+                      : 'Optional: Praktika, Ferienjobs oder Nebenjobs.'}
                   </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addBerufserfahrungEntry} className="shrink-0">

@@ -175,6 +175,18 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  // Ensure a default layout is always selected (so Step 5 is never "empty")
+  useEffect(() => {
+    if (formData.layout) return;
+    setFormData((prev) => {
+      // Avoid unnecessary state updates
+      if (prev.layout) return prev;
+      const next = { ...prev, layout: 1 };
+      localStorage.setItem('cvFormData', JSON.stringify(next));
+      return next;
+    });
+  }, [formData.layout]);
+
   // Save layout edit mode to localStorage
   useEffect(() => {
     localStorage.setItem('cvLayoutEditMode', isLayoutEditMode.toString());
@@ -319,24 +331,15 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         break;
       case 3:
         // Step 3: Beruflicher Werdegang & Ausbildung
-        if (data.status === 'schueler') {
-          const currentYear = new Date().getFullYear();
-          if (!data.schule) errors.schule = 'Schule ist erforderlich';
-          if (!data.geplanter_abschluss) errors.geplanter_abschluss = 'Geplanter Abschluss ist erforderlich';
-
-          if (!data.abschlussjahr) {
-            errors.abschlussjahr = 'Abschlussjahr ist erforderlich';
-          } else {
-            const year = parseInt(data.abschlussjahr);
-            if (Number.isNaN(year) || year < currentYear - 1 || year > currentYear + 5) {
-              errors.abschlussjahr = 'Abschlussjahr muss zwischen diesem Jahr -1 und +5 Jahren liegen';
-            }
-          }
-        }
-
         if (!data.schulbildung || data.schulbildung.length === 0) {
           errors.schulbildung = 'Mindestens ein Schulbildungs-Eintrag ist erforderlich';
         }
+
+        // For Azubi/Fachkraft at least one work/practical experience is required
+        if ((data.status === 'azubi' || data.status === 'fachkraft') && (!data.berufserfahrung || data.berufserfahrung.length === 0)) {
+          errors.berufserfahrung = 'Mindestens eine Berufserfahrung ist erforderlich';
+        }
+
         // Validate each schulbildung entry
         data.schulbildung?.forEach((schule, index) => {
           if (!schule.schulform) errors[`schulbildung_${index}_schulform`] = 'Schulform ist erforderlich';
@@ -358,12 +361,15 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         if (!data.sprachen || data.sprachen.length === 0) {
           errors.sprachen = 'Mindestens eine Sprache ist erforderlich';
         }
-        // Skills are required for azubi and fachkraft
-        if ((data.status === 'azubi' || data.status === 'fachkraft') && 
-            (!data.faehigkeiten || data.faehigkeiten.length === 0)) {
-          errors.faehigkeiten = 'Mindestens eine Fähigkeit ist erforderlich';
+        // Skills are required for everyone (min 3)
+        if (!data.faehigkeiten || data.faehigkeiten.length < 3) {
+          errors.faehigkeiten = 'Bitte wähle mindestens 3 Fähigkeiten aus';
         }
-        // Motivation fields are optional - no validation needed
+        // About-me text is required (AI or manual)
+        const about = (data.ueberMich || '').trim();
+        if (about.length < 20) {
+          errors.ueberMich = 'Text über mich ist erforderlich (mind. 20 Zeichen)';
+        }
         break;
       case 5:
         if (!data.layout) errors.layout = 'Layout-Auswahl ist erforderlich';
