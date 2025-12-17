@@ -48,7 +48,61 @@ export default function CandidateSearch() {
         offset: 0,
       });
 
-      return result;
+      // Enrich with latest application per candidate (for "Beworben am … auf Stelle …" badge)
+      const profileIds = (result || [])
+        .map((c: any) => c?.id)
+        .filter(Boolean);
+
+      if (!profileIds.length) return result;
+
+      const { data: apps, error: appsError } = await supabase
+        .from("applications")
+        .select(
+          `
+          id,
+          candidate_id,
+          job_id,
+          status,
+          source,
+          created_at,
+          is_new,
+          job:job_posts!job_id (
+            title
+          )
+        `,
+        )
+        .eq("company_id", company.id)
+        .in("candidate_id", profileIds)
+        .order("created_at", { ascending: false });
+
+      if (appsError) {
+        console.warn("Could not load applications for candidate search badges:", appsError);
+        return result;
+      }
+
+      const latestByCandidate = new Map<string, any>();
+      (apps || []).forEach((app: any) => {
+        const cid = app.candidate_id;
+        if (!cid) return;
+        if (!latestByCandidate.has(cid)) latestByCandidate.set(cid, app);
+      });
+
+      return (result || []).map((c: any) => {
+        const app = latestByCandidate.get(c.id);
+        if (!app) return c;
+        return {
+          ...c,
+          application: {
+            id: app.id,
+            status: app.status,
+            source: app.source,
+            created_at: app.created_at,
+            is_new: app.is_new,
+            job_id: app.job_id,
+            job_title: app.job?.title ?? null,
+          },
+        };
+      });
     },
     enabled: !!company?.id,
   });
@@ -237,6 +291,7 @@ export default function CandidateSearch() {
                   experience_years: candidate.experience_years,
                   bio_short: candidate.bio_short,
                 }}
+                application={candidate.application}
                 onViewDetails={() => handleViewProfile(candidate)}
                 onUnlock={() => handleUnlock(candidate.id)}
                 isUnlocked={candidate.is_unlocked}

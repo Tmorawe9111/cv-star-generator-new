@@ -32,6 +32,8 @@ interface UnifiedCandidateCardProps {
     source: ApplicationSource;
     created_at: string;
     is_new?: boolean;
+    job_id?: string | null;
+    job_title?: string | null;
   };
   onUnlock?: () => void;
   onStatusChange?: (status: ApplicationStatus) => void;
@@ -48,8 +50,10 @@ export function UnifiedCandidateCard({
   isUnlocked = false,
 }: UnifiedCandidateCardProps) {
   const isApplicationCard = Boolean(
-    application?.source === "application" ||
-      (candidate as any)?.source === "application" ||
+    application?.source === "applied" ||
+      application?.source === "sourced" ||
+      (candidate as any)?.source === "applied" ||
+      (candidate as any)?.source === "sourced" ||
       (candidate as any)?.is_application
   );
 
@@ -81,6 +85,18 @@ export function UnifiedCandidateCard({
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-semibold text-lg truncate">{candidate.full_name}</h3>
               </div>
+              {application?.created_at && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge className="rounded-full bg-orange-50 text-orange-700 border border-orange-200" variant="outline">
+                    Beworben am {new Date(application.created_at).toLocaleDateString("de-DE")}
+                  </Badge>
+                  {application.job_title && (
+                    <Badge className="rounded-full" variant="secondary">
+                      Stelle: {application.job_title}
+                    </Badge>
+                  )}
+                </div>
+              )}
               {candidate.bio_short && (
                 <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
                   {candidate.bio_short}
