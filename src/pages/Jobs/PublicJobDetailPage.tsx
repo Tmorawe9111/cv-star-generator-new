@@ -44,7 +44,7 @@ export default function PublicJobDetailPage() {
   const [showScheduleInterview, setShowScheduleInterview] = useState(false);
   
   const { isSaved, toggleSave, isToggling } = useJobSave(id || "");
-  const { hasApplied, applyToJob, isApplying, canApply, profileStatus } = useQuickApply(id || "");
+  const { hasApplied, applyToJob, isApplying, canApply, profileStatus, companyHistory, clearCompanyHistory } = useQuickApply(id || "");
 
   const { data: job, isLoading } = useQuery({
     queryKey: ["public-job-detail", id],
@@ -684,6 +684,67 @@ export default function PublicJobDetailPage() {
               disabled={!canApply || isApplying}
             >
               {isApplying ? "Wird gesendet..." : "Jetzt bewerben"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Already-applied / company-history dialog */}
+      <AlertDialog
+        open={!!companyHistory}
+        onOpenChange={(open) => {
+          if (!open) clearCompanyHistory();
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Du hast dich hier schon beworben</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Es gibt bereits eine Bewerbung bei{" "}
+                <span className="font-semibold">{companyHistory?.companyName || "diesem Unternehmen"}</span>.
+              </p>
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+                <div>
+                  <span className="text-muted-foreground">Stelle:</span>{" "}
+                  <span className="font-medium">{companyHistory?.previousJobTitle || "—"}</span>
+                </div>
+                {companyHistory?.appliedAt ? (
+                  <div>
+                    <span className="text-muted-foreground">Beworben am:</span>{" "}
+                    <span className="font-medium">
+                      {new Date(companyHistory.appliedAt).toLocaleDateString("de-DE")}
+                    </span>
+                  </div>
+                ) : null}
+                {companyHistory?.status ? (
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>{" "}
+                    <span className="font-medium">{companyHistory.status}</span>
+                  </div>
+                ) : null}
+                {companyHistory?.reason ? (
+                  <div>
+                    <span className="text-muted-foreground">Grund:</span>{" "}
+                    <span className="font-medium">{companyHistory.reason}</span>
+                  </div>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Wenn du trotzdem fortfährst, wird eine neue Bewerbung auf diese Stelle gesendet.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => clearCompanyHistory()}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                clearCompanyHistory();
+                applyToJob({ ignoreCompanyHistory: true } as any);
+              }}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Trotzdem bewerben
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

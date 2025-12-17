@@ -4,11 +4,21 @@ import { toast } from "sonner";
 import { useAuth } from "./useAuth";
 import { useTrackInteraction } from "./useTrackInteraction";
 import { trackJobApplication } from "@/lib/telemetry";
+import { useState } from "react";
 
 export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; berufsfeld?: string; region?: string; company?: string }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { track } = useTrackInteraction();
+  const [companyHistory, setCompanyHistory] = useState<null | {
+    companyId: string;
+    companyName?: string | null;
+    previousJobId?: string | null;
+    previousJobTitle?: string | null;
+    status?: string | null;
+    appliedAt?: string | null;
+    reason?: string | null;
+  }>(null);
 
   const { data: hasApplied, isLoading } = useQuery({
     queryKey: ["application-status", jobId, user?.id],
@@ -113,7 +123,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
   });
 
   const applyToJob = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts?: { ignoreCompanyHistory?: boolean }) => {
       if (!user) throw new Error("Nicht eingeloggt");
 
       // Prüfe ob erforderliche Dokumente fehlen
@@ -125,7 +135,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
       // Get job details
       const { data: job, error: jobError } = await supabase
         .from("job_posts")
-        .select("company_id")
+        .select("company_id, title, company:companies(name)")
         .eq("id", jobId)
         .single();
 
@@ -184,14 +194,67 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
       const candidateIdsToCheck = [user.id, candidateId].filter(Boolean);
       const { data: existingApplication } = await supabase
         .from("applications")
-        .select("id, status")
+        .select("id, status, created_at, reason_short, reason_custom, rejection_reason")
         .eq("company_id", job.company_id)
         .eq("job_id", jobId)
         .in("candidate_id", candidateIdsToCheck as any)
         .maybeSingle();
 
       if (existingApplication) {
-        throw new Error("Du hast dich bereits auf diese Stelle beworben.");
+        const reason =
+          (existingApplication as any).reason_custom ||
+          (existingApplication as any).rejection_reason ||
+          (existingApplication as any).reason_short ||
+          null;
+        setCompanyHistory({
+          companyId: job.company_id,
+          companyName: (job as any)?.company?.name ?? null,
+          previousJobId: jobId,
+          previousJobTitle: (job as any)?.title ?? null,
+          status: existingApplication.status ?? null,
+          appliedAt: (existingApplication as any)?.created_at ?? null,
+          reason,
+        });
+        throw new Error("COMPANY_HISTORY_DUPLICATE_JOB");
+      }
+
+      // Company-history nudge (applied to this company before on another job)
+      if (!opts?.ignoreCompanyHistory) {
+        const { data: lastCompanyApp } = await supabase
+          .from("applications")
+          .select(`
+            id,
+            job_id,
+            status,
+            created_at,
+            reason_short,
+            reason_custom,
+            rejection_reason,
+            job:job_posts!job_id(title)
+          `)
+          .eq("company_id", job.company_id)
+          .in("candidate_id", candidateIdsToCheck as any)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastCompanyApp) {
+          const reason =
+            (lastCompanyApp as any).reason_custom ||
+            (lastCompanyApp as any).rejection_reason ||
+            (lastCompanyApp as any).reason_short ||
+            null;
+          setCompanyHistory({
+            companyId: job.company_id,
+            companyName: (job as any)?.company?.name ?? null,
+            previousJobId: (lastCompanyApp as any).job_id ?? null,
+            previousJobTitle: (lastCompanyApp as any)?.job?.title ?? null,
+            status: (lastCompanyApp as any).status ?? null,
+            appliedAt: (lastCompanyApp as any).created_at ?? null,
+            reason,
+          });
+          throw new Error("COMPANY_HISTORY");
+        }
       }
 
       // Create application
@@ -221,6 +284,10 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
     },
     onError: (error: Error) => {
       console.error("Application error:", error);
+      if (error.message === "COMPANY_HISTORY" || error.message === "COMPANY_HISTORY_DUPLICATE_JOB") {
+        // UI handles the modal
+        return;
+      }
       if (error.message.includes("Bitte lade folgende Dokumente hoch")) {
         toast.error(error.message);
       } else if (error.message.includes("Profildaten unvollständig")) {
@@ -238,5 +305,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
     isApplying: applyToJob.isPending,
     canApply: (profileStatus?.hasProfile && (!profileStatus?.missingDocuments || profileStatus.missingDocuments.length === 0)) ?? false,
     profileStatus,
+    companyHistory,
+    clearCompanyHistory: () => setCompanyHistory(null),
   };
 }
