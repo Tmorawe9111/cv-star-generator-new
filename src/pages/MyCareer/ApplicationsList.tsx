@@ -247,7 +247,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
               <Card
                 key={application.id}
                 className="group p-6 rounded-2xl border bg-card/70 backdrop-blur-sm shadow-sm hover:shadow-md transition-all cursor-pointer"
-                onClick={() => openDetails(application)}
+                onClick={() => navigate(`/stelle/${application.job_id}`)}
               >
                 <div className="flex items-start gap-4">
                   {/* Company Logo */}
@@ -273,7 +273,22 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                         </p>
 
                         {/* Status banner (Apple-style) */}
-                        <div className={`mt-4 rounded-2xl border p-4 ${statusConfig.banner}`}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDetails(application);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openDetails(application);
+                            }
+                          }}
+                          className={`mt-4 rounded-2xl border p-4 ${statusConfig.banner} cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/25`}
+                        >
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <div className="text-sm font-semibold flex items-center gap-2">
@@ -302,7 +317,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="bg-white/60">
-                                Status
+                                Status öffnen
                               </Badge>
                               <ChevronRight className="h-4 w-4 opacity-60" />
                             </div>
@@ -321,7 +336,7 @@ export function ApplicationsList({ searchQuery }: ApplicationsListProps) {
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/jobs/${application.job_id}`);
+                              navigate(`/stelle/${application.job_id}`);
                             }}
                           >
                             <Eye className="h-4 w-4 mr-2" />
