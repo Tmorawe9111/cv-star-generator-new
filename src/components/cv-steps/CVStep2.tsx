@@ -111,7 +111,11 @@ const CVStep2 = () => {
   const maxDate = getMaxDate();
 
   return (
-    <div className="h-full min-h-0 w-full max-w-2xl mx-auto px-2 md:px-4 overflow-hidden flex flex-col justify-center">
+    // Apple-like form behavior: header + bottom nav fixed, content scrolls internally when needed.
+    <div
+      className="h-full min-h-0 w-full max-w-2xl mx-auto px-2 md:px-4 overflow-y-auto pb-24"
+      style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' as any }}
+    >
       <Card className="p-3 md:p-4 border-0 shadow-sm bg-white">
         <div className="space-y-2 md:space-y-3">
           {/* Row 1: Profilbild + Name + Geburtsdatum */}

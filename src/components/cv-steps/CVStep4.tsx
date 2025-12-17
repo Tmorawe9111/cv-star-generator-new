@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, CalendarIcon, Sparkles, Loader2 } from 'lucide-react';
 import { SchulbildungEntry, BerufserfahrungEntry } from '@/contexts/CVFormContext';
 import { PLZOrtSelector } from '@/components/shared/PLZOrtSelector';
@@ -520,17 +519,12 @@ const CVStep4 = () => {
   const hasMinimumSchulbildung = (formData.schulbildung?.length || 0) > 0;
 
   return (
-    <div className="h-full min-h-0 overflow-hidden flex flex-col">
-      <Tabs defaultValue="school" className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="school" className="text-xs md:text-sm">Schule</TabsTrigger>
-          <TabsTrigger value="work" className="text-xs md:text-sm">Erfahrung</TabsTrigger>
-        </TabsList>
-
-        <div className="mt-3 flex-1 min-h-0 overflow-hidden">
-          {/* Schulbildung */}
-          <TabsContent value="school" className="mt-0 h-full">
-            <Card className="h-full p-3 md:p-4 flex flex-col min-h-0">
+    <div
+      className="h-full min-h-0 w-full max-w-2xl mx-auto px-2 md:px-4 overflow-y-auto pb-24 space-y-3"
+      style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' as any }}
+    >
+      {/* Apple-like: linear screen (no tabs). Single scroll container; header + bottom nav stay fixed. */}
+      <Card className="p-3 md:p-4 border-0 shadow-sm bg-white">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="font-semibold text-base leading-tight">Schulbildung</h3>
@@ -606,7 +600,7 @@ const CVStep4 = () => {
                 </div>
               )}
 
-              <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
+              <div className="mt-3 space-y-3">
                 {!formData.schulbildung?.length && (
                   <div className="rounded-lg bg-muted/20 p-3 text-sm text-muted-foreground">
                     Noch keine Schulbildung hinzugefügt.
@@ -731,12 +725,9 @@ const CVStep4 = () => {
                   </div>
                 ))}
               </div>
-            </Card>
-          </TabsContent>
+      </Card>
 
-          {/* Berufserfahrung */}
-          <TabsContent value="work" className="mt-0 h-full">
-            <Card className="h-full p-3 md:p-4 flex flex-col min-h-0">
+      <Card className="p-3 md:p-4 border-0 shadow-sm bg-white">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="font-semibold text-base leading-tight">Praktische Erfahrung</h3>
@@ -750,7 +741,7 @@ const CVStep4 = () => {
                 </Button>
               </div>
 
-              <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
+              <div className="mt-3 space-y-3">
                 {!formData.berufserfahrung?.length && (
                   <div className="rounded-lg bg-muted/20 p-3 text-sm text-muted-foreground">
                     Noch keine praktische Erfahrung hinzugefügt.
@@ -1066,13 +1057,10 @@ const CVStep4 = () => {
                   </div>
                 ))}
               </div>
-            </Card>
-          </TabsContent>
-        </div>
-      </Tabs>
+      </Card>
 
       {!hasMinimumSchulbildung && (
-        <div className="mt-2 shrink-0 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
           <p className="text-sm text-yellow-800">
             ⚠️ <strong>Hinweis:</strong> Du musst mindestens eine schulische Erfahrung hinzufügen, um fortfahren zu können.
           </p>

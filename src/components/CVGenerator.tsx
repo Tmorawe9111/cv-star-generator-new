@@ -178,7 +178,8 @@ const CVGeneratorContent = () => {
       : stepNames[currentStep] || `Schritt ${currentStep}`;
 
   return (
-    <div className="h-screen bg-background overflow-hidden flex flex-col" data-cv-preview>
+    // Use dvh to behave correctly on iOS Safari (URL bar / keyboard)
+    <div className="min-h-[100dvh] h-[100dvh] bg-background overflow-hidden flex flex-col" data-cv-preview>
       <div className="flex-1 flex flex-col overflow-hidden container mx-auto px-3 md:px-4 max-w-full md:max-w-2xl w-full">
         {/* Header (Apple-style, minimal height) */}
         <div className="flex-shrink-0 z-30 bg-background/90 backdrop-blur border-b py-2">
