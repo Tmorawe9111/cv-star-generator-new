@@ -2,6 +2,11 @@
 -- Historically some rows used candidates.id (company-specific bridge row).
 -- This migration normalizes existing data and prevents future duplicates.
 
+-- 0) Safety: drop legacy triggers/functions that still reference removed columns (e.g. viewed_by_company)
+DROP TRIGGER IF EXISTS application_rejection_sync ON public.applications;
+DROP FUNCTION IF EXISTS public.sync_application_rejection();
+DROP FUNCTION IF EXISTS sync_application_rejection();
+
 -- IMPORTANT:
 -- In older schemas, applications.candidate_id had a FK to candidates(id), so converting it to profiles(id)
 -- would fail unless we drop that FK first.
