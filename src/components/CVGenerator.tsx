@@ -28,6 +28,7 @@ const CVGeneratorContent = () => {
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
   const startTimeRef = useRef<number>(Date.now());
+  const stepContentRef = useRef<HTMLDivElement | null>(null);
   const stepNames: Record<number, string> = {
     0: 'Willkommen',
     1: 'Persönliche Daten',
@@ -133,6 +134,33 @@ const CVGeneratorContent = () => {
           action: 'validation_failed',
           errors: Object.keys(validationErrors).length,
         });
+
+        // Apple-like UX: jump user to the first invalid field (after validationErrors render)
+        window.setTimeout(() => {
+          const root = stepContentRef.current;
+          if (!root) return;
+          const firstInvalid =
+            (root.querySelector('.border-destructive') as HTMLElement | null) ||
+            (root.querySelector('[aria-invalid="true"]') as HTMLElement | null) ||
+            (root.querySelector('[data-invalid="true"]') as HTMLElement | null);
+          if (!firstInvalid) return;
+
+          firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // focus inputs/buttons if possible
+          if (
+            firstInvalid instanceof HTMLInputElement ||
+            firstInvalid instanceof HTMLTextAreaElement ||
+            firstInvalid instanceof HTMLButtonElement ||
+            firstInvalid instanceof HTMLSelectElement
+          ) {
+            firstInvalid.focus();
+          } else {
+            const focusable = firstInvalid.querySelector(
+              'input, textarea, button, select, [tabindex]:not([tabindex="-1"])'
+            ) as HTMLElement | null;
+            focusable?.focus();
+          }
+        }, 80);
       }
     }
   };
@@ -216,30 +244,29 @@ const CVGeneratorContent = () => {
           )}
         </div>
 
-        {/* Step Content (NO outer scrolling) */}
+        {/* Step Content (NO outer scrolling - steps manage internal scrolling if needed) */}
         <div className="flex-1 min-h-0 overflow-hidden py-2">
-          <div className="h-full min-h-0 overflow-hidden break-words">
+          <div ref={stepContentRef} className="h-full min-h-0 overflow-hidden break-words">
             {renderStep()}
           </div>
-
-          {/* Validation Errors (small, no layout shift) */}
-          {Object.keys(validationErrors).length > 0 && (
-            <div className="mt-2 rounded-xl border border-destructive/30 bg-destructive/10 p-2">
-              <div className="text-xs font-semibold text-destructive">
-                Bitte fülle die Pflichtfelder aus
-              </div>
-              <ul className="mt-1 max-h-20 overflow-y-auto text-[11px] text-destructive space-y-0.5">
-                {Object.values(validationErrors).map((error, index) => (
-                  <li key={index}>• {error}</li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
 
         {/* Navigation - Fixed at bottom - Hidden for Step 7 */}
         {currentStep > 0 && currentStep !== 7 && (
           <div className="flex-shrink-0 border-t bg-background/90 backdrop-blur px-3 md:px-4 py-3 md:py-4">
+            {/* Validation Errors (always visible, above the buttons) */}
+            {Object.keys(validationErrors).length > 0 && (
+              <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 p-2">
+                <div className="text-xs font-semibold text-destructive">
+                  Bitte fülle die markierten Pflichtfelder aus
+                </div>
+                <ul className="mt-1 max-h-20 overflow-y-auto text-[11px] text-destructive space-y-0.5">
+                  {Object.values(validationErrors).map((error, index) => (
+                    <li key={index}>• {error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="flex gap-3">
               <Button
                 variant="outline"
