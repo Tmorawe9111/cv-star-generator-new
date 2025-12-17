@@ -26,7 +26,7 @@ export default function UserProfilePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { company } = useCompany();
-  const { getStatuses, requestConnection, acceptRequest, declineRequest, cancelRequest } = useConnections();
+  const { getStatuses, requestConnection, acceptRequest, declineRequest, cancelRequest, removeConnection } = useConnections();
 
   const [profile, setProfile] = useState<any | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -673,14 +673,20 @@ export default function UserProfilePage() {
       // If unlocked, show follow button
       if (followStatus === "accepted") {
         return (
-          <div className="flex gap-1 sm:gap-2">
+          <div className="flex gap-2">
             <Button 
-              variant="outline" 
+              onClick={() => navigate("/community/messages")} 
+              className="min-h-[44px] px-4 text-sm"
+            >
+              <MessageSquareMore className="h-4 w-4 mr-2" /> Nachricht
+            </Button>
+            <Button 
               onClick={handleFollow} 
               disabled={followLoading}
-              className="min-h-[44px] px-2 sm:px-4 text-xs sm:text-sm"
+              variant="outline"
+              className="min-h-[44px] px-4 text-sm"
             >
-              <X className="h-4 w-4 sm:h-4 sm:w-4 sm:mr-1" /> <span className="hidden sm:inline">Nicht mehr folgen</span>
+              <X className="h-4 w-4 mr-2" /> Entfolgen
             </Button>
           </div>
         );
@@ -704,13 +710,13 @@ export default function UserProfilePage() {
       }
       // No follow - show follow button
       return (
-        <div className="flex gap-1 sm:gap-2">
+        <div className="flex gap-2">
           <Button 
             onClick={handleFollow} 
             disabled={followLoading}
-            className="min-h-[44px] px-2 sm:px-4 text-xs sm:text-sm"
+            className="min-h-[44px] px-4 text-sm"
           >
-            <UserPlus className="h-4 w-4 sm:h-4 sm:w-4 sm:mr-1" /> <span className="hidden sm:inline">Folgen</span>
+            <UserPlus className="h-4 w-4 mr-2" /> Folgen
           </Button>
         </div>
       );
@@ -719,17 +725,37 @@ export default function UserProfilePage() {
     // Regular user actions
     if (status === "accepted") {
       return (
-        <div className="flex gap-1 sm:gap-2">
-          <Button onClick={() => navigate("/community/messages")} className="min-h-[44px] px-2 sm:px-4 text-xs sm:text-sm">
-            <MessageSquareMore className="h-4 w-4 sm:h-4 sm:w-4 sm:mr-1" /> <span className="hidden sm:inline">Nachricht</span>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate("/community/messages")} className="min-h-[44px] px-4 text-sm">
+            <MessageSquareMore className="h-4 w-4 mr-2" /> Nachricht
+          </Button>
+          <Button 
+            onClick={async () => {
+              if (!id) return;
+              try {
+                await removeConnection(id);
+                const statuses = await getStatuses([id]);
+                setStatus(statuses[id] || "none");
+                toast({ title: "Nicht mehr verbunden", description: "Die Verbindung wurde aufgehoben." });
+              } catch (e: any) {
+                console.error(e);
+                toast({ title: "Fehler", description: "Verbindung konnte nicht aufgehoben werden.", variant: "destructive" });
+              }
+            }}
+            variant="outline"
+            className="min-h-[44px] px-4 text-sm"
+          >
+            <UserCheck className="h-4 w-4 mr-2" /> Entfolgen
           </Button>
         </div>
       );
     }
     if (status === "none" || !user) {
       return (
-        <div className="flex gap-1 sm:gap-2">
-          <Button onClick={onConnect} className="min-h-[44px] px-2 sm:px-4 text-xs sm:text-sm"><UserPlus className="h-4 w-4 sm:h-4 sm:w-4 sm:mr-1" /> <span className="hidden sm:inline">Vernetzen</span></Button>
+        <div className="flex gap-2">
+          <Button onClick={onConnect} className="min-h-[44px] px-4 text-sm">
+            <UserPlus className="h-4 w-4 mr-2" /> Vernetzen
+          </Button>
         </div>
       );
     }
@@ -799,7 +825,6 @@ export default function UserProfilePage() {
                 <HandHeart className="h-4 w-4 sm:h-4 sm:w-4 sm:mr-1" /> <span className="hidden sm:inline">{interested ? 'Interesse gezeigt' : 'Interesse zeigen'}</span>
               </Button>
             )}
-            {renderActions()}
           </div>
         </div>
       </div>
@@ -858,7 +883,12 @@ export default function UserProfilePage() {
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-3 sm:gap-3 md:gap-4">
           {/* Left column */}
           <main className="lg:col-span-8 space-y-3 sm:space-y-3 md:space-y-4">
-            <LinkedInProfileHeader profile={displayProfile} isEditing={false} onProfileUpdate={() => {}} />
+            <LinkedInProfileHeader 
+              profile={displayProfile} 
+              isEditing={false} 
+              onProfileUpdate={() => {}} 
+              actionButtons={renderActions()}
+            />
             <LinkedInProfileMain profile={displayProfile} isEditing={false} onProfileUpdate={() => {}} readOnly={!isOwner} />
             <LinkedInProfileExperience experiences={displayProfile?.berufserfahrung || []} isEditing={false} onExperiencesUpdate={() => {}} />
             <LinkedInProfileEducation education={displayProfile?.schulbildung || []} isEditing={false} onEducationUpdate={() => {}} />

@@ -197,5 +197,16 @@ export const useConnections = () => {
     return data?.status === "accepted";
   }, [user]);
 
-  return { getStatuses, requestConnection, acceptRequest, declineRequest, cancelRequest, isConnected };
+  const removeConnection = useCallback(async (targetId: string) => {
+    if (!user) throw new Error("not-authenticated");
+    // Delete connection in either direction
+    const { error } = await supabase
+      .from("connections")
+      .delete()
+      .or(`and(requester_id.eq.${user.id},addressee_id.eq.${targetId}),and(addressee_id.eq.${user.id},requester_id.eq.${targetId})`)
+      .eq("status", "accepted");
+    if (error) throw error;
+  }, [user]);
+
+  return { getStatuses, requestConnection, acceptRequest, declineRequest, cancelRequest, isConnected, removeConnection };
 };

@@ -15,6 +15,7 @@ interface LinkedInProfileHeaderProps {
   onCancelEdit?: () => void;
   onSave?: () => void;
   isSaving?: boolean;
+  actionButtons?: React.ReactNode;
 }
 
 export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
@@ -24,7 +25,8 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
   onStartEdit,
   onCancelEdit,
   onSave,
-  isSaving = false
+  isSaving = false,
+  actionButtons
 }) => {
   const { refetchProfile, user } = useAuth();
   const queryClient = useQueryClient();
@@ -582,6 +584,13 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
             </p>
           )}
         </div>
+
+        {/* Action Buttons - Follow/Message/Unfollow */}
+        {actionButtons && !isOwner && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {actionButtons}
+          </div>
+        )}
       </div>
     </div>
   );
