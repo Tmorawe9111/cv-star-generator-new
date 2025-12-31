@@ -559,22 +559,96 @@ export default function BeVisiblleLandingPage() {
               </p>
             </div>
             <div className="order-2 md:order-2 flex justify-center md:justify-end">
-              <div className="w-full max-w-md rounded-2xl bg-gradient-to-br from-blue-50 to-purple-50 p-8 shadow-xl">
-                <div className="aspect-square bg-white rounded-xl shadow-lg flex items-center justify-center">
-                  <svg className="w-32 h-32 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+              <div className="w-full max-w-2xl space-y-6">
+                {/* Teil 1: Mehrere CVs */}
+                <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-purple-50 p-6 shadow-xl">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-4 text-center">Wähle dein Layout</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {/* CV 1 */}
+                    <div className="bg-white rounded-lg shadow-md p-2 aspect-[3/4] overflow-hidden border-2 border-blue-200">
+                      <div className="h-full bg-gradient-to-b from-blue-100 to-blue-50 rounded flex flex-col">
+                        <div className="h-3 bg-blue-500 rounded mb-2"></div>
+                        <div className="flex-1 space-y-1 px-1">
+                          <div className="h-2 bg-gray-300 rounded w-3/4"></div>
+                          <div className="h-2 bg-gray-200 rounded w-full"></div>
+                          <div className="h-2 bg-gray-200 rounded w-5/6"></div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* CV 2 */}
+                    <div className="bg-white rounded-lg shadow-md p-2 aspect-[3/4] overflow-hidden border-2 border-purple-200">
+                      <div className="h-full bg-gradient-to-b from-purple-100 to-purple-50 rounded flex flex-col">
+                        <div className="h-3 bg-purple-500 rounded mb-2"></div>
+                        <div className="flex-1 space-y-1 px-1">
+                          <div className="h-2 bg-gray-300 rounded w-3/4"></div>
+                          <div className="h-2 bg-gray-200 rounded w-full"></div>
+                          <div className="h-2 bg-gray-200 rounded w-5/6"></div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* CV 3 */}
+                    <div className="bg-white rounded-lg shadow-md p-2 aspect-[3/4] overflow-hidden border-2 border-green-200">
+                      <div className="h-full bg-gradient-to-b from-green-100 to-green-50 rounded flex flex-col">
+                        <div className="h-3 bg-green-500 rounded mb-2"></div>
+                        <div className="flex-1 space-y-1 px-1">
+                          <div className="h-2 bg-gray-300 rounded w-3/4"></div>
+                          <div className="h-2 bg-gray-200 rounded w-full"></div>
+                          <div className="h-2 bg-gray-200 rounded w-5/6"></div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* CV 4 */}
+                    <div className="bg-white rounded-lg shadow-md p-2 aspect-[3/4] overflow-hidden border-2 border-orange-200">
+                      <div className="h-full bg-gradient-to-b from-orange-100 to-orange-50 rounded flex flex-col">
+                        <div className="h-3 bg-orange-500 rounded mb-2"></div>
+                        <div className="flex-1 space-y-1 px-1">
+                          <div className="h-2 bg-gray-300 rounded w-3/4"></div>
+                          <div className="h-2 bg-gray-200 rounded w-full"></div>
+                          <div className="h-2 bg-gray-200 rounded w-5/6"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                {/* Fortschrittsbalken */}
-                <div className="mt-6 space-y-2">
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: '100%' }}></div>
+
+                {/* Teil 2: Fertiges Profil aus dem Netzwerk */}
+                <div className="rounded-2xl bg-white shadow-xl border-2 border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-4">
+                    <h4 className="text-sm font-semibold text-white text-center">Dein fertiges Profil im Netzwerk</h4>
                   </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: '100%' }}></div>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: '100%' }}></div>
+                  <div className="p-4">
+                    {/* Profil-Header */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <img
+                        src="https://i.pravatar.cc/64?img=13"
+                        alt="Profile"
+                        className="w-16 h-16 rounded-full object-cover border-2 border-blue-200"
+                      />
+                      <div className="flex-1">
+                        <div className="h-4 bg-gray-800 rounded w-32 mb-2"></div>
+                        <div className="h-3 bg-gray-400 rounded w-24 mb-1"></div>
+                        <div className="h-3 bg-gray-300 rounded w-20"></div>
+                      </div>
+                    </div>
+                    {/* Profil-Inhalt */}
+                    <div className="space-y-3">
+                      <div className="h-3 bg-gray-200 rounded w-full"></div>
+                      <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+                      <div className="flex gap-2 mt-4">
+                        <div className="flex-1 h-20 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="h-4 bg-blue-500 rounded w-16 mx-auto mb-2"></div>
+                            <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
+                          </div>
+                        </div>
+                        <div className="flex-1 h-20 bg-purple-50 rounded-lg border border-purple-200 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="h-4 bg-purple-500 rounded w-16 mx-auto mb-2"></div>
+                            <div className="h-3 bg-gray-300 rounded w-12 mx-auto"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
