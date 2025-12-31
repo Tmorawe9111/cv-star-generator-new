@@ -148,8 +148,8 @@ export default function BeVisiblleLandingPage() {
       <section className="relative pt-28 pb-16">
         <div className="mx-auto max-w-7xl px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Linke Spalte - Text Content */}
-            <div className="order-2 lg:order-1 text-center lg:text-left">
+            {/* Linke Spalte - Text Content - Mobile: Text zuerst */}
+            <div className="order-1 lg:order-1 text-center lg:text-left">
               <motion.h1
                 key={`headline-${selectedHero}`}
                 initial={{ opacity: 0, y: 20 }}
@@ -247,8 +247,8 @@ export default function BeVisiblleLandingPage() {
               </div>
             </div>
 
-            {/* Rechte Spalte - Bild ohne Gradient */}
-            <div className="order-1 lg:order-2 relative">
+            {/* Rechte Spalte - Bild ohne Gradient - Mobile: Bild nach Text */}
+            <div className="order-2 lg:order-2 relative">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -309,7 +309,8 @@ export default function BeVisiblleLandingPage() {
         />
         
         <div className="mx-auto max-w-7xl px-4 relative z-10">
-          <div className="text-center mb-16">
+          {/* Text zuerst auf Mobile */}
+          <div className="text-center mb-12 md:mb-16 order-1">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               Mehr als nur Jobs. Dein Netzwerk.
             </h2>
@@ -318,8 +319,8 @@ export default function BeVisiblleLandingPage() {
             </p>
           </div>
           
-          {/* Zentriertes Layout mit Handy und Floating Elements */}
-          <div className="relative flex items-center justify-center min-h-[600px]">
+          {/* Zentriertes Layout mit Handy und Floating Elements - Bild nach Text auf Mobile */}
+          <div className="relative flex items-center justify-center min-h-[600px] order-2">
             {/* Zentriertes Smartphone Mockup */}
             <div className="relative z-20">
               <div className="w-[280px] md:w-[320px] mx-auto">
@@ -339,10 +340,12 @@ export default function BeVisiblleLandingPage() {
             {/* Floating Elements - Links */}
             <div className="absolute left-0 md:left-10 top-1/2 -translate-y-1/2 z-10">
               <div className="relative">
-                {/* Avatar 1 */}
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 shadow-xl border-4 border-white flex items-center justify-center mb-4 animate-float">
-                  <span className="text-white font-bold text-lg md:text-xl">A</span>
-                </div>
+                {/* Avatar 1 - Profilbild */}
+                <img
+                  src="https://i.pravatar.cc/80?img=12"
+                  alt="Community Member"
+                  className="w-16 h-16 md:w-20 md:h-20 rounded-full shadow-xl border-4 border-white object-cover mb-4 animate-float"
+                />
                 {/* Verbindungslinie mit Chat-Bubble */}
                 <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4">
                   <div className="w-24 md:w-32 h-0.5 bg-gradient-to-r from-blue-400 to-transparent" />
@@ -358,10 +361,12 @@ export default function BeVisiblleLandingPage() {
             {/* Floating Elements - Rechts */}
             <div className="absolute right-0 md:right-10 top-1/2 -translate-y-1/2 z-10">
               <div className="relative">
-                {/* Avatar 2 */}
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 shadow-xl border-4 border-white flex items-center justify-center mb-4 animate-float-delayed">
-                  <span className="text-white font-bold text-lg md:text-xl">U</span>
-                </div>
+                {/* Avatar 2 - Profilbild */}
+                <img
+                  src="https://i.pravatar.cc/80?img=33"
+                  alt="Community Member"
+                  className="w-16 h-16 md:w-20 md:h-20 rounded-full shadow-xl border-4 border-white object-cover mb-4 animate-float-delayed"
+                />
                 {/* Verbindungslinie mit Chat-Bubble */}
                 <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4">
                   <div className="w-24 md:w-32 h-0.5 bg-gradient-to-l from-purple-400 to-transparent" />
@@ -376,16 +381,38 @@ export default function BeVisiblleLandingPage() {
 
             {/* Weitere Floating Avatare - Oben */}
             <div className="absolute left-1/2 -translate-x-1/2 top-10 md:top-20 z-10">
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-green-400 to-green-600 shadow-xl border-4 border-white flex items-center justify-center animate-float-slow">
-                <span className="text-white font-bold text-sm md:text-base">K</span>
-              </div>
+              <img
+                src="https://i.pravatar.cc/64?img=47"
+                alt="Community Member"
+                className="w-12 h-12 md:w-16 md:h-16 rounded-full shadow-xl border-4 border-white object-cover animate-float-slow"
+              />
             </div>
 
             {/* Weitere Floating Avatare - Unten */}
             <div className="absolute left-1/2 -translate-x-1/2 bottom-10 md:bottom-20 z-10">
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 shadow-xl border-4 border-white flex items-center justify-center animate-float-slow-delayed">
-                <span className="text-white font-bold text-sm md:text-base">M</span>
-              </div>
+              <img
+                src="https://i.pravatar.cc/64?img=68"
+                alt="Community Member"
+                className="w-12 h-12 md:w-16 md:h-16 rounded-full shadow-xl border-4 border-white object-cover animate-float-slow-delayed"
+              />
+            </div>
+
+            {/* Zusätzliche Avatare für mehr Gesichter - Links oben */}
+            <div className="absolute left-10 md:left-20 top-20 md:top-32 z-10">
+              <img
+                src="https://i.pravatar.cc/56?img=25"
+                alt="Community Member"
+                className="w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg border-3 border-white object-cover animate-float"
+              />
+            </div>
+
+            {/* Zusätzliche Avatare - Rechts unten */}
+            <div className="absolute right-10 md:right-20 bottom-20 md:bottom-32 z-10">
+              <img
+                src="https://i.pravatar.cc/56?img=51"
+                alt="Community Member"
+                className="w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg border-3 border-white object-cover animate-float-delayed"
+              />
             </div>
           </div>
         </div>
@@ -521,9 +548,9 @@ export default function BeVisiblleLandingPage() {
       {/* Benefits Section - Zig-Zag Layout für Nutzer */}
       <section className="mt-20 py-20">
         <div className="mx-auto max-w-7xl px-4">
-          {/* Reihe 1: Text links, Bild rechts */}
+          {/* Reihe 1: Text links, Bild rechts - Mobile: Text zuerst */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center mb-20">
-            <div className="order-2 md:order-1">
+            <div className="order-1 md:order-1">
               <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                 Dein Profil in 5 Minuten.
               </h3>
@@ -531,7 +558,7 @@ export default function BeVisiblleLandingPage() {
                 Vergiss komplizierte Word-Vorlagen. Beantworte ein paar Fragen und wir erstellen deinen perfekten Lebenslauf automatisch.
               </p>
             </div>
-            <div className="order-1 md:order-2 flex justify-center md:justify-end">
+            <div className="order-2 md:order-2 flex justify-center md:justify-end">
               <div className="w-full max-w-md rounded-2xl bg-gradient-to-br from-blue-50 to-purple-50 p-8 shadow-xl">
                 <div className="aspect-square bg-white rounded-xl shadow-lg flex items-center justify-center">
                   <svg className="w-32 h-32 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -554,35 +581,9 @@ export default function BeVisiblleLandingPage() {
             </div>
           </div>
 
-          {/* Reihe 2: Bild links, Text rechts */}
+          {/* Reihe 2: Text links, Bild rechts - Mobile: Text zuerst */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center mb-20">
-            <div className="flex justify-center md:justify-start">
-              <div className="w-full max-w-md rounded-2xl bg-gradient-to-br from-green-50 to-blue-50 p-8 shadow-xl">
-                <div className="aspect-square bg-white rounded-xl shadow-lg flex items-center justify-center p-6">
-                  <div className="space-y-4 w-full">
-                    {/* Chat-Bubble 1 */}
-                    <div className="flex justify-end">
-                      <div className="bg-blue-500 text-white rounded-2xl rounded-tr-none px-4 py-3 max-w-[80%]">
-                        <p className="text-sm">Hallo, ich habe eine Frage zum Job...</p>
-                      </div>
-                    </div>
-                    {/* Chat-Bubble 2 */}
-                    <div className="flex justify-start">
-                      <div className="bg-gray-200 text-gray-800 rounded-2xl rounded-tl-none px-4 py-3 max-w-[80%]">
-                        <p className="text-sm">Gerne! Was möchtest du wissen?</p>
-                      </div>
-                    </div>
-                    {/* Chat-Bubble 3 */}
-                    <div className="flex justify-end">
-                      <div className="bg-blue-500 text-white rounded-2xl rounded-tr-none px-4 py-3 max-w-[80%]">
-                        <p className="text-sm">Wie sind die Arbeitszeiten?</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div>
+            <div className="order-1 md:order-2">
               <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                 Chatten statt Bewerben.
               </h3>
@@ -590,11 +591,52 @@ export default function BeVisiblleLandingPage() {
                 Du hast eine Frage zum Job? Schreib dem Unternehmen einfach direkt über den Messenger. Schnell, unkompliziert, persönlich.
               </p>
             </div>
+            <div className="order-2 md:order-1 flex justify-center md:justify-start">
+              <div className="w-full max-w-md rounded-2xl bg-gradient-to-br from-green-50 to-blue-50 p-8 shadow-xl">
+                <div className="aspect-square bg-white rounded-xl shadow-lg flex items-center justify-center p-6">
+                  <div className="space-y-4 w-full">
+                    {/* Chat-Bubble 1 mit Profilbild */}
+                    <div className="flex justify-end items-start gap-2">
+                      <img
+                        src="https://i.pravatar.cc/32?img=15"
+                        alt="User"
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                      <div className="bg-blue-500 text-white rounded-2xl rounded-tr-none px-4 py-3 max-w-[75%]">
+                        <p className="text-sm">Hallo, ich habe eine Frage zum Job...</p>
+                      </div>
+                    </div>
+                    {/* Chat-Bubble 2 mit Profilbild */}
+                    <div className="flex justify-start items-start gap-2">
+                      <img
+                        src="https://i.pravatar.cc/32?img=22"
+                        alt="Company"
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                      <div className="bg-gray-200 text-gray-800 rounded-2xl rounded-tl-none px-4 py-3 max-w-[75%]">
+                        <p className="text-sm">Gerne! Was möchtest du wissen?</p>
+                      </div>
+                    </div>
+                    {/* Chat-Bubble 3 mit Profilbild */}
+                    <div className="flex justify-end items-start gap-2">
+                      <img
+                        src="https://i.pravatar.cc/32?img=15"
+                        alt="User"
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                      <div className="bg-blue-500 text-white rounded-2xl rounded-tr-none px-4 py-3 max-w-[75%]">
+                        <p className="text-sm">Wie sind die Arbeitszeiten?</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Reihe 3: Text links, Bild rechts */}
+          {/* Reihe 3: Text links, Bild rechts - Mobile: Text zuerst */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
-            <div className="order-2 md:order-1">
+            <div className="order-1 md:order-1">
               <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                 Wissen teilen & wachsen.
               </h3>
@@ -602,34 +644,46 @@ export default function BeVisiblleLandingPage() {
                 Tausche dich im Feed mit anderen aus deiner Branche aus. Hol dir Tipps für Gehalt, Weiterbildung und Alltag.
               </p>
             </div>
-            <div className="order-1 md:order-2 flex justify-center md:justify-end">
+            <div className="order-2 md:order-2 flex justify-center md:justify-end">
               <div className="w-full max-w-md rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 p-8 shadow-xl">
                 <div className="aspect-square bg-white rounded-xl shadow-lg flex items-center justify-center p-6 relative">
                   <div className="grid grid-cols-3 gap-3 w-full">
-                    {/* Avatar-Gruppe */}
+                    {/* Avatar-Gruppe mit echten Profilbildern */}
                     <div className="flex flex-col items-center gap-2">
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                        <span className="text-white font-bold">A</span>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center -ml-4">
-                        <span className="text-white font-bold text-sm">B</span>
-                      </div>
+                      <img
+                        src="https://i.pravatar.cc/64?img=11"
+                        alt="Community Member"
+                        className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
+                      />
+                      <img
+                        src="https://i.pravatar.cc/48?img=28"
+                        alt="Community Member"
+                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md -ml-4"
+                      />
                     </div>
                     <div className="flex flex-col items-center gap-2">
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">C</span>
-                      </div>
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center -mr-4">
-                        <span className="text-white font-bold text-xs">D</span>
-                      </div>
+                      <img
+                        src="https://i.pravatar.cc/56?img=35"
+                        alt="Community Member"
+                        className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-md"
+                      />
+                      <img
+                        src="https://i.pravatar.cc/40?img=42"
+                        alt="Community Member"
+                        className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md -mr-4"
+                      />
                     </div>
                     <div className="flex flex-col items-center gap-2">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center -ml-4">
-                        <span className="text-white font-bold text-sm">E</span>
-                      </div>
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center">
-                        <span className="text-white font-bold">F</span>
-                      </div>
+                      <img
+                        src="https://i.pravatar.cc/48?img=19"
+                        alt="Community Member"
+                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md -ml-4"
+                      />
+                      <img
+                        src="https://i.pravatar.cc/64?img=7"
+                        alt="Community Member"
+                        className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
+                      />
                     </div>
                   </div>
                   {/* Feed-Icon oben */}
