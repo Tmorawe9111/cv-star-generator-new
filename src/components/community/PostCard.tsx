@@ -1,5 +1,5 @@
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -90,6 +90,41 @@ export default function PostCard({ post }: PostCardProps) {
   
   // Check if current user is a company user
   const isCompanyUser = !!company?.id;
+  
+  // CRITICAL: Debug log to verify author data
+  useEffect(() => {
+    if (post.author_type === 'user' && post.author) {
+      console.log('[PostCard] 🔍 Author data received:', {
+        postId: post.id,
+        userId: post.user_id,
+        authorId: post.author.id,
+        avatar_url: post.author.avatar_url ? `SET: ${post.author.avatar_url.substring(0, 50)}...` : 'NULL',
+        headline: post.author.headline ? `SET: ${post.author.headline}` : 'NULL',
+        vorname: post.author.vorname,
+        nachname: post.author.nachname ? 'SET' : 'NULL',
+        // CRITICAL: Log raw values to see what's actually in post.author
+        rawAvatarUrl: post.author.avatar_url,
+        rawHeadline: post.author.headline,
+        rawAuthorObject: JSON.stringify(post.author, null, 2)
+      });
+      
+      // CRITICAL: If avatar_url is missing, log error
+      if (!post.author.avatar_url) {
+        console.error('[PostCard] ❌ CRITICAL: avatar_url is NULL in post.author!', {
+          postId: post.id,
+          userId: post.user_id,
+          authorId: post.author.id,
+          fullAuthorObject: JSON.stringify(post.author, null, 2)
+        });
+      }
+    } else if (post.author_type === 'user' && !post.author) {
+      console.error('[PostCard] ❌ CRITICAL: Post has no author data!', {
+        postId: post.id,
+        userId: post.user_id,
+        authorType: post.author_type
+      });
+    }
+  }, [post.id, post.author, post.author_type]);
 
   const { count: likeCount, liked, isLoading: likesLoading, toggleLike, isToggling } = usePostLikes(post.id);
   const { comments, commentsCount, isLoading: commentsLoading, addComment, isAdding } = usePostComments(post.id);
@@ -179,40 +214,10 @@ const authorSubtitle = useMemo(() => {
   const a = post.author as any;
   if (!a) return '';
   
-  // Priorität 1: Headline aus Einstellungen (Berufsbezeichnung / Headline)
-  // Priorität 2: Arbeitgeber aus Einstellungen (employer_free)
-  // Format: "Headline @ Arbeitgeber" wie bei LinkedIn
-  
-  // Arbeitgeber ermitteln (Priorität: employer_free > ausbildungsbetrieb > company_name)
-  const employer = a.employer_free || a.ausbildungsbetrieb || a.company_name || null;
-  
-  // 1. Headline vorhanden
+  // Use generated headline (from profile status line logic)
+  // This already includes current job/school and "@ Company" if linked
   if (a.headline) {
-    if (employer) {
-      return `${a.headline} @ ${employer}`;
-    }
     return a.headline;
-  }
-  
-  // 2. Fallback: Aktueller Beruf
-  if (a.aktueller_beruf) {
-    if (employer) {
-      return `${a.aktueller_beruf} @ ${employer}`;
-    }
-    return a.aktueller_beruf;
-  }
-  
-  // 3. Fallback: Ausbildungsberuf
-  if (a.ausbildungsberuf) {
-    if (employer) {
-      return `${a.ausbildungsberuf} @ ${employer}`;
-    }
-    return a.ausbildungsberuf;
-  }
-  
-  // 4. Nur Arbeitgeber
-  if (employer) {
-    return `@ ${employer}`;
   }
   
   return '';
@@ -298,6 +303,10 @@ const authorSubtitle = useMemo(() => {
       }
       // Company users CAN click on user profiles (but see restricted view)
       if (post.author_type === 'user' && (post.author?.id || post.user_id)) {
+        // Use profile_slug if available, otherwise fallback to ID
+        if (post.author?.profile_slug) {
+          return `/profil/${post.author.profile_slug}`;
+        }
         return `/u/${post.author?.id || post.user_id}`;
       }
       return null;
@@ -313,7 +322,10 @@ const authorSubtitle = useMemo(() => {
       return '/profile';
     }
     
-    // Other user's profile
+    // Other user's profile - use profile_slug if available
+    if (post.author?.profile_slug) {
+      return `/profil/${post.author.profile_slug}`;
+    }
     return `/u/${post.author?.id || post.user_id}`;
   }, [post.author_type, post.company?.id, post.company_id, post.author?.id, post.user_id, isCompanyUser, company?.id, user?.id]);
 
@@ -336,8 +348,28 @@ const authorSubtitle = useMemo(() => {
           >
 <Avatar className="h-9 w-9 sm:h-10 sm:w-10 border-2 border-background shadow-lg bg-background">
   <AvatarImage 
-    src={post.author_type === 'company' ? (post.company?.logo_url || undefined) : (post.author?.avatar_url || undefined)} 
+    src={post.author_type === 'company' 
+      ? (post.company?.logo_url ?? undefined)
+      : (post.author?.avatar_url ?? undefined)
+    } 
+    alt={getDisplayName()}
     className="object-cover" 
+    onError={(e) => {
+      console.error('[PostCard] ❌ Avatar image failed to load:', {
+        authorType: post.author_type,
+        avatar_url: post.author?.avatar_url,
+        logo_url: post.company?.logo_url,
+        postId: post.id,
+        userId: post.user_id
+      });
+    }}
+    onLoad={() => {
+      console.log('[PostCard] ✅ Avatar image loaded successfully:', {
+        authorType: post.author_type,
+        avatar_url: post.author?.avatar_url,
+        postId: post.id
+      });
+    }}
   />
   <AvatarFallback className="bg-primary/10 text-foreground font-semibold">{getInitials()}</AvatarFallback>
 </Avatar>

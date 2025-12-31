@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 type JobPost = any; // Simplified to avoid deep type instantiation
 type JobInsert = any;
@@ -34,13 +35,79 @@ export class JobsService {
   }
 
   // Fetch public jobs (for candidates)
+  // If user is logged in, uses branch filtering. If not, shows all jobs.
   static async getPublicJobs(filters?: {
     employment_type?: string;
     profession_id?: string;
     location?: string;
     work_mode?: string;
+    userId?: string; // Optional: if provided, will filter by branch
+    skipBranchFilter?: boolean; // Optional: if true, shows all jobs (for search)
   }): Promise<any[]> {
-    // Build base query
+    // If user is logged in and branch filtering is not skipped, use branch-filtered function
+    if (filters?.userId && !filters?.skipBranchFilter) {
+      try {
+        const { data, error } = await supabase
+          .rpc('get_jobs_by_branch', {
+            p_viewer_id: filters.userId,
+            p_limit: 100, // Get more jobs, client-side filtering will handle the rest
+            p_offset: 0
+          });
+
+        if (error) {
+          console.warn('[JobsService] get_jobs_by_branch error, falling back to regular query:', error);
+          // Fall through to regular query
+        } else if (data && data.length > 0) {
+          // Transform the data to match expected format
+          const transformedJobs = await Promise.all(
+            (data || []).map(async (job: any) => {
+              // Fetch company info if not included
+              let company = null;
+              if (job.company_id) {
+                const { data: companyData } = await supabase
+                  .from('companies')
+                  .select('id, name, logo_url')
+                  .eq('id', job.company_id)
+                  .single();
+                company = companyData;
+              }
+
+              return {
+                ...job,
+                company: company || { id: job.company_id, name: job.company_name, logo_url: null }
+              };
+            })
+          );
+
+          // Apply additional filters client-side
+          let filtered = transformedJobs;
+          
+          if (filters?.employment_type) {
+            filtered = filtered.filter(j => j.employment_type === filters.employment_type);
+          }
+          
+          if (filters?.work_mode) {
+            filtered = filtered.filter(j => j.work_mode === filters.work_mode);
+          }
+          
+          if (filters?.location) {
+            const searchLower = filters.location.toLowerCase();
+            filtered = filtered.filter(j => 
+              j.city?.toLowerCase().includes(searchLower) ||
+              j.state?.toLowerCase().includes(searchLower) ||
+              j.country?.toLowerCase().includes(searchLower)
+            );
+          }
+
+          return filtered;
+        }
+      } catch (error) {
+        console.warn('[JobsService] Error in get_jobs_by_branch, falling back:', error);
+        // Fall through to regular query
+      }
+    }
+
+    // Fallback: Build base query (for non-logged-in users or when branch filter is skipped)
     const baseQuery = supabase
       .from('job_posts')
       .select(`

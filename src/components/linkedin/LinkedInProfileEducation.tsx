@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FormattedDescription } from '@/components/shared/FormattedDescription';
 import { Switch } from '@/components/ui/switch';
 import { SchoolAutocomplete } from '@/components/shared/SchoolAutocomplete';
 
@@ -553,9 +554,13 @@ export const LinkedInProfileEducation: React.FC<LinkedInProfileEducationProps> =
                     </div>
                     
                     {edu.beschreibung && (
-                      <p className="text-muted-foreground mt-3 leading-relaxed">
-                        {edu.beschreibung}
-                      </p>
+                      <div className="mt-3">
+                        <FormattedDescription 
+                          description={edu.beschreibung}
+                          className="text-muted-foreground"
+                          textSize="base"
+                        />
+                      </div>
                     )}
                     {editingIndex === originalIndex && (
                       <div className="mt-4">

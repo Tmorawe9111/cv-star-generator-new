@@ -69,6 +69,18 @@ type Person = {
   bio?: string | null;
   branche?: string | null;
   stadt?: string | null;
+  ort?: string | null;
+  status?: string | null;
+  schule?: string | null;
+  ausbildungsberuf?: string | null;
+  ausbildungsbetrieb?: string | null;
+  aktueller_beruf?: string | null;
+  berufserfahrung?: any;
+  schulbildung?: any;
+  mutualConnections?: Array<{ id: string; avatar_url: string | null; name: string }>;
+  mutualCount?: number;
+  commonSchools?: string[];
+  commonJobs?: Array<{ company: string; position: string }>;
 };
 
 type Company = { 
@@ -139,11 +151,58 @@ const ForYouCard: React.FC<{
     ? `${person.vorname ?? ''} ${person.nachname ?? ''}`.trim() || 'Unbekannt'
     : company.name;
   const branche = isPerson ? person.branche : company.industry;
-  const stadt = isPerson ? person.stadt : company.city;
+  const stadt = isPerson ? (person.ort || person.stadt) : company.city;
   const imageUrl = isPerson ? person.avatar_url : company.logo_url;
   const linkTo = isPerson ? `/u/${person.id}` : `/companies/${company.id}`;
   
-  const mutualCount = [3, 7, 2, 5, 4, 8, 6, 9, 1, 11][index % 10];
+  // Get status info for person
+  const getStatusInfo = () => {
+    if (!isPerson) return null;
+    if (person.status === 'schueler') {
+      const schoolName = person.schule || (Array.isArray(person.schulbildung) && person.schulbildung.length > 0 
+        ? (person.schulbildung[0]?.name || person.schulbildung[0]?.schule) 
+        : null);
+      if (schoolName) {
+        const text = `Schüler (an ${schoolName})`;
+        return text.length > 28 ? text.substring(0, 25) + '...' : text;
+      }
+      return 'Schüler';
+    }
+    if (person.status === 'azubi') {
+      if (person.ausbildungsbetrieb) {
+        const text = `Azubi bei ${person.ausbildungsbetrieb}`;
+        return text.length > 28 ? text.substring(0, 25) + '...' : text;
+      }
+      return 'Azubi';
+    }
+    if (person.status === 'ausgelernt' || person.status === 'fachkraft') {
+      const jobTitle = person.aktueller_beruf || (Array.isArray(person.berufserfahrung) && person.berufserfahrung.length > 0 
+        ? (person.berufserfahrung[0]?.position || person.berufserfahrung[0]?.titel)
+        : null);
+      const company = Array.isArray(person.berufserfahrung) && person.berufserfahrung.length > 0 
+        ? (person.berufserfahrung[0]?.unternehmen || person.berufserfahrung[0]?.company)
+        : person.ausbildungsbetrieb;
+      
+      if (jobTitle && company) {
+        const text = `${jobTitle} bei ${company}`;
+        return text.length > 28 ? text.substring(0, 25) + '...' : text;
+      }
+      if (jobTitle) return jobTitle.length > 28 ? jobTitle.substring(0, 25) + '...' : jobTitle;
+    }
+    return branche || null;
+  };
+  
+  const statusInfo = getStatusInfo();
+  const mutualCount = isPerson 
+    ? (person.mutualCount || [3, 7, 2, 5, 4, 8, 6, 9, 1, 11][index % 10])
+    : [3, 7, 2, 5, 4, 8, 6, 9, 1, 11][index % 10];
+  const mutualNames = isPerson && person.mutualConnections
+    ? person.mutualConnections.slice(0, 2).map(c => c.name)
+    : ['Sarah M.', 'Tom K.'].slice(0, Math.min(mutualCount, 2));
+  // Only use avatars for the first 2 contacts (matching the names displayed)
+  const mutualAvatars = isPerson && person.mutualConnections
+    ? person.mutualConnections.slice(0, 2).map(c => c.avatar_url)
+    : DEMO_AVATARS.slice(0, Math.min(mutualCount, 2));
 
   // Gradient colors
   const gradients = [
@@ -157,7 +216,7 @@ const ForYouCard: React.FC<{
 
   return (
     <div className={cn(
-      "min-w-[156px] w-[156px] h-[220px] rounded-[20px] p-3 flex flex-col relative overflow-hidden",
+      "min-w-[156px] w-[156px] h-[280px] rounded-[20px] p-3 flex flex-col relative overflow-hidden",
       "bg-gradient-to-br", gradient,
       "border border-white/60 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.1)]",
       "backdrop-blur-sm transition-all duration-300 active:scale-[0.98]"
@@ -165,47 +224,84 @@ const ForYouCard: React.FC<{
       {/* Shine effect */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       
-      <Link to={linkTo} className="flex flex-col items-center relative z-10">
-        {isPerson ? (
-          <div className="relative mb-2">
-            <div className="absolute -inset-1 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-20 blur-sm" />
-            <Avatar className="h-14 w-14 ring-2 ring-white shadow-lg">
-              <AvatarImage src={imageUrl ?? undefined} className="object-cover" />
-              <AvatarFallback className="text-lg font-bold bg-gradient-to-br from-blue-100 to-purple-100 text-gray-700">
-                {name.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        ) : (
-          <div className="relative mb-2">
-            <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center overflow-hidden shadow-lg ring-1 ring-black/5">
-              {imageUrl ? (
-                <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
-              ) : (
-                <Building2 className="h-7 w-7 text-gray-400" />
-              )}
+      <Link to={linkTo} className="flex flex-col items-center relative z-10 flex-1">
+        {/* Avatar - Fixed position */}
+        <div className="relative mb-2 h-[56px] flex items-center justify-center">
+          {isPerson ? (
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-20 blur-sm" />
+              <Avatar className="h-14 w-14 ring-2 ring-white shadow-lg">
+                <AvatarImage src={imageUrl ?? undefined} className="object-cover" />
+                <AvatarFallback className="text-lg font-bold bg-gradient-to-br from-blue-100 to-purple-100 text-gray-700">
+                  {name.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
             </div>
-          </div>
-        )}
-        <p className="font-semibold text-[13px] text-gray-900 truncate w-full text-center leading-tight">{name}</p>
-        <p className="text-[10px] text-gray-600 truncate w-full text-center mt-0.5">{branche}</p>
-        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5 mt-0.5">
-          <MapPin className="h-2.5 w-2.5" /> {stadt}
-        </p>
+          ) : (
+            <div className="relative">
+              <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center overflow-hidden shadow-lg ring-1 ring-black/5">
+                {imageUrl ? (
+                  <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
+                ) : (
+                  <Building2 className="h-7 w-7 text-gray-400" />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Name - Fixed height, max 2 lines */}
+        <div className="h-[32px] w-full flex items-center justify-center mb-0.5">
+          <p className="font-semibold text-[13px] text-gray-900 line-clamp-2 text-center leading-tight px-1">
+            {name}
+          </p>
+        </div>
+        
+        {/* Status/Branche - Fixed height */}
+        <div className="h-[14px] w-full flex items-center justify-center mb-0.5">
+          {statusInfo ? (
+            <p className="text-[10px] text-gray-600 truncate w-full text-center leading-tight px-1" title={statusInfo}>
+              {statusInfo}
+            </p>
+          ) : branche ? (
+            <p className="text-[10px] text-gray-600 truncate w-full text-center leading-tight px-1">
+              {branche}
+            </p>
+          ) : (
+            <div className="h-[14px]" />
+          )}
+        </div>
+        
+        {/* Standort - Fixed height */}
+        <div className="h-[14px] w-full flex items-center justify-center">
+          {stadt ? (
+            <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5 px-1">
+              <MapPin className="h-2.5 w-2.5 shrink-0" />
+              <span className="truncate">{stadt}</span>
+            </p>
+          ) : (
+            <div className="h-[14px]" />
+          )}
+        </div>
       </Link>
       
-      {/* Gemeinsame Kontakte / Mitarbeiter */}
-      <div className="flex items-center justify-center mt-auto mb-2 relative z-10">
-        <OverlappingAvatars 
-          avatars={DEMO_AVATARS} 
-          count={mutualCount}
-          label={isPerson ? '' : `${mutualCount} Mitarbeiter`}
-          type={isPerson ? 'mutual' : 'employees'}
-        />
+      {/* Gemeinsame Kontakte / Mitarbeiter - Fixed position at bottom */}
+      <div className="h-[50px] flex items-center justify-center mt-auto mb-2 relative z-10 w-full">
+        {mutualCount > 0 ? (
+          <OverlappingAvatars 
+            avatars={mutualAvatars} 
+            count={mutualCount}
+            label={isPerson ? '' : `${mutualCount} Mitarbeiter`}
+            type={isPerson ? 'mutual' : 'employees'}
+            names={isPerson ? mutualNames : []}
+          />
+        ) : (
+          <div className="h-[50px]" />
+        )}
       </div>
 
-      {/* Button */}
-      <div className="relative z-10">
+      {/* Button - Fixed position at bottom */}
+      <div className="relative z-10 h-[36px] flex items-center">
         <Button 
           size="sm" 
           onClick={onAction}
@@ -231,32 +327,73 @@ const DEMO_AVATARS = [
   'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
 ];
 
-// Overlapping Avatars Component - fixed height for alignment
+// Overlapping Avatars Component - fixed height for alignment with names (centered)
+// Shows actual avatars of the 2 contacts that are mentioned by name
 const OverlappingAvatars: React.FC<{ 
   avatars: (string | null)[]; 
   count: number;
   label: string;
   type?: 'mutual' | 'employees';
-}> = ({ avatars, count, label, type = 'mutual' }) => (
-  <div className="flex flex-col items-center gap-1 h-[40px] justify-center">
-    <div className="flex -space-x-1.5">
-      {avatars.slice(0, 3).map((url, i) => (
-        <Avatar key={i} className="h-5 w-5 border-[1.5px] border-white">
-          <AvatarImage src={url || DEMO_AVATARS[i]} className="object-cover" />
-          <AvatarFallback className="text-[8px] bg-gray-200">U</AvatarFallback>
-        </Avatar>
-      ))}
+  names?: string[];
+}> = ({ avatars, count, label, type = 'mutual', names = [] }) => {
+  const displayNames = names.slice(0, 2);
+  const remainingCount = count > 2 ? count - 2 : 0;
+  
+  // Use actual avatars for the first 2 contacts (matching the names)
+  // Only show avatars that correspond to the displayed names
+  const displayAvatars = avatars.slice(0, Math.min(2, displayNames.length));
+  
+  return (
+    <div className="flex flex-col items-center gap-1.5 h-[50px] justify-center w-full">
+      <div className="flex -space-x-1.5 justify-center">
+        {displayAvatars.map((url, i) => (
+          <Avatar key={i} className="h-5 w-5 border-[1.5px] border-white ring-0.5 ring-gray-200/50">
+            <AvatarImage src={url || undefined} className="object-cover" />
+            <AvatarFallback className="text-[8px] bg-gray-200">
+              {displayNames[i] ? displayNames[i].slice(0, 2).toUpperCase() : 'U'}
+            </AvatarFallback>
+          </Avatar>
+        ))}
+        {/* Show third avatar indicator if there are more than 2 contacts */}
+        {count > 2 && (
+          <div className="h-5 w-5 rounded-full bg-gray-100 border-[1.5px] border-white ring-0.5 ring-gray-200/50 flex items-center justify-center">
+            <span className="text-[8px] font-semibold text-gray-600">+{remainingCount}</span>
+          </div>
+        )}
+      </div>
+      {type === 'mutual' && count > 0 ? (
+        <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-center px-1">
+          {displayNames.map((name, idx) => (
+            <span key={idx} className="text-[9px] text-gray-700 font-medium leading-none">
+              {name}{idx < displayNames.length - 1 && ','}
+            </span>
+          ))}
+          {remainingCount > 0 && (
+            <span className="text-[9px] text-gray-500 font-light leading-none">
+              und {remainingCount} weitere gemeinsame Kontakte
+            </span>
+          )}
+          {count === 1 && displayNames.length === 1 && (
+            <span className="text-[9px] text-gray-500 font-light leading-none">
+              gemeinsamer Kontakt
+            </span>
+          )}
+          {count === 2 && displayNames.length === 2 && (
+            <span className="text-[9px] text-gray-500 font-light leading-none">
+              gemeinsame Kontakte
+            </span>
+          )}
+        </div>
+      ) : (
+        count > 0 && (
+          <span className="text-[9px] text-gray-500 leading-none text-center">
+            {label || (count > 1 ? `${count} gemeinsame` : '1 gemeinsamer')}
+          </span>
+        )
+      )}
     </div>
-    {count > 0 && (
-      <span className="text-[9px] text-gray-500 leading-none text-center">
-        {type === 'mutual' 
-          ? (count > 1 ? `${count} gemeinsame` : '1 gemeinsamer')
-          : label
-        }
-      </span>
-    )}
-  </div>
-);
+  );
+};
 
 // Neue Person Card - Apple/Instagram Style
 const PersonCard: React.FC<{ 
@@ -269,8 +406,64 @@ const PersonCard: React.FC<{
   const isConnected = status === 'accepted';
   const isPending = status === 'pending';
   
-  const mutualCounts = [4, 2, 6, 3, 8, 5, 1, 7, 9, 3];
-  const mutualCount = mutualCounts[index % 10];
+  // Use real mutual connections or test data
+  const mutualConnections = person.mutualConnections || [];
+  const mutualCount = person.mutualCount || (mutualConnections.length > 0 ? mutualConnections.length : [4, 2, 6, 3, 8, 5, 1, 7, 9, 3][index % 10]);
+  const mutualNames = mutualConnections.length > 0 
+    ? mutualConnections.slice(0, 2).map(c => c.name)
+    : ['Sarah M.', 'Tom K.'].slice(0, Math.min(mutualCount, 2));
+  // Only use avatars for the first 2 contacts (matching the names displayed)
+  const mutualAvatars = mutualConnections.length > 0
+    ? mutualConnections.slice(0, 2).map(c => c.avatar_url)
+    : DEMO_AVATARS.slice(0, Math.min(mutualCount, 2));
+
+  // Get status-specific info
+  const getStatusInfo = () => {
+    if (person.status === 'schueler') {
+      const schoolName = person.schule || (Array.isArray(person.schulbildung) && person.schulbildung.length > 0 
+        ? (person.schulbildung[0]?.name || person.schulbildung[0]?.schule) 
+        : null);
+      if (schoolName) {
+        const text = `Schüler (an ${schoolName})`;
+        return text.length > 28 ? text.substring(0, 25) + '...' : text;
+      }
+      return 'Schüler';
+    }
+    if (person.status === 'azubi') {
+      if (person.ausbildungsbetrieb) {
+        const text = `Azubi bei ${person.ausbildungsbetrieb}`;
+        return text.length > 28 ? text.substring(0, 25) + '...' : text;
+      }
+      if (person.ausbildungsberuf) {
+        return `Azubi (${person.ausbildungsberuf})`;
+      }
+      return 'Azubi';
+    }
+    if (person.status === 'ausgelernt' || person.status === 'fachkraft') {
+      const jobTitle = person.aktueller_beruf || (Array.isArray(person.berufserfahrung) && person.berufserfahrung.length > 0 
+        ? (person.berufserfahrung[0]?.position || person.berufserfahrung[0]?.titel || person.berufserfahrung[0]?.beruf)
+        : null);
+      const company = Array.isArray(person.berufserfahrung) && person.berufserfahrung.length > 0 
+        ? (person.berufserfahrung[0]?.unternehmen || person.berufserfahrung[0]?.company)
+        : person.ausbildungsbetrieb;
+      
+      if (jobTitle && company) {
+        const text = `${jobTitle} bei ${company}`;
+        return text.length > 28 ? text.substring(0, 25) + '...' : text;
+      }
+      if (jobTitle) {
+        const text = jobTitle;
+        return text.length > 28 ? text.substring(0, 25) + '...' : text;
+      }
+      if (person.branche) {
+        return person.branche;
+      }
+    }
+    return person.branche || null;
+  };
+  
+  const statusInfo = getStatusInfo();
+  const location = person.ort || person.stadt;
 
   // Gradient colors based on index for variety
   const gradients = [
@@ -284,7 +477,7 @@ const PersonCard: React.FC<{
 
   return (
     <div className={cn(
-      "min-w-[156px] w-[156px] h-[220px] rounded-[20px] p-3 flex flex-col relative overflow-hidden",
+      "min-w-[156px] w-[156px] h-[280px] rounded-[20px] p-3 flex flex-col relative overflow-hidden",
       "bg-gradient-to-br", gradient,
       "border border-white/60 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.1)]",
       "backdrop-blur-sm transition-all duration-300 active:scale-[0.98]"
@@ -292,9 +485,9 @@ const PersonCard: React.FC<{
       {/* Subtle shine effect */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       
-      <Link to={`/u/${person.id}`} className="flex flex-col items-center relative z-10">
-        {/* Avatar with ring */}
-        <div className="relative mb-2">
+      <Link to={`/u/${person.id}`} className="flex flex-col items-center relative z-10 flex-1">
+        {/* Avatar - Fixed position */}
+        <div className="relative mb-2 h-[56px] flex items-center justify-center">
           <div className="absolute -inset-1 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-20 blur-sm" />
           <Avatar className="h-14 w-14 ring-2 ring-white shadow-lg">
             <AvatarImage src={person.avatar_url ?? undefined} className="object-cover" />
@@ -303,20 +496,59 @@ const PersonCard: React.FC<{
             </AvatarFallback>
           </Avatar>
         </div>
-        <p className="font-semibold text-[13px] text-gray-900 truncate w-full text-center leading-tight">{name}</p>
-        <p className="text-[10px] text-gray-600 truncate w-full text-center mt-0.5">{person.branche}</p>
-        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5 mt-0.5">
-          <MapPin className="h-2.5 w-2.5" /> {person.stadt}
-        </p>
+        
+        {/* Name - Fixed height, max 2 lines */}
+        <div className="h-[32px] w-full flex items-center justify-center mb-0.5">
+          <p className="font-semibold text-[13px] text-gray-900 line-clamp-2 text-center leading-tight px-1">
+            {name}
+          </p>
+        </div>
+        
+        {/* Status/Branche - Fixed height */}
+        <div className="h-[14px] w-full flex items-center justify-center mb-0.5">
+          {statusInfo ? (
+            <p className="text-[10px] text-gray-600 truncate w-full text-center leading-tight px-1" title={statusInfo}>
+              {statusInfo}
+            </p>
+          ) : person.branche ? (
+            <p className="text-[10px] text-gray-600 truncate w-full text-center leading-tight px-1">
+              {person.branche}
+            </p>
+          ) : (
+            <div className="h-[14px]" />
+          )}
+        </div>
+        
+        {/* Standort - Fixed height */}
+        <div className="h-[14px] w-full flex items-center justify-center">
+          {location ? (
+            <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5 px-1">
+              <MapPin className="h-2.5 w-2.5 shrink-0" />
+              <span className="truncate">{location}</span>
+            </p>
+          ) : (
+            <div className="h-[14px]" />
+          )}
+        </div>
       </Link>
       
-      {/* Gemeinsame Kontakte */}
-      <div className="flex items-center justify-center mt-auto mb-2 relative z-10">
-        <OverlappingAvatars avatars={DEMO_AVATARS} count={mutualCount} label="" type="mutual" />
+      {/* Gemeinsame Kontakte - Fixed position at bottom */}
+      <div className="h-[50px] flex items-center justify-center mt-auto mb-2 relative z-10 w-full">
+        {mutualCount > 0 ? (
+          <OverlappingAvatars 
+            avatars={mutualAvatars} 
+            count={mutualCount} 
+            label="" 
+            type="mutual"
+            names={mutualNames}
+          />
+        ) : (
+          <div className="h-[50px]" />
+        )}
       </div>
 
-      {/* Button */}
-      <div className="relative z-10">
+      {/* Button - Fixed position at bottom */}
+      <div className="relative z-10 h-[36px] flex items-center">
         {!isConnected && !isPending ? (
           <Button 
             size="sm" 
@@ -362,7 +594,7 @@ const CompanyCard: React.FC<{
   
   return (
     <div className={cn(
-      "min-w-[156px] w-[156px] h-[220px] rounded-[20px] p-3 flex flex-col relative overflow-hidden",
+      "min-w-[156px] w-[156px] h-[280px] rounded-[20px] p-3 flex flex-col relative overflow-hidden",
       "bg-gradient-to-br", gradient,
       "border border-white/60 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.1)]",
       "backdrop-blur-sm transition-all duration-300 active:scale-[0.98]"
@@ -370,9 +602,9 @@ const CompanyCard: React.FC<{
       {/* Subtle shine effect */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       
-      <Link to={`/companies/${company.id}`} className="flex flex-col items-center relative z-10">
-        {/* Logo with shadow */}
-        <div className="relative mb-2">
+      <Link to={`/companies/${company.id}`} className="flex flex-col items-center relative z-10 flex-1">
+        {/* Logo - Fixed position */}
+        <div className="relative mb-2 h-[56px] flex items-center justify-center">
           <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center overflow-hidden shadow-lg ring-1 ring-black/5">
             {company.logo_url ? (
               <img src={company.logo_url} alt={company.name} className="h-full w-full object-cover" />
@@ -381,20 +613,50 @@ const CompanyCard: React.FC<{
             )}
           </div>
         </div>
-        <p className="font-semibold text-[13px] text-gray-900 truncate w-full text-center leading-tight">{company.name}</p>
-        <p className="text-[10px] text-gray-600 truncate w-full text-center mt-0.5">{company.industry}</p>
-        <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5 mt-0.5">
-          <MapPin className="h-2.5 w-2.5" /> {company.city}
-        </p>
+        
+        {/* Name - Fixed height, max 2 lines */}
+        <div className="h-[32px] w-full flex items-center justify-center mb-0.5">
+          <p className="font-semibold text-[13px] text-gray-900 line-clamp-2 text-center leading-tight px-1">
+            {company.name}
+          </p>
+        </div>
+        
+        {/* Industry - Fixed height */}
+        <div className="h-[14px] w-full flex items-center justify-center mb-0.5">
+          {company.industry ? (
+            <p className="text-[10px] text-gray-600 truncate w-full text-center leading-tight px-1">
+              {company.industry}
+            </p>
+          ) : (
+            <div className="h-[14px]" />
+          )}
+        </div>
+        
+        {/* Standort - Fixed height */}
+        <div className="h-[14px] w-full flex items-center justify-center">
+          {company.city ? (
+            <p className="text-[10px] text-gray-400 truncate w-full text-center flex items-center justify-center gap-0.5 px-1">
+              <MapPin className="h-2.5 w-2.5 shrink-0" />
+              <span className="truncate">{company.city}</span>
+            </p>
+          ) : (
+            <div className="h-[14px]" />
+          )}
+        </div>
       </Link>
       
-      {/* Mitarbeiter */}
-      <div className="flex items-center justify-center mt-auto mb-2 relative z-10">
-        <OverlappingAvatars avatars={DEMO_AVATARS} count={employeeCount} label={`${employeeCount} Mitarbeiter`} type="employees" />
+      {/* Mitarbeiter - Fixed position at bottom */}
+      <div className="h-[50px] flex items-center justify-center mt-auto mb-2 relative z-10 w-full">
+        <OverlappingAvatars 
+          avatars={DEMO_AVATARS} 
+          count={employeeCount} 
+          label={`${employeeCount} Mitarbeiter`} 
+          type="employees" 
+        />
       </div>
 
-      {/* Button */}
-      <div className="relative z-10">
+      {/* Button - Fixed position at bottom */}
+      <div className="relative z-10 h-[36px] flex items-center">
         <Button 
           size="sm" 
           onClick={toggleFollow}
@@ -608,21 +870,23 @@ export default function MarketplaceMobile() {
   // Session ID for randomization - changes on page reload
   const [sessionId] = React.useState(() => Math.random().toString(36).slice(2));
 
-  // Fetch People (Users) - randomized per session
+  // Fetch People (Users) - randomized per session with mutual connections
   const peopleQuery = useQuery<Person[]>({
-    queryKey: ['mp-people-mobile', sessionId],
+    queryKey: ['mp-people-mobile', sessionId, user?.id],
     queryFn: async () => {
-      // Try with all fields first, fallback to basic fields
+      if (!user?.id) return [];
+      
+      // Load profiles with all needed fields
       let { data, error } = await supabase
         .from('profiles')
-        .select('id, vorname, nachname, avatar_url, bio, branche, stadt')
+        .select('id, vorname, nachname, avatar_url, bio, branche, stadt, ort, status, schule, ausbildungsberuf, ausbildungsbetrieb, aktueller_beruf, berufserfahrung, schulbildung')
         .limit(50);
       
-      // If branche/stadt don't exist, try without them
+      // If some fields don't exist, try without them
       if (error && error.code === '42703') {
         const result = await supabase
           .from('profiles')
-          .select('id, vorname, nachname, avatar_url, bio')
+          .select('id, vorname, nachname, avatar_url, bio, branche, ort, status')
           .limit(50);
         data = result.data;
         error = result.error;
@@ -633,8 +897,60 @@ export default function MarketplaceMobile() {
         return [];
       }
       
-      const filtered = (data || []).filter((p: any) => p.vorname || p.nachname);
-      return shuffleArray(filtered).slice(0, 20) as Person[];
+      const filtered = (data || []).filter((p: any) => (p.vorname || p.nachname) && p.id !== user.id);
+      
+      // Load current user's connections for mutual matching
+      const { data: currentConnections } = await supabase
+        .from('connections')
+        .select('requester_id, addressee_id')
+        .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+        .eq('status', 'accepted');
+      
+      const currentUserConnectionIds = new Set(
+        (currentConnections || []).map(c => 
+          c.requester_id === user.id ? c.addressee_id : c.requester_id
+        )
+      );
+      
+      // Enrich profiles with mutual connections
+      const enrichedProfiles = await Promise.all(filtered.map(async (profile: any) => {
+        const enriched: Person = { ...profile };
+        
+        // Find mutual connections
+        const { data: profileConnections } = await supabase
+          .from('connections')
+          .select('requester_id, addressee_id')
+          .or(`requester_id.eq.${profile.id},addressee_id.eq.${profile.id}`)
+          .eq('status', 'accepted');
+        
+        const profileConnectionIds = new Set(
+          (profileConnections || []).map((c: any) => 
+            c.requester_id === profile.id ? c.addressee_id : c.requester_id
+          )
+        );
+        
+        const mutualIds = Array.from(currentUserConnectionIds).filter(id => 
+          profileConnectionIds.has(id) && id !== profile.id && id !== user.id
+        );
+        
+        if (mutualIds.length > 0) {
+          const { data: mutualProfiles } = await supabase
+            .from('profiles')
+            .select('id, vorname, nachname, avatar_url')
+            .in('id', mutualIds.slice(0, 3));
+          
+          enriched.mutualConnections = (mutualProfiles || []).map((p: any) => ({
+            id: p.id,
+            avatar_url: p.avatar_url,
+            name: `${p.vorname || ''} ${p.nachname || ''}`.trim() || 'Unbekannt'
+          }));
+          enriched.mutualCount = mutualIds.length;
+        }
+        
+        return enriched;
+      }));
+      
+      return shuffleArray(enrichedProfiles).slice(0, 20) as Person[];
     },
   });
 
@@ -697,8 +1013,36 @@ export default function MarketplaceMobile() {
 
   // Fetch Jobs - randomized per session
   const jobsQuery = useQuery<Job[]>({
-    queryKey: ['mp-jobs-mobile', sessionId],
+    queryKey: ['mp-jobs-mobile', sessionId, user?.id],
     queryFn: async () => {
+      // If user is logged in, use branch-filtered jobs
+      if (user?.id) {
+        const { data, error } = await supabase
+          .rpc('get_jobs_by_branch', {
+            p_viewer_id: user.id,
+            p_limit: 20,
+            p_offset: 0
+          });
+        
+        if (error) {
+          console.warn('[MarketplaceMobile] get_jobs_by_branch error, falling back:', error);
+          // Fall through to regular query
+        } else if (data && data.length > 0) {
+          // Transform to match Job type
+          const transformed = data.map((job: any) => ({
+            id: job.id,
+            title: job.title,
+            company_id: job.company_id,
+            location: null, // Will be loaded separately if needed
+            employment_type: null,
+            salary_min: null,
+            salary_max: null,
+          }));
+          return shuffleArray(transformed).slice(0, 10) as Job[];
+        }
+      }
+      
+      // Fallback: Regular query for non-logged-in users
       const { data, error } = await supabase
         .from('job_posts')
         .select('id, title, company_id, location, employment_type, salary_min, salary_max')
@@ -786,7 +1130,11 @@ export default function MarketplaceMobile() {
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as unknown as HTMLElement;
     // If touch starts inside a horizontal scroller, never start pull-to-refresh
-    if (target?.closest?.('[data-hscroll="true"]')) return;
+    if (target?.closest?.('[data-hscroll="true"]')) {
+      startY.current = 0;
+      startX.current = 0;
+      return;
+    }
 
     if (containerRef.current?.scrollTop === 0) {
       startY.current = e.touches[0].clientY;
@@ -797,7 +1145,13 @@ export default function MarketplaceMobile() {
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     const target = e.target as unknown as HTMLElement;
     // If touch is happening inside a horizontal scroller, let it scroll horizontally
-    if (target?.closest?.('[data-hscroll="true"]')) return;
+    if (target?.closest?.('[data-hscroll="true"]')) {
+      // Reset pull distance when in horizontal scroll area
+      if (pullDistance > 0) {
+        setPullDistance(0);
+      }
+      return;
+    }
 
     if (containerRef.current?.scrollTop === 0 && !isRefreshing) {
       const currentY = e.touches[0].clientY;
@@ -807,7 +1161,10 @@ export default function MarketplaceMobile() {
       const dx = currentX - startX.current;
 
       // If user is swiping horizontally, do not trigger pull-to-refresh
-      if (Math.abs(dx) > Math.abs(dy) + 6) return;
+      if (Math.abs(dx) > Math.abs(dy) + 6) {
+        setPullDistance(0);
+        return;
+      }
 
       if (dy > 0 && dy < 150) {
         // small deadzone to reduce accidental pulls while swiping
@@ -815,7 +1172,7 @@ export default function MarketplaceMobile() {
         setPullDistance(dy);
       }
     }
-  }, [isRefreshing]);
+  }, [isRefreshing, pullDistance]);
 
   const handleTouchEnd = useCallback(async () => {
     if (pullDistance > 80 && !isRefreshing) {
@@ -948,7 +1305,10 @@ export default function MarketplaceMobile() {
     <div 
       ref={containerRef}
       className="h-[100dvh] bg-gray-50/50 pb-24 overflow-y-auto"
-      style={{ WebkitOverflowScrolling: 'touch' }}
+      style={{ 
+        WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-y'
+      }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -998,10 +1358,16 @@ export default function MarketplaceMobile() {
         />
         <div
           data-hscroll="true"
-          className="overflow-x-auto no-scrollbar scroll-smooth"
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          className="overflow-x-auto scroll-smooth"
+          style={{ 
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-x',
+            overscrollBehaviorX: 'contain',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
         >
-          <div className="flex gap-3 px-4 pb-2">
+          <div className="flex gap-3 px-4 pb-2" style={{ width: 'max-content' }}>
             {forYouItems.length > 0 ? forYouItems.map(({ item, type }, index) => (
               <div 
                 key={item.id}
@@ -1034,10 +1400,16 @@ export default function MarketplaceMobile() {
           />
           <div
             data-hscroll="true"
-            className="overflow-x-auto no-scrollbar scroll-smooth"
-            style={{ WebkitOverflowScrolling: 'touch' }}
+            className="overflow-x-auto scroll-smooth"
+            style={{ 
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-x',
+              overscrollBehaviorX: 'contain',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
           >
-            <div className="flex gap-3 px-4 pb-2">
+            <div className="flex gap-3 px-4 pb-2" style={{ width: 'max-content' }}>
               {allCompanies.slice(0, 8).map((company, idx) => (
                 <div 
                   key={company.id}
@@ -1064,9 +1436,20 @@ export default function MarketplaceMobile() {
             <div 
               ref={postsScrollRef}
               data-hscroll="true"
-              className="overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth"
-              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+              className="overflow-x-auto snap-x snap-mandatory scroll-smooth"
+              style={{ 
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-x',
+                overscrollBehaviorX: 'contain'
+              }}
             >
+              <style>{`
+                [data-hscroll="true"]::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
               <div className="flex gap-3" style={{ width: `${posts.slice(0, 5).length * 296}px` }}>
                 {posts.slice(0, 5).map((post, idx) => (
                   <div key={post.id} className="snap-center shrink-0">
@@ -1117,10 +1500,16 @@ export default function MarketplaceMobile() {
         />
         <div
           data-hscroll="true"
-          className="overflow-x-auto no-scrollbar"
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          className="overflow-x-auto scroll-smooth"
+          style={{ 
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-x',
+            overscrollBehaviorX: 'contain',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
         >
-          <div className="flex gap-3 px-4 pb-2">
+          <div className="flex gap-3 px-4 pb-2" style={{ width: 'max-content' }}>
             {(jobs.length > 0 ? jobs : DUMMY_JOBS).slice(0, 6).map((job) => (
               <JobCard 
                 key={job.id} 
@@ -1144,10 +1533,16 @@ export default function MarketplaceMobile() {
         />
         <div
           data-hscroll="true"
-          className="overflow-x-auto no-scrollbar"
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          className="overflow-x-auto scroll-smooth"
+          style={{ 
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-x',
+            overscrollBehaviorX: 'contain',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
         >
-          <div className="flex gap-3 px-4 pb-2">
+          <div className="flex gap-3 px-4 pb-2" style={{ width: 'max-content' }}>
             {peopleQuery.isLoading ? (
               [1,2,3,4].map(i => (
                 <div key={i} className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 animate-pulse">

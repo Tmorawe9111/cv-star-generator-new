@@ -27,11 +27,31 @@ const CVStep1 = () => {
   const selectedBranchObj = branches.find((b) => b.key === selectedBranch);
   const isOtherSelected = !!selectedBranch && !primaryBranchKeys.includes(selectedBranch as any);
 
-  const statuses = [
+  // Job examples by branch for Fachkraft
+  const fachkraftJobsByBranch: Record<string, string[]> = {
+    gesundheit: ['Gesundheits- und Krankenpfleger', 'Medizinischer Fachangestellter', 'Pharmazeutisch-technischer Assistent'],
+    handwerk: ['Elektriker', 'Tischler', 'Maler und Lackierer'],
+    it: ['Softwareentwickler', 'IT-Systemkaufmann', 'Fachinformatiker'],
+    buero: ['Kaufmann für Büromanagement', 'Bürokaufmann', 'Industriekaufmann'],
+    verkauf: ['Einzelhandelskaufmann', 'Verkäufer', 'Handelsfachwirt'],
+    gastronomie: ['Koch', 'Restaurantfachmann', 'Hotelfachmann'],
+    bau: ['Maurer', 'Zimmermann', 'Bauzeichner']
+  };
+
+  // Get Fachkraft description based on selected branch - memoized to update when branch changes
+  const fachkraftDesc = useMemo(() => {
+    if (!selectedBranch) {
+      return 'Ich arbeite bereits';
+    }
+    const jobs = fachkraftJobsByBranch[selectedBranch] || ['Fachkraft', 'Berufstätig', 'Ausgelernt'];
+    return `Ich arbeite bereits als z.B. ${jobs.join(', ')}`;
+  }, [selectedBranch]);
+
+  const statuses = useMemo(() => [
     { key: 'schueler', emoji: '🧑‍🎓', title: 'Schüler:in', desc: 'Ich gehe noch zur Schule' },
     { key: 'azubi', emoji: '🧑‍🔧', title: 'Azubi', desc: 'Ich mache eine Ausbildung' },
-    { key: 'fachkraft', emoji: '✅', title: 'Fachkraft', desc: 'Ich habe eine Ausbildung abgeschlossen' }
-  ] as const;
+    { key: 'fachkraft', emoji: '✅', title: 'Fachkraft', desc: fachkraftDesc }
+  ], [fachkraftDesc]);
 
   const choiceBase =
     "w-full rounded-3xl border bg-white px-5 py-4 text-left shadow-sm transition-all duration-200 active:scale-[0.99]";
@@ -154,7 +174,7 @@ const CVStep1 = () => {
                   key={status.key}
                   type="button"
                   aria-pressed={selected}
-                  onClick={() => updateFormData({ status: status.key })}
+                  onClick={() => updateFormData({ status: status.key as 'schueler' | 'azubi' | 'fachkraft' })}
                   className={`${choiceBase} ${selected ? choiceSelected : choiceUnselected} px-4 py-3 sm:px-5 sm:py-4`}
                 >
                   <div className="flex items-center justify-between gap-3">

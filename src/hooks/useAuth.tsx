@@ -139,6 +139,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setProfile(null);
         }
       } else if (profile) {
+        // CRITICAL: Sync email from auth.users to profiles table
+        // This ensures the email in profiles always matches auth.users
+        const currentUser = await supabase.auth.getUser();
+        if (currentUser.data?.user?.email && profile.email !== currentUser.data.user.email) {
+          console.warn('Email mismatch detected! Syncing email from auth.users to profiles:', {
+            profileEmail: profile.email,
+            authEmail: currentUser.data.user.email,
+            userId: userId
+          });
+          
+          // Update profile email to match auth.users
+          const { error: syncError } = await supabase
+            .from('profiles')
+            .update({ 
+              email: currentUser.data.user.email.toLowerCase().trim(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId);
+            
+          if (syncError) {
+            console.error('Error syncing email:', syncError);
+          } else {
+            // Update local profile with synced email
+            profile.email = currentUser.data.user.email.toLowerCase().trim();
+            console.log('✅ Email synced successfully');
+          }
+        }
+        
         // Only set profile if data exists
         // Debug: Log loaded profile data
         console.log('✅ Profile loaded from database:', {

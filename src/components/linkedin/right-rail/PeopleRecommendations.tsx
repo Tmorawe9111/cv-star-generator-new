@@ -20,6 +20,7 @@ interface SimpleProfile {
   ausbildungsberuf: string | null;
   geplanter_abschluss: string | null;
   status: string | null;
+  profile_slug: string | null;
 }
 interface PeopleRecommendationsProps {
   limit?: number;
@@ -41,20 +42,48 @@ export const PeopleRecommendations: React.FC<PeopleRecommendationsProps> = ({ li
       if (!user) return;
       setLoading(true);
       try {
+        // NEW: Use suggest_people RPC function (already filters by branch)
         const { data, error } = await supabase
-          .from("profiles")
-          .select("id, vorname, nachname, avatar_url, ort, branche, headline, ausbildungsberuf, geplanter_abschluss, status")
-          .eq("profile_published", true)
-          .in("status", ["azubi", "schueler"]) as any;
-        if (error) throw error;
-        const filtered = (data as SimpleProfile[]).filter(p => p.id !== user.id).slice(0, limit);
+          .rpc('suggest_people', { 
+            p_viewer: user.id, 
+            p_limit: limit 
+          });
+        
+        if (error) {
+          console.error('[PeopleRecommendations] suggest_people error:', error);
+          throw error;
+        }
+        
+        // Transform the data to match SimpleProfile interface
+        const filtered = (data || []).map((p: any) => {
+          // Parse display_name into vorname and nachname
+          const nameParts = (p.display_name || '').split(' ');
+          const vorname = nameParts[0] || null;
+          const nachname = nameParts.slice(1).join(' ') || null;
+          
+          return {
+            id: p.id,
+            vorname,
+            nachname,
+            avatar_url: p.avatar_url,
+            ort: p.ort,
+            branche: p.branche,
+            headline: null,
+            ausbildungsberuf: null,
+            geplanter_abschluss: null,
+            status: p.status,
+            profile_slug: null, // Will be loaded later if needed
+          };
+        }).filter((p: any) => p.id !== user.id).slice(0, limit);
+        
         setItems(filtered);
+        
         // Preload connection statuses
         const ids = filtered.map(f => f.id);
         const statuses = await getStatuses(ids);
         setStatusMap(statuses);
       } catch (e) {
-        console.error(e);
+        console.error('[PeopleRecommendations] Error loading suggestions:', e);
       } finally {
         setLoading(false);
       }
@@ -130,11 +159,11 @@ export const PeopleRecommendations: React.FC<PeopleRecommendationsProps> = ({ li
             const st = statusMap[p.id] || "none";
             return (
               <div key={p.id} className="flex items-center gap-3">
-                <Avatar className="h-10 w-10 cursor-pointer" onClick={() => navigate(`/u/${p.id}`)}>
+                <Avatar className="h-10 w-10 cursor-pointer" onClick={() => navigate(p.profile_slug ? `/profil/${p.profile_slug}` : `/u/${p.id}`)}>
                   <AvatarImage src={p.avatar_url ?? undefined} alt={`${name} Avatar`} />
                   <AvatarFallback>{name.slice(0, 2)}</AvatarFallback>
                 </Avatar>
-                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/u/${p.id}`)}>
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(p.profile_slug ? `/profil/${p.profile_slug}` : `/u/${p.id}`)}>
                   <div className="text-sm font-medium truncate">{name}</div>
                   {subtitle && <div className="text-xs text-muted-foreground truncate">{subtitle}</div>}
                   {infoLine && <div className="text-xs text-muted-foreground truncate">{infoLine}</div>}

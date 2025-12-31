@@ -44,6 +44,9 @@ export interface ProfileCreationData {
   // CV/Documents (Step 6)
   cv_url: string | null;
   has_generated_cv: boolean;
+  
+  // About me (Step 7 or included in profile)
+  ueber_mich?: string;
 }
 
 // Validation errors interface
@@ -138,7 +141,8 @@ export const useProfileCreation = () => {
     sprachen: [],
     berufserfahrung: [],
     cv_url: null,
-    has_generated_cv: false
+    has_generated_cv: false,
+    ueber_mich: ''
   });
 
   // Validation errors
@@ -192,7 +196,8 @@ export const useProfileCreation = () => {
         sprachen: existingProfile.sprachen || prev.sprachen,
         berufserfahrung: existingProfile.berufserfahrung || prev.berufserfahrung,
         cv_url: existingProfile.cv_url || prev.cv_url,
-        has_generated_cv: !!existingProfile.cv_url
+        has_generated_cv: !!existingProfile.cv_url,
+        ueber_mich: existingProfile.ueber_mich || prev.ueber_mich
       }));
     }
   }, [existingProfile]);
@@ -263,6 +268,29 @@ export const useProfileCreation = () => {
       }
     }
 
+    // Special validation for languages (Step 4) - at least 1 language, and at least 1 must be Muttersprache
+    if (stepId === 4) {
+      const sprachen = profileData.sprachen;
+      
+      if (!sprachen || sprachen.length === 0) {
+        errors.push('Mindestens 1 Sprache ist erforderlich');
+      } else {
+        const hasMuttersprache = sprachen.some((lang: any) => lang.niveau === 'Muttersprache');
+        if (!hasMuttersprache) {
+          errors.push('Mindestens 1 Muttersprache ist erforderlich');
+        }
+      }
+    }
+
+    // Special validation for skills (Step 4) - at least 3 skills required
+    if (stepId === 4) {
+      const faehigkeiten = profileData.faehigkeiten;
+      
+      if (!faehigkeiten || faehigkeiten.length < 3) {
+        errors.push('Mindestens 3 Fähigkeiten sind erforderlich');
+      }
+    }
+
     setValidationErrors(prev => ({
       ...prev,
       [stepId]: errors
@@ -287,12 +315,39 @@ export const useProfileCreation = () => {
     return Math.round((completedRequiredSteps / requiredSteps.length) * 100);
   }, [validateStep]);
 
-  // Check if profile data is complete
+  // Check if profile data is complete with additional validations
   const isProfileComplete = useCallback((): boolean => {
-    return PROFILE_STEPS
+    // First check all required steps
+    const allStepsValid = PROFILE_STEPS
       .filter(step => step.required)
       .every(step => validateStep(step.id));
-  }, [validateStep]);
+    
+    if (!allStepsValid) return false;
+    
+    // Additional validations that span multiple steps
+    // Check languages: at least 1, and at least 1 Muttersprache
+    const sprachen = profileData.sprachen;
+    if (!sprachen || sprachen.length === 0) return false;
+    const hasMuttersprache = sprachen.some((lang: any) => lang.niveau === 'Muttersprache');
+    if (!hasMuttersprache) return false;
+    
+    // Check skills: at least 3
+    const faehigkeiten = profileData.faehigkeiten;
+    if (!faehigkeiten || faehigkeiten.length < 3) return false;
+    
+    // Check schulbildung for schueler/azubi
+    const status = profileData.status;
+    if ((status === 'schueler' || status === 'azubi') && (!profileData.schulbildung || profileData.schulbildung.length === 0)) {
+      return false;
+    }
+    
+    // Check ueber_mich (about me) - required
+    if (!profileData.ueber_mich || profileData.ueber_mich.trim() === '') {
+      return false;
+    }
+    
+    return true;
+  }, [validateStep, profileData]);
 
   // Move to next step
   const goToNextStep = useCallback(() => {
@@ -365,6 +420,7 @@ export const useProfileCreation = () => {
         sprachen: profileData.sprachen,
         berufserfahrung: profileData.berufserfahrung,
         cv_url: profileData.cv_url,
+        ueber_mich: profileData.ueber_mich || '',
         profile_complete: true,
         updated_at: new Date().toISOString()
       };
@@ -449,7 +505,8 @@ export const useProfileCreation = () => {
       sprachen: [],
       berufserfahrung: [],
       cv_url: null,
-      has_generated_cv: false
+      has_generated_cv: false,
+      ueber_mich: ''
     });
     setValidationErrors({});
     setCompletedSteps([]);

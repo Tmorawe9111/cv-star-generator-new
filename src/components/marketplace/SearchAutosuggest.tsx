@@ -20,6 +20,7 @@ interface SuggestionPerson {
   vorname?: string | null;
   nachname?: string | null;
   avatar_url?: string | null;
+  profile_slug?: string | null;
 }
 
 interface SuggestionCompany {
@@ -37,7 +38,7 @@ export type SuggestionType = "person" | "company" | "post";
 
 export interface SearchAutosuggestProps {
   query: string;
-  onSelect: (type: SuggestionType, payload: { id: string; label: string }) => void;
+  onSelect: (type: SuggestionType, payload: { id: string; label: string; profile_slug?: string | null }) => void;
   open: boolean;
   anchorRef?: React.RefObject<HTMLElement>;
   onClose?: () => void;
@@ -78,7 +79,7 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
         const [peopleRes, companiesRes, postsRes] = await Promise.all([
           supabase
             .from("profiles")
-            .select("id, vorname, nachname, avatar_url")
+            .select("id, vorname, nachname, avatar_url, profile_slug")
             .or(`vorname.ilike.%${q}%,nachname.ilike.%${q}%`)
             .limit(MAX_PER_GROUP),
           supabase
@@ -131,7 +132,7 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
                 {people.map((p) => {
                   const label = `${p.vorname ?? ""} ${p.nachname ?? ""}`.trim() || "Unbekannt";
                   return (
-                    <CommandItem key={`p-${p.id}`} onSelect={() => onSelect("person", { id: p.id, label })}>
+                    <CommandItem key={`p-${p.id}`} onSelect={() => onSelect("person", { id: p.id, label, profile_slug: p.profile_slug })}>
                       <User2 className="mr-2 h-4 w-4 text-muted-foreground" />
                       <Avatar className="h-6 w-6 mr-2">
                         <AvatarImage src={p.avatar_url ?? undefined} alt={label} />

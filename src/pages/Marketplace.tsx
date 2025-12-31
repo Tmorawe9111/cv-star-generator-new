@@ -30,6 +30,11 @@ type Person = {
   avatar_url?: string | null;
   branche?: string | null;
   ort?: string | null;
+  status?: string | null;
+  schule?: string | null;
+  ausbildungsberuf?: string | null;
+  ausbildungsbetrieb?: string | null;
+  aktueller_beruf?: string | null;
   berufserfahrung?: any;
   schulbildung?: any;
 };
@@ -144,7 +149,7 @@ function MarketplaceDesktop() {
       if (!user?.id) return [];
       
       const base = supabase.from('profiles')
-        .select('id, vorname, nachname, avatar_url, branche, ort, berufserfahrung, schulbildung');
+        .select('id, vorname, nachname, avatar_url, branche, ort, status, schule, ausbildungsberuf, ausbildungsbetrieb, aktueller_beruf, berufserfahrung, schulbildung');
       const qy = appliedQ 
         ? base.or(`vorname.ilike.%${appliedQ}%,nachname.ilike.%${appliedQ}%`) 
         : base.order('created_at', { ascending: false });
@@ -783,6 +788,54 @@ React.useEffect(() => {
                             statusMap[p.id] !== 'pending'
                           ).map((p) => {
                             const name = `${p.vorname ?? ''} ${p.nachname ?? ''}`.trim() || 'Unbekannt';
+                            
+                            // Get status-specific info
+                            const getStatusInfo = () => {
+                              if (p.status === 'schueler') {
+                                const schoolName = p.schule || (Array.isArray(p.schulbildung) && p.schulbildung.length > 0 
+                                  ? (p.schulbildung[0]?.name || p.schulbildung[0]?.schule) 
+                                  : null);
+                                if (schoolName) {
+                                  const text = `Schüler (an ${schoolName})`;
+                                  return text.length > 35 ? text.substring(0, 32) + '...' : text;
+                                }
+                                return 'Schüler';
+                              }
+                              if (p.status === 'azubi') {
+                                if (p.ausbildungsbetrieb) {
+                                  const text = `Azubi bei ${p.ausbildungsbetrieb}`;
+                                  return text.length > 35 ? text.substring(0, 32) + '...' : text;
+                                }
+                                if (p.ausbildungsberuf) {
+                                  return `Azubi (${p.ausbildungsberuf})`;
+                                }
+                                return 'Azubi';
+                              }
+                              if (p.status === 'ausgelernt' || p.status === 'fachkraft') {
+                                const jobTitle = p.aktueller_beruf || (Array.isArray(p.berufserfahrung) && p.berufserfahrung.length > 0 
+                                  ? (p.berufserfahrung[0]?.position || p.berufserfahrung[0]?.titel || p.berufserfahrung[0]?.beruf)
+                                  : null);
+                                const company = Array.isArray(p.berufserfahrung) && p.berufserfahrung.length > 0 
+                                  ? (p.berufserfahrung[0]?.unternehmen || p.berufserfahrung[0]?.company)
+                                  : p.ausbildungsbetrieb;
+                                
+                                if (jobTitle && company) {
+                                  const text = `${jobTitle} bei ${company}`;
+                                  return text.length > 35 ? text.substring(0, 32) + '...' : text;
+                                }
+                                if (jobTitle) {
+                                  const text = jobTitle;
+                                  return text.length > 35 ? text.substring(0, 32) + '...' : text;
+                                }
+                                if (p.branche) {
+                                  return p.branche;
+                                }
+                              }
+                              return p.branche || null;
+                            };
+                            
+                            const statusInfo = getStatusInfo();
+                            
                             return (
                               <Card key={p.id} className="p-5 hover:shadow-lg transition-all duration-200 hover:-translate-y-1 border-border/50 h-[320px] flex flex-col">
                                 <div className="flex flex-col space-y-3 flex-1">
@@ -791,15 +844,20 @@ React.useEffect(() => {
                                       <AvatarImage src={p.avatar_url ?? undefined} alt={name} />
                                       <AvatarFallback className="text-lg">{name.slice(0,2).toUpperCase()}</AvatarFallback>
                                     </Avatar>
-                                    <div>
+                                    <div className="w-full">
                                       <div className="font-semibold text-base group-hover:text-primary transition-colors">
                                         {p.vorname ?? ''} {p.nachname ?? ''}
                                       </div>
-                                      {p.branche && (
-                                        <div className="text-sm text-muted-foreground mt-0.5">{p.branche}</div>
+                                      {statusInfo && (
+                                        <div className="text-sm text-muted-foreground mt-0.5 line-clamp-1" title={statusInfo}>
+                                          {statusInfo}
+                                        </div>
                                       )}
                                       {p.ort && (
-                                        <div className="text-xs text-muted-foreground mt-0.5">{p.ort}</div>
+                                        <div className="text-xs text-muted-foreground mt-0.5 flex items-center justify-center gap-1">
+                                          <span>📍</span>
+                                          <span>{p.ort}</span>
+                                        </div>
                                       )}
                                     </div>
                                   </Link>

@@ -51,6 +51,9 @@ export default function UserProfilePage() {
   const [interestRequestStatus, setInterestRequestStatus] = useState<'none' | 'pending' | 'accepted' | 'rejected'>('none');
   const [creatingInterestRequest, setCreatingInterestRequest] = useState(false);
   const [showCancelRequestDialog, setShowCancelRequestDialog] = useState(false);
+  const [connectionCount, setConnectionCount] = useState<number | undefined>(undefined);
+  const [mutualConnections, setMutualConnections] = useState<Array<{ id: string; avatar_url: string | null; name: string }>>([]);
+  const [mutualCount, setMutualCount] = useState(0);
 
   const isOwner = !!user && user.id === (profileId || id);
   const isCompanyUser = !!company?.id;
@@ -69,14 +72,14 @@ export default function UserProfilePage() {
         let profileResult;
         
         if (lookupUsername) {
-          // Lookup by username (vanity URL)
+          // Lookup by profile_slug (vanity URL: vorname + 3-digit number)
           profileResult = await supabase
             .from("profiles")
             .select("*")
-            .eq("username", lookupUsername)
+            .eq("profile_slug", lookupUsername)
             .maybeSingle();
         } else {
-          // Lookup by UUID
+          // Lookup by UUID (fallback for old links)
           profileResult = await supabase
             .from("profiles")
             .select("*")
@@ -94,11 +97,64 @@ export default function UserProfilePage() {
         setProfile(data);
         setProfileId(data.id);
 
-        // Load connection status
+        // Load connection count for this profile
+        const { count: connectionsCount } = await supabase
+          .from('connections')
+          .select('*', { count: 'exact', head: true })
+          .or(`and(requester_id.eq.${data.id},status.eq.accepted),and(addressee_id.eq.${data.id},status.eq.accepted)`);
+        
+        setConnectionCount(connectionsCount || 0);
+
+        // Load connection status and mutual connections
         if (user && user.id !== data.id) {
           const statusResult = await getStatuses([data.id]);
           if (statusResult && typeof statusResult === 'object') {
             setStatus(statusResult[data.id] || "none");
+          }
+
+          // Load mutual connections (same logic as Marketplace)
+          const { data: currentUserConnections } = await supabase
+            .from('connections')
+            .select('requester_id, addressee_id')
+            .eq('status', 'accepted')
+            .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+          
+          const { data: profileConnections } = await supabase
+            .from('connections')
+            .select('requester_id, addressee_id')
+            .eq('status', 'accepted')
+            .or(`requester_id.eq.${data.id},addressee_id.eq.${data.id}`);
+          
+          if (currentUserConnections && profileConnections) {
+            const currentUserConnectionIds = new Set(
+              currentUserConnections.map(c => 
+                c.requester_id === user.id ? c.addressee_id : c.requester_id
+              )
+            );
+            
+            const profileConnectionIds = new Set(
+              profileConnections.map(c => 
+                c.requester_id === data.id ? c.addressee_id : c.requester_id
+              )
+            );
+            
+            const mutualIds = Array.from(currentUserConnectionIds).filter(id => 
+              profileConnectionIds.has(id) && id !== data.id && id !== user.id
+            );
+            
+            if (mutualIds.length > 0) {
+              const { data: mutualProfiles } = await supabase
+                .from('profiles')
+                .select('id, vorname, nachname, avatar_url')
+                .in('id', mutualIds.slice(0, 3));
+              
+              setMutualConnections((mutualProfiles || []).map(p => ({
+                id: p.id,
+                avatar_url: p.avatar_url,
+                name: `${p.vorname || ''} ${p.nachname || ''}`.trim() || 'Unbekannt'
+              })));
+              setMutualCount(mutualIds.length);
+            }
           }
         }
 
@@ -968,6 +1024,9 @@ export default function UserProfilePage() {
               isEditing={false} 
               onProfileUpdate={() => {}} 
               actionButtons={renderActions()}
+              connectionCount={connectionCount}
+              mutualConnections={mutualConnections}
+              mutualCount={mutualCount}
             />
             <LinkedInProfileMain profile={displayProfile} isEditing={false} onProfileUpdate={() => {}} readOnly={!isOwner} />
             <LinkedInProfileExperience experiences={displayProfile?.berufserfahrung || []} isEditing={false} onExperiencesUpdate={() => {}} />
@@ -996,6 +1055,7 @@ export default function UserProfilePage() {
                 showLanguagesAndSkills={isOwner && !isCompanyUser} 
                 showLicenseAndStats={isOwner && !isCompanyUser} 
                 showCVSection={(isOwner && !isCompanyUser) || (isCompanyUser && isUnlocked)} 
+                isOwner={isOwner}
               />
               <RightRailAd variant="card" size="sm" />
               <InView rootMargin="300px" placeholder={<div className="h-32 rounded-md bg-muted/50 animate-pulse" />}> 

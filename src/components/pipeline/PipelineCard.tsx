@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Eye, User, Mail, Phone } from 'lucide-react';
 import { PipelineItem } from '@/services/pipelineService';
 import { useNavigate } from 'react-router-dom';
+import { getProfileUrl } from '@/lib/profile-url';
 
 interface PipelineCardProps {
   item: PipelineItem;
@@ -39,7 +40,9 @@ export default function PipelineCard({ item, isDragging = false, disabled = fals
   };
 
   const handleViewProfile = () => {
-    navigate(`/profile/${profile?.id}`);
+    if (profile) {
+      navigate(getProfileUrl(profile));
+    }
   };
 
   const getDisplayName = () => {

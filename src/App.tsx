@@ -146,6 +146,7 @@ const AdminAuthGate = lazy(() => import("@/components/admin/AdminAuthGate"));
 const CreateAdmin = lazy(() => import("./pages/Admin/CreateAdmin"));
 const AdminLogin = lazy(() => import("./pages/Admin/Login"));
 const PendingVerifications = lazy(() => import("./pages/Admin/PendingVerifications"));
+const Advertisements = lazy(() => import("./pages/Admin/Advertisements"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -689,6 +690,7 @@ const App = () => {
                 <Route path="tools" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><AdminTools /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><AdminSettings /></Suspense>} />
                 <Route path="pending-verifications" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><PendingVerifications /></Suspense>} />
+                <Route path="advertisements" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Advertisements /></Suspense>} />
               </Route>
                 
               {/* Legacy redirects - English to German */}

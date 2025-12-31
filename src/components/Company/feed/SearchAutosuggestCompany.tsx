@@ -8,7 +8,7 @@ import { useCompany } from "@/hooks/useCompany";
 interface Props {
   query: string;
   open: boolean;
-  onSelect: (group: string, payload: { id: string; label: string }) => void;
+  onSelect: (group: string, payload: { id: string; label: string; profile_slug?: string | null }) => void;
 }
 
 interface Suggestion {
@@ -16,6 +16,7 @@ interface Suggestion {
   label: string;
   sublabel?: string;
   avatar_url?: string | null;
+  profile_slug?: string | null;
 }
 
 const useDebouncedValue = <T,>(value: T, delay = 250) => {
@@ -101,7 +102,7 @@ const SearchAutosuggestCompany: React.FC<Props> = ({ query, open, onSelect }) =>
             if (ids.length) {
               const { data: profileRows } = await supabase
                 .from("profiles")
-                .select("id, vorname, nachname, avatar_url")
+                .select("id, vorname, nachname, avatar_url, profile_slug")
                 .in("id", ids)
                 .limit(50);
 
@@ -116,6 +117,7 @@ const SearchAutosuggestCompany: React.FC<Props> = ({ query, open, onSelect }) =>
                     id: p.id,
                     label: `${p.vorname || ""} ${p.nachname || ""}`.trim() || "Kandidat/in",
                     avatar_url: p.avatar_url ?? null,
+                    profile_slug: p.profile_slug ?? null,
                   }))
                 );
               }

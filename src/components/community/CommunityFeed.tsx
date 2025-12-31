@@ -12,6 +12,7 @@ import { LogoSpinner } from '@/components/shared/LoadingSkeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { getFeedSubtitle } from '@/lib/profile-utils';
 
 type PostWithAuthor = {
   id: string;
@@ -85,9 +86,70 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
     gcTime: 3 * 60 * 1000, // 3 Minuten (formerly cacheTime in React Query v4)
     initialPageParam: { after_published: null as string | null, after_id: null as string | null },
     queryFn: async ({ pageParam }) => {
-      console.log('[feed] fetching page', pageParam, sort);
+      console.log('[feed] fetching page', pageParam, sort, 'viewerId:', viewerId);
 
-      // Use view with engagement scores
+      let rawPosts: any[] = [];
+
+      // Für eingeloggte User: Verwende get_feed_by_branch (mit Branch-Filter)
+      // Für nicht-eingeloggte User: Zeige alle Posts
+      if (viewerId) {
+        console.log('[feed] Using get_feed_by_branch for logged-in user:', viewerId);
+        
+        try {
+          const { data: posts, error: rpcError } = await (supabase as any)
+            .rpc('get_feed_by_branch', {
+              p_viewer_id: viewerId,
+              p_limit: PAGE_SIZE,
+              p_after_published: pageParam?.after_published || null,
+              p_after_id: pageParam?.after_id || null,
+              p_sort_by: sort === 'newest' ? 'newest' : 'relevant'
+            });
+
+          if (rpcError) {
+            console.error('[feed] get_feed_by_branch error:', rpcError);
+            throw rpcError;
+          }
+
+          console.log('[feed] raw posts from get_feed_by_branch:', Array.isArray(posts) ? posts.length : 0);
+          if (Array.isArray(posts) && posts.length > 0) {
+            console.log('[feed] sample post:', {
+              id: posts[0].id,
+              user_id: posts[0].user_id,
+              author_branche: posts[0].author_branche,
+              isOwnPost: posts[0].user_id === viewerId
+            });
+          }
+          rawPosts = Array.isArray(posts) ? posts : [];
+        } catch (error) {
+          console.error('[feed] Error in get_feed_by_branch, using fallback:', error);
+          // Fallback: Verwende View direkt (ohne Branch-Filter)
+          let query = supabase
+            .from('posts_with_engagement')
+            .select('*, image_url, media, documents')
+            .limit(PAGE_SIZE);
+
+          if (sort === 'newest') {
+            query = query.order('created_at', { ascending: false });
+          } else {
+            query = query
+              .order('engagement_score', { ascending: false })
+              .order('created_at', { ascending: false });
+          }
+
+          if (pageParam?.after_published) {
+            query = query.lt('created_at', pageParam.after_published);
+          }
+
+          const { data: viewPosts, error: viewError } = await query;
+          if (viewError) {
+            console.error('[feed] View query error', viewError);
+            throw viewError;
+          }
+          rawPosts = viewPosts as any[] || [];
+        }
+      } else {
+        // Fallback: Use view with engagement scores for non-logged-in users (show all posts)
+        console.log('[feed] Using posts_with_engagement view for non-logged-in user');
       let query = supabase
         .from('posts_with_engagement')
         .select('*, image_url, media, documents')
@@ -116,9 +178,8 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
       }
 
       console.log('[feed] raw posts from DB:', posts?.length, posts);
-      
-      // Cast to any to fix TypeScript errors with community_posts table
-      const rawPosts = posts as any[];
+        rawPosts = posts as any[] || [];
+      }
       
       // Debug: Check if we have any posts at all
       if (!rawPosts || rawPosts.length === 0) {
@@ -137,86 +198,239 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
       }
 
       // Transform posts data to match expected structure (map posts to expected format)
-      const transformedPosts: PostWithAuthor[] =
-        rawPosts?.map((post: any) => ({
-          id: post.id,
-          content: post.content ?? '',
-          image_url: post.image_url ?? null,
-          media: Array.isArray(post.media) ? post.media : [],
-          documents: Array.isArray(post.documents) ? post.documents : [],
-          user_id: post.user_id,
-          author_type: post.author_type === 'company' ? 'company' : 'user',
-          author_id: post.author_id ?? post.user_id,
-          company_id: post.company_id ?? null,
-          like_count: post.like_count ?? post.likes_count ?? 0,
-          comment_count: post.comment_count ?? post.comments_count ?? 0,
-          share_count: post.share_count ?? post.shares_count ?? 0,
-          created_at: post.created_at,
-          updated_at: post.updated_at,
-          published_at: post.created_at,
-          post_type: post.post_type ?? 'text',
-          job_id: post.job_id ?? null,
-          applies_enabled: post.applies_enabled ?? false,
-          cta_label: post.cta_label ?? null,
-          cta_url: post.cta_url ?? null,
-          promotion_theme: post.promotion_theme ?? null,
-          author: post.author || null,
-          company: post.company || null,
-          job: post.job || null,
-        })) || [];
+      // CRITICAL: Filter out posts from deleted users (posts without profiles)
+      console.log('[feed] transforming', rawPosts?.length || 0, 'raw posts');
+      const transformedPosts: PostWithAuthor[] = (rawPosts || [])
+          .filter((post: any) => {
+            const hasUserId = !!post.user_id;
+            if (!hasUserId) {
+              console.warn('[feed] post without user_id:', post.id, post);
+            }
+            return hasUserId;
+          }) // Only posts with user_id
+          .map((post: any) => {
+            console.log('[feed] transforming post:', {
+              id: post.id,
+              user_id: post.user_id,
+              author_type: post.author_type,
+              hasAuthor: !!post.author
+            });
+            return {
+              id: post.id,
+              content: post.content ?? '',
+              image_url: post.image_url ?? null,
+              media: Array.isArray(post.media) ? post.media : [],
+              documents: Array.isArray(post.documents) ? post.documents : [],
+              user_id: post.user_id,
+              author_type: post.author_type === 'company' ? 'company' : 'user',
+              author_id: post.author_id ?? post.user_id,
+              company_id: post.company_id ?? null,
+              like_count: post.like_count ?? post.likes_count ?? 0,
+              comment_count: post.comment_count ?? post.comments_count ?? 0,
+              share_count: post.share_count ?? post.shares_count ?? 0,
+              created_at: post.created_at,
+              updated_at: post.updated_at,
+              published_at: post.created_at,
+              post_type: post.post_type ?? 'text',
+              job_id: post.job_id ?? null,
+              applies_enabled: post.applies_enabled ?? false,
+              cta_label: post.cta_label ?? null,
+              cta_url: post.cta_url ?? null,
+              promotion_theme: post.promotion_theme ?? null,
+              author: post.author || null,
+              company: post.company || null,
+              job: post.job || null,
+            };
+      });
+      
+      console.log('[feed] transformed posts count:', transformedPosts.length);
+      console.log('[feed] transformed posts user_ids:', transformedPosts.map(p => p.user_id));
 
       console.log('[feed] transformed posts:', transformedPosts.length, transformedPosts);
 
       // Load missing user profiles OR filter existing author data for company users
+      // WICHTIG: Wenn wir get_feed_by_branch verwenden, haben Posts keine author Daten
+      // Also müssen wir für ALLE User-Posts die Author-Daten laden
+      // CRITICAL: Wenn viewerId existiert, verwenden wir get_feed_by_branch, also haben ALLE Posts keine author Daten
+      const usingRPC = viewerId !== null;
       const postsNeedingAuthorInfo = transformedPosts.filter(
-        (post) => post.author_type === 'user' && (!post.author || (isCompanyUser && post.author))
+        (post) => {
+          if (post.author_type !== 'user') return false;
+          // Wenn wir RPC verwenden, haben ALLE Posts keine author Daten
+          if (usingRPC) return true;
+          // Sonst nur Posts ohne author oder für Company-User
+          return !post.author || (isCompanyUser && post.author);
+        }
       );
-      if (postsNeedingAuthorInfo.length > 0) {
-        const userIds = [...new Set(postsNeedingAuthorInfo.map((p) => p.user_id).filter(Boolean))];
-        if (userIds.length > 0) {
-          // For company users: always reload profiles to ensure nachname filtering works
-          // For regular users: only load if author data is missing
-          const shouldReload = isCompanyUser || postsNeedingAuthorInfo.some(p => !p.author);
+      
+      console.log('[feed] using RPC (get_feed_by_branch):', usingRPC);
+      console.log('[feed] posts needing author info:', postsNeedingAuthorInfo.length, 'of', transformedPosts.length, 'total posts');
+      console.log('[feed] all user IDs from posts:', transformedPosts.filter(p => p.author_type === 'user').map(p => p.user_id));
+      
+      // CRITICAL: Lade Profile für ALLE User-Posts, nicht nur die, die Author-Info brauchen
+      // Das stellt sicher, dass alle Posts Author-Daten haben
+      const allUserPosts = transformedPosts.filter(p => p.author_type === 'user' && p.user_id);
+      const allUserIds = [...new Set(allUserPosts.map(p => p.user_id).filter(Boolean))];
+      
+      if (allUserIds.length > 0) {
+        console.log('[feed] Loading profiles for ALL user posts:', allUserIds.length, 'unique user IDs');
+        // Use allUserIds instead of just postsNeedingAuthorInfo
+        const userIds = allUserIds;
+        console.log('[feed] unique user IDs to load:', userIds.length, userIds);
+        
+        // CRITICAL: Always load profiles for all user posts (same as Marketplace)
+        // This ensures that avatar_url and headline are always available
+        console.log('[feed] Loading profiles for all user posts (always, like Marketplace)...');
+        
+        // CRITICAL: Use direct query with * (same as UserProfile.tsx - this works!)
+        console.log('[feed] Loading profiles via direct query with * (same as UserProfile)...');
+        
+        // Use direct query with * (same as UserProfile.tsx - this loads all columns including avatar_url and headline!)
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', userIds);
+        
+        let profiles: any[] = [];
+        if (profileError) {
+          console.error('[feed] Profile fetch error:', profileError);
+          // Fallback to RPC function if direct query fails
+          console.log('[feed] Falling back to RPC function...');
+          const { data: rpcProfileData, error: rpcError } = await (supabase as any)
+            .rpc('get_profiles_for_feed', { p_user_ids: userIds });
           
-          let profiles: any[] = [];
-          if (shouldReload) {
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select(
-                'id, vorname, nachname, avatar_url, headline, employer_free, aktueller_beruf, ausbildungsberuf, ausbildungsbetrieb, company_name'
-              )
-              .in('id', userIds);
-
-            if (profileError) {
-              console.error('[feed] profile fetch error', profileError);
-              console.error('[feed] profile fetch error details:', {
-                code: profileError.code,
-                message: profileError.message,
-                details: profileError.details,
-                hint: profileError.hint
-              });
-            } else {
-              profiles = profileData || [];
-              console.log('[feed] loaded profiles:', profiles.length, 'for company user:', isCompanyUser, 'company:', company?.id);
-              console.log('[feed] profile data sample:', profiles[0]);
-            }
+          if (rpcError) {
+            console.error('[feed] RPC Profile fetch error (fallback):', rpcError);
+            profiles = [];
           } else {
-            // Use existing author data
-            profiles = postsNeedingAuthorInfo
-              .filter(p => p.author)
-              .map(p => ({
-                id: p.user_id,
-                vorname: p.author?.vorname,
-                nachname: p.author?.nachname,
-                avatar_url: p.author?.avatar_url,
-                headline: p.author?.headline,
-                employer_free: p.author?.employer_free,
-                aktueller_beruf: p.author?.aktueller_beruf,
-                ausbildungsberuf: p.author?.ausbildungsberuf,
-                ausbildungsbetrieb: p.author?.ausbildungsbetrieb,
-                company_name: p.author?.company_name,
-              }));
+            profiles = (rpcProfileData || []) as any[];
+            console.log('[feed] ✅ RPC function (fallback) loaded profiles:', profiles.length, 'for', userIds.length, 'user IDs');
           }
+        } else {
+          profiles = (profileData || []) as any[];
+          console.log('[feed] ✅ Direct query loaded profiles:', profiles.length, 'for', userIds.length, 'user IDs');
+          
+          // CRITICAL: Log raw response to see what's actually returned
+          console.log('[feed] 🔍 RAW PROFILE DATA:', JSON.stringify(profileData?.slice(0, 2), null, 2));
+          
+          // CRITICAL: Verify that all required fields are present
+          if (profiles.length > 0) {
+            const firstProfile = profiles[0];
+            console.log('[feed] 🔍 Profile sample (first profile from direct query):', {
+              id: firstProfile.id,
+              vorname: firstProfile.vorname,
+              nachname: firstProfile.nachname,
+              avatar_url: firstProfile.avatar_url ? `SET: ${firstProfile.avatar_url.substring(0, 50)}...` : 'NULL',
+              headline: firstProfile.headline ? `SET: ${firstProfile.headline}` : 'NULL',
+              // CRITICAL: Log raw values to see what's actually loaded from database
+              rawAvatarUrl: firstProfile.avatar_url,
+              rawHeadline: firstProfile.headline,
+              rawProfileObject: JSON.stringify(firstProfile, null, 2)
+            });
+            
+            // CRITICAL: Check all profiles for avatar_url
+            const profilesWithAvatar = profiles.filter((p: any) => p.avatar_url);
+            const profilesWithoutAvatar = profiles.filter((p: any) => !p.avatar_url);
+            console.log('[feed] 📊 Profile avatar_url stats:', {
+              total: profiles.length,
+              withAvatar: profilesWithAvatar.length,
+              withoutAvatar: profilesWithoutAvatar.length,
+              withoutAvatarIds: profilesWithoutAvatar.map((p: any) => p.id)
+            });
+          } else {
+            console.warn('[feed] ⚠️ Direct query returned NO profiles!', {
+              requestedUserIds: userIds,
+              profileData: profileData
+            });
+          }
+        }
+            
+            console.log('[feed] Final profiles loaded:', profiles.length, 'for', userIds.length, 'requested');
+            console.log('[feed] user IDs requested:', userIds);
+            console.log('[feed] profiles loaded with details:', profiles.map((p: any) => ({ 
+              id: p.id, 
+              vorname: p.vorname, 
+              nachname: p.nachname,
+              avatar_url: p.avatar_url ? `SET: ${p.avatar_url.substring(0, 50)}...` : 'NULL',
+              headline: p.headline ? `SET: ${p.headline}` : 'NULL',
+              aktueller_beruf: p.aktueller_beruf ? 'SET' : 'NULL',
+              ausbildungsberuf: p.ausbildungsberuf ? 'SET' : 'NULL',
+              ausbildungsbetrieb: p.ausbildungsbetrieb ? 'SET' : 'NULL',
+              employer_free: p.employer_free ? 'SET' : 'NULL'
+            })));
+            
+            // CRITICAL: Log raw profile data to verify what's actually loaded
+            if (profiles.length > 0) {
+              console.log('[feed] 🔍 RAW PROFILE DATA (first profile):', {
+                id: profiles[0].id,
+                vorname: profiles[0].vorname,
+                nachname: profiles[0].nachname,
+                avatar_url: profiles[0].avatar_url,
+                headline: profiles[0].headline,
+                aktueller_beruf: profiles[0].aktueller_beruf,
+                ausbildungsberuf: profiles[0].ausbildungsberuf,
+                ausbildungsbetrieb: profiles[0].ausbildungsbetrieb,
+                employer_free: profiles[0].employer_free
+              });
+            }
+            
+            // CRITICAL: Wenn keine Profile geladen wurden, prüfe warum
+            if (profiles.length === 0 && userIds.length > 0) {
+              console.error('[feed] CRITICAL: No profiles loaded at all! This could be:');
+              console.error('[feed] 1. RLS policy blocking access');
+              console.error('[feed] 2. Profiles really don\'t exist (deleted users)');
+              console.error('[feed] 3. UUID format mismatch');
+              
+              // Test: Prüfe einzelne Profile
+              console.log('[feed] Testing individual profile queries...');
+              for (const testId of userIds.slice(0, 2)) {
+                const { data: testProfile, error: testError } = await supabase
+                  .from('profiles')
+                  .select('id, vorname, nachname')
+                  .eq('id', testId)
+                  .single();
+                
+                if (testError) {
+                  console.error(`[feed] Profile ${testId} query error:`, testError);
+                } else if (testProfile) {
+                  console.log(`[feed] Profile ${testId} EXISTS:`, testProfile);
+                  // Add to profiles array if found
+                  if (!profiles.find((p: any) => p.id === testId)) {
+                    profiles.push(testProfile);
+                  }
+                } else {
+                  console.warn(`[feed] Profile ${testId} does NOT exist`);
+                }
+              }
+            }
+            
+            if (profiles.length < userIds.length) {
+              console.warn('[feed] WARNING: Not all profiles loaded! Requested:', userIds.length, 'Got:', profiles.length);
+              const missingIds = userIds.filter(id => !profiles.find((p: any) => p.id === id));
+              console.warn('[feed] Missing profile IDs:', missingIds);
+              
+              // Debug: Prüfe, ob diese Profile wirklich nicht existieren
+              if (missingIds.length > 0) {
+                console.log('[feed] Checking if missing profiles exist in database...');
+                const { data: checkProfiles, error: checkError } = await supabase
+                  .from('profiles')
+                  .select('id, vorname, nachname')
+                  .in('id', missingIds);
+                
+                if (checkError) {
+                  console.error('[feed] Error checking missing profiles:', checkError);
+                } else {
+                  console.log('[feed] Profiles found in direct query:', checkProfiles?.length || 0, checkProfiles);
+                  if (checkProfiles && checkProfiles.length > 0) {
+                    console.error('[feed] CRITICAL: Profiles exist but were not returned by .in() query! This is a data inconsistency issue.');
+                    // Add found profiles to the profiles array
+                    profiles.push(...checkProfiles);
+                  } else {
+                    console.warn('[feed] Profiles really do not exist - these are posts from deleted users');
+                  }
+                }
+              }
+            }
 
           // For company users: check which profiles are unlocked and hide nachname if not unlocked
           let unlockedProfileIds = new Set<string>();
@@ -238,11 +452,53 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
             }
           }
 
-          const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]));
+          // CRITICAL: Use Object.fromEntries (same as comments - this works!)
+          const profileMap = Object.fromEntries(
+            (profiles || []).map((profile: any) => [profile.id, profile])
+          ) as Record<string, any>;
+          
+          console.log('[feed] profileMap size:', Object.keys(profileMap).length);
+          console.log('[feed] profileMap keys (user IDs):', Object.keys(profileMap));
+          console.log('[feed] profileMap entries:', Object.entries(profileMap).slice(0, 3).map(([id, p]: [string, any]) => ({
+            id,
+            vorname: p.vorname,
+            avatar_url: p.avatar_url ? 'SET' : 'NULL',
+            headline: p.headline ? 'SET' : 'NULL',
+            // CRITICAL: Log raw values to see what's actually in the map
+            rawAvatarUrl: p.avatar_url,
+            rawHeadline: p.headline
+          })));
+          
+          // CRITICAL: Log full profile data for specific user ID from logs (60c459f8-212a-4595-b7d0-3fe0e39f8e4a)
+          const testUserId = '60c459f8-212a-4595-b7d0-3fe0e39f8e4a';
+          if (profileMap[testUserId]) {
+            const testProfile = profileMap[testUserId];
+            console.log('[feed] 🔍 TEST PROFILE DATA for user 60c459f8-212a-4595-b7d0-3fe0e39f8e4a:', {
+              id: testProfile?.id,
+              vorname: testProfile?.vorname,
+              nachname: testProfile?.nachname,
+              avatar_url: testProfile?.avatar_url,
+              headline: testProfile?.headline,
+              rawProfileObject: JSON.stringify(testProfile, null, 2)
+            });
+          } else {
+            console.warn('[feed] ⚠️ TEST PROFILE NOT FOUND in profileMap for user 60c459f8-212a-4595-b7d0-3fe0e39f8e4a');
+          }
 
-          // Process all posts that need author info
-          postsNeedingAuthorInfo.forEach((post) => {
-            const author = profileMap.get(post.user_id);
+          // Process ALL user posts, not just postsNeedingAuthorInfo
+          // CRITICAL: Only process posts where we found a valid author profile
+          allUserPosts.forEach((post) => {
+            // CRITICAL: Use bracket notation (same as comments - this works!)
+            const author = profileMap[post.user_id] ?? null;
+            console.log('[feed] looking up author for post:', {
+              postId: post.id,
+              userId: post.user_id,
+              userIdType: typeof post.user_id,
+              found: !!author,
+              profileMapHasKey: post.user_id in profileMap,
+              profileMapSize: Object.keys(profileMap).length,
+              allProfileIds: Object.keys(profileMap)
+            });
             if (author) {
               // For company users: hide nachname if profile is not unlocked
               const isUnlocked = isCompanyUser ? unlockedProfileIds.has(author.id) : true;
@@ -255,20 +511,188 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
                 isUnlocked,
                 willShowNachname: isUnlocked ? author.nachname : null
               });
+              // CRITICAL: Log author data BEFORE assignment with raw values
+              console.log('[feed] 🔍 Author data from profileMap:', {
+                userId: post.user_id,
+                authorId: author.id,
+                authorAvatarUrl: author.avatar_url ? `SET: ${author.avatar_url.substring(0, 50)}...` : 'NULL',
+                authorHeadline: author.headline ? `SET: ${author.headline}` : 'NULL',
+                authorVorname: author.vorname,
+                authorNachname: author.nachname,
+                // CRITICAL: Log raw values to see what's actually in the author object
+                rawAvatarUrl: author.avatar_url,
+                rawHeadline: author.headline,
+                rawAuthorObject: JSON.stringify(author, null, 2)
+              });
+              
+              // CRITICAL: Use simple assignment (same as comments - this works!)
+              // Just copy the author data directly without complex checks
+              
+              // Generate subtitle from profile data (current job/school)
+              // Check if there's a linked company in the latest experience
+              let linkedCompanyName: string | null = null;
+              
+              if (author.berufserfahrung && author.berufserfahrung.length > 0) {
+                // Find current experience (no end date or "heute")
+                const currentExp = author.berufserfahrung.find((exp: any) => 
+                  !exp.zeitraum_bis || exp.zeitraum_bis === 'heute' || exp.zeitraum_bis === ''
+                ) || author.berufserfahrung[0];
+                
+                // If experience has linked_company_id, try to find company name
+                if (currentExp?.linked_company_id) {
+                  // Check if post has company data
+                  if (post.company?.name) {
+                    linkedCompanyName = post.company.name;
+                  } else {
+                    // Try to get company name from the experience itself
+                    linkedCompanyName = currentExp.unternehmen || null;
+                  }
+                }
+              }
+              
+              // Generate subtitle using profile status line logic
+              const generatedSubtitle = getFeedSubtitle(author, linkedCompanyName);
+              
               post.author = {
                 id: author.id,
                 vorname: author.vorname,
                 nachname: isUnlocked ? author.nachname : null, // Hide nachname if not unlocked for company users
-                avatar_url: author.avatar_url,
-                headline: author.headline,
-                employer_free: author.employer_free,
-                aktueller_beruf: author.aktueller_beruf,
-                ausbildungsberuf: author.ausbildungsberuf,
-                ausbildungsbetrieb: author.ausbildungsbetrieb,
-                company_name: author.company_name,
+                // CRITICAL: Direct assignment - no complex checks (same as comments)
+                avatar_url: author.avatar_url ?? null,
+                // Use generated subtitle instead of stored headline
+                headline: generatedSubtitle || (author.headline ?? null),
+                employer_free: author.employer_free ?? null,
+                aktueller_beruf: author.aktueller_beruf ?? null,
+                ausbildungsberuf: author.ausbildungsberuf ?? null,
+                ausbildungsbetrieb: author.ausbildungsbetrieb ?? null,
+                company_name: author.company_name ?? null,
+                profile_slug: author.profile_slug ?? null,
               };
+              
+              console.log('[feed] ✅ Author data set for post:', {
+                postId: post.id,
+                userId: post.user_id,
+                avatar_url: post.author.avatar_url ? `SET: ${post.author.avatar_url.substring(0, 50)}...` : 'NULL',
+                headline: post.author.headline ? `SET: ${post.author.headline}` : 'NULL',
+                vorname: post.author.vorname,
+                nachname: post.author.nachname ? 'SET' : 'NULL',
+                aktueller_beruf: post.author.aktueller_beruf ? 'SET' : 'NULL',
+                ausbildungsberuf: post.author.ausbildungsberuf ? 'SET' : 'NULL',
+                ausbildungsbetrieb: post.author.ausbildungsbetrieb ? 'SET' : 'NULL',
+                employer_free: post.author.employer_free ? 'SET' : 'NULL',
+                // CRITICAL: Log raw values to verify they're actually set
+                rawAvatarUrl: post.author.avatar_url,
+                rawHeadline: post.author.headline
+              });
+              
+              // CRITICAL: Final verification - if still null, log detailed error
+              if (!post.author.avatar_url && author.avatar_url) {
+                console.error('[feed] ❌ CRITICAL: avatar_url not set but exists in author!', {
+                  postId: post.id,
+                  userId: post.user_id,
+                  authorId: author.id,
+                  authorAvatarUrl: author.avatar_url,
+                  postAuthorAvatarUrl: post.author.avatar_url
+                });
+                // Force set it
+                post.author.avatar_url = author.avatar_url;
+              }
+              if (!post.author.headline && author.headline) {
+                console.error('[feed] ❌ CRITICAL: headline not set but exists in author!', {
+                  postId: post.id,
+                  userId: post.user_id,
+                  authorId: author.id,
+                  authorHeadline: author.headline,
+                  postAuthorHeadline: post.author.headline
+                });
+                // Force set it
+                post.author.headline = author.headline;
+              }
+              
+              // CRITICAL: Final check - if still null after all attempts, log error with full author object
+              if (!post.author.avatar_url) {
+                console.error('[feed] ❌ CRITICAL: avatar_url is STILL NULL after all attempts!', {
+                  postId: post.id,
+                  userId: post.user_id,
+                  authorId: author.id,
+                  authorAvatarUrl: author.avatar_url,
+                  authorObject: JSON.stringify(author, null, 2)
+                });
+              }
+              if (!post.author.headline) {
+                console.warn('[feed] ⚠️ headline is NULL after all attempts:', {
+                  postId: post.id,
+                  userId: post.user_id,
+                  authorId: author.id,
+                  authorHeadline: author.headline,
+                  authorObject: JSON.stringify(author, null, 2)
+                });
+              }
             } else {
-              console.warn('[feed] author not found for user_id:', post.user_id);
+              console.error('[feed] AUTHOR NOT FOUND for user_id:', post.user_id, {
+                postId: post.id,
+                requestedUserIds: userIds,
+                loadedProfileIds: Object.keys(profileMap),
+                profileMapSize: Object.keys(profileMap).length,
+                userIdInMap: post.user_id in profileMap
+              });
+              // Mark post for removal - it has no valid author
+              post._shouldFilter = true;
+            }
+          });
+          
+          // CRITICAL: Filter out posts without valid authors (deleted users)
+          // BUT: Don't filter posts that have author data, even if some fields are null
+          const postsWithValidAuthors = transformedPosts.filter((post) => {
+            if (post._shouldFilter) {
+              console.warn('[feed] filtering post marked for removal:', post.id, post.user_id);
+              return false;
+            }
+            // For user posts, ensure we have author info (at least id and vorname)
+            if (post.author_type === 'user' && !post.author) {
+              console.warn('[feed] filtering post without author:', post.id, post.user_id);
+              return false;
+            }
+            // Debug: Log author data for verification
+            if (post.author_type === 'user' && post.author) {
+              console.log('[feed] ✅ Post has author data:', {
+                postId: post.id,
+                userId: post.user_id,
+                authorId: post.author.id,
+                avatar_url: post.author.avatar_url ? `SET: ${post.author.avatar_url.substring(0, 50)}...` : 'NULL',
+                headline: post.author.headline ? `SET: ${post.author.headline.substring(0, 50)}...` : 'NULL',
+                aktueller_beruf: post.author.aktueller_beruf ? 'SET' : 'NULL',
+                ausbildungsberuf: post.author.ausbildungsberuf ? 'SET' : 'NULL',
+                vorname: post.author.vorname,
+                nachname: post.author.nachname ? 'SET' : 'NULL'
+              });
+            }
+            return true;
+          });
+          
+          console.log('[feed] Posts after filtering:', {
+            before: transformedPosts.length,
+            after: postsWithValidAuthors.length,
+            filtered: transformedPosts.length - postsWithValidAuthors.length
+          });
+          
+          // Replace transformedPosts with filtered version
+          transformedPosts.length = 0;
+          transformedPosts.push(...postsWithValidAuthors);
+          
+          // Final verification: Log all posts with their author data
+          console.log('[feed] 📊 FINAL POSTS WITH AUTHOR DATA:');
+          transformedPosts.forEach((post) => {
+            if (post.author_type === 'user') {
+              console.log(`[feed] Post ${post.id}:`, {
+                userId: post.user_id,
+                hasAuthor: !!post.author,
+                authorId: post.author?.id,
+                avatar_url: post.author?.avatar_url || 'NULL',
+                headline: post.author?.headline || 'NULL',
+                vorname: post.author?.vorname || 'NULL',
+                nachname: post.author?.nachname || 'NULL'
+              });
             }
           });
 
@@ -312,7 +736,6 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
               }
             });
           }
-        }
       }
 
       // Load missing company metadata for company posts
@@ -373,10 +796,10 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
 
       return {
         posts: transformedPosts,
-        nextPage: rawPosts && rawPosts.length === PAGE_SIZE
+        nextPage: transformedPosts && transformedPosts.length === PAGE_SIZE
           ? {
-              after_published: rawPosts[rawPosts.length - 1]?.created_at,
-              after_id: rawPosts[rawPosts.length - 1]?.id,
+              after_published: transformedPosts[transformedPosts.length - 1]?.created_at,
+              after_id: transformedPosts[transformedPosts.length - 1]?.id,
             }
           : undefined,
       };

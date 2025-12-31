@@ -25,6 +25,20 @@ interface CVPreviewCardProps {
   readOnly?: boolean;
 }
 
+// Helper function to parse JSONB fields
+const parseJsonField = (field: any) => {
+  if (field === null || field === undefined) return null;
+  if (typeof field === 'string') {
+    try {
+      return JSON.parse(field);
+    } catch {
+      return field;
+    }
+  }
+  if (Array.isArray(field)) return field;
+  return field;
+};
+
 export const CVPreviewCard: React.FC<CVPreviewCardProps> = ({ 
   profile, 
   onDownload, 
@@ -34,6 +48,12 @@ export const CVPreviewCard: React.FC<CVPreviewCardProps> = ({
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showLayoutSelector, setShowLayoutSelector] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Parse JSONB fields from profile
+  const parsedSchulbildung = parseJsonField(profile?.schulbildung) || [];
+  const parsedBerufserfahrung = parseJsonField(profile?.berufserfahrung) || [];
+  const parsedSprachen = parseJsonField(profile?.sprachen) || [];
+  const parsedFaehigkeiten = parseJsonField(profile?.faehigkeiten) || [];
 
   // Convert profile data to CV layout format
   const cvData = {
@@ -47,13 +67,14 @@ export const CVPreviewCard: React.FC<CVPreviewCardProps> = ({
     ort: profile?.ort,
     geburtsdatum: profile?.geburtsdatum ? new Date(profile.geburtsdatum) : undefined,
     profilbild: profile?.avatar_url,
+    avatar_url: profile?.avatar_url,
     status: profile?.status,
     branche: profile?.branche,
     ueberMich: profile?.uebermich || profile?.bio,
-    schulbildung: profile?.schulbildung || [],
-    berufserfahrung: profile?.berufserfahrung || [],
-    sprachen: profile?.sprachen || [],
-    faehigkeiten: profile?.faehigkeiten || []
+    schulbildung: parsedSchulbildung,
+    berufserfahrung: parsedBerufserfahrung,
+    sprachen: parsedSprachen,
+    faehigkeiten: parsedFaehigkeiten
   };
 
   const handleLayoutUpdated = () => {

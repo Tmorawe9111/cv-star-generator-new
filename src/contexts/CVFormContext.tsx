@@ -270,6 +270,8 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
     
     switch (step) {
       case 1:
+        // Step 1: Nur Branche und Status sind erforderlich
+        // Status-spezifische Felder werden in späteren Steps abgefragt und validiert
         if (!data.branche) errors.branche = 'Branche ist erforderlich';
         if (!data.status) errors.status = 'Status ist erforderlich';
         break;
@@ -313,12 +315,15 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         if (!data.ort) errors.ort = 'Ort ist erforderlich';
         
         // Telefonnummer validation - DACH Format
-        if (!data.telefon) {
+        // Verbessert: Sofortige Validierung beim Weiterklicken
+        if (!data.telefon || !data.telefon.trim()) {
           errors.telefon = 'Telefonnummer ist erforderlich';
         } else {
-          const phoneRegex = /^(\+?(49|41|43)[- ]?\d{1,4}[- ]?\d{3,}[- ]?\d{4,}|0\d{2,5}[- ]?\d{3,}[- ]?\d{4,})$/;
-          if (!phoneRegex.test(data.telefon.replace(/\s/g, ''))) {
-            errors.telefon = 'Bitte gib eine gültige Telefonnummer ein (z.B. +49 123 456789)';
+          const cleanedPhone = data.telefon.replace(/\s/g, '').trim();
+          // Prüfe verschiedene Formate: +49..., 0049..., 0...
+          const phoneRegex = /^(\+?(49|41|43)[- ]?\d{1,4}[- ]?\d{3,}[- ]?\d{4,}|0\d{2,5}[- ]?\d{3,}[- ]?\d{4,}|0049\d{8,}|0041\d{8,}|0043\d{8,})$/;
+          if (!phoneRegex.test(cleanedPhone)) {
+            errors.telefon = 'Bitte gib eine gültige Telefonnummer ein (z.B. +49 123 456789 oder 030 12345678)';
           }
         }
         
@@ -345,7 +350,23 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         break;
       case 3:
         // Step 3: Beruflicher Werdegang & Ausbildung
-        if (!data.schulbildung || data.schulbildung.length === 0) {
+        
+        // Status-spezifische Pflichtfelder (werden in Step 3 abgefragt)
+        if (data.status === 'schueler') {
+          if (!data.schule?.trim()) errors.schule = 'Schule ist erforderlich';
+          if (!data.geplanter_abschluss?.trim()) errors.geplanter_abschluss = 'Geplanter Abschluss ist erforderlich';
+          if (!data.abschlussjahr?.trim()) errors.abschlussjahr = 'Abschlussjahr ist erforderlich';
+        } else if (data.status === 'azubi') {
+          if (!data.ausbildungsberuf?.trim()) errors.ausbildungsberuf = 'Ausbildungsberuf ist erforderlich';
+          if (!data.ausbildungsbetrieb?.trim()) errors.ausbildungsbetrieb = 'Ausbildungsbetrieb ist erforderlich';
+          if (!data.startjahr?.trim()) errors.startjahr = 'Startjahr der Ausbildung ist erforderlich';
+          if (!data.voraussichtliches_ende?.trim()) errors.voraussichtliches_ende = 'Voraussichtliches Ende der Ausbildung ist erforderlich';
+        } else if (data.status === 'ausgelernt' || data.status === 'fachkraft') {
+          if (!data.aktueller_beruf?.trim()) errors.aktueller_beruf = 'Aktueller Beruf ist erforderlich';
+        }
+        
+        // Schulbildung ist nur für Schüler und Azubis erforderlich
+        if ((data.status === 'schueler' || data.status === 'azubi') && (!data.schulbildung || data.schulbildung.length === 0)) {
           errors.schulbildung = 'Mindestens ein Schulbildungs-Eintrag ist erforderlich';
         }
 
@@ -390,17 +411,47 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         break;
       case 4:
         // Step 4: Kenntnisse, Skills & Motivation
-        if (!data.sprachen || data.sprachen.length === 0) {
+        // Sprachen: Mindestens 1 Sprache, davon mindestens 1 Muttersprache
+        let sprachen = data.sprachen || [];
+        // Parse JSONB if it's a string
+        if (typeof sprachen === 'string') {
+          try {
+            sprachen = JSON.parse(sprachen);
+          } catch (e) {
+            sprachen = [];
+          }
+        }
+        if (!Array.isArray(sprachen) || sprachen.length === 0) {
           errors.sprachen = 'Mindestens eine Sprache ist erforderlich';
+        } else {
+          const hasMuttersprache = sprachen.some((s: any) => 
+            s?.niveau && s.niveau.toString().toLowerCase() === 'muttersprache'
+          );
+          if (!hasMuttersprache) {
+            errors.sprachen = 'Mindestens eine Muttersprache ist erforderlich';
+          }
         }
+        
         // Skills are required for everyone (min 3)
-        if (!data.faehigkeiten || data.faehigkeiten.length < 3) {
-          errors.faehigkeiten = 'Bitte wähle mindestens 3 Fähigkeiten aus';
+        let faehigkeiten = data.faehigkeiten || [];
+        // Parse JSONB if it's a string
+        if (typeof faehigkeiten === 'string') {
+          try {
+            faehigkeiten = JSON.parse(faehigkeiten);
+          } catch (e) {
+            faehigkeiten = [];
+          }
         }
+        if (!Array.isArray(faehigkeiten) || faehigkeiten.length < 3) {
+          errors.faehigkeiten = `Bitte wähle mindestens 3 Fähigkeiten aus (aktuell: ${Array.isArray(faehigkeiten) ? faehigkeiten.length : 0})`;
+        }
+        
         // About-me text is required (AI or manual)
-        const about = (data.ueberMich || '').trim();
-        if (about.length < 20) {
-          errors.ueberMich = 'Text über mich ist erforderlich (mind. 20 Zeichen)';
+        const about = (data.ueberMich || data.ueber_mich || '').trim();
+        if (about.length === 0) {
+          errors.ueberMich = 'Text "Über mich" ist erforderlich';
+        } else if (about.length < 20) {
+          errors.ueberMich = 'Text "Über mich" muss mindestens 20 Zeichen lang sein';
         }
         break;
       case 5:

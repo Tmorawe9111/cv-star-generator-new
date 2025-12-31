@@ -90,7 +90,7 @@ const LeipzigLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                     <div key={idx} className="flex gap-4 items-start">
                       {/* Timeline Date */}
                       <div className="text-sm font-bold w-24 flex-shrink-0 pt-0.5">
-                        {formatMonthYear(schule.zeitraum_von)} - {formatMonthYear(schule.zeitraum_bis)}
+                        {formatMonthYear(schule.zeitraum_von)} - {schule.zeitraum_bis === 'heute' || !schule.zeitraum_bis ? 'heute' : formatMonthYear(schule.zeitraum_bis)}
                       </div>
                       
                       {/* Timeline Dot & Line */}

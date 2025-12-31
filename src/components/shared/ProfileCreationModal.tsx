@@ -89,6 +89,91 @@ export const ProfileCreationModal = ({
     return null;
   };
 
+  // Comprehensive validation function for all required fields based on status
+  const validateRequiredFields = (data: any): { isValid: boolean; missingFields: string[]; errorMessage?: string } => {
+    const missingFields: string[] = [];
+    
+    // Allgemeine Pflichtfelder (für alle Status)
+    if (!data?.vorname?.trim()) missingFields.push('Vorname');
+    if (!data?.nachname?.trim()) missingFields.push('Nachname');
+    if (!data?.geburtsdatum) missingFields.push('Geburtsdatum');
+    if (!data?.profilbild && !data?.avatar_url) missingFields.push('Profilbild');
+    if (!data?.email?.trim()) missingFields.push('E-Mail');
+    if (!data?.telefon?.trim()) missingFields.push('Telefon');
+    if (!data?.ort?.trim()) missingFields.push('Standort');
+    if (!data?.branche) missingFields.push('Branche');
+    if (!data?.status) missingFields.push('Status');
+    
+    // Status-spezifische Pflichtfelder
+    if (data?.status === 'schueler') {
+      if (!data?.schule?.trim()) missingFields.push('Schule');
+      if (!data?.geplanter_abschluss?.trim()) missingFields.push('Geplanter Abschluss');
+      if (!data?.abschlussjahr?.trim()) missingFields.push('Abschlussjahr');
+    } else if (data?.status === 'azubi') {
+      if (!data?.ausbildungsberuf?.trim()) missingFields.push('Ausbildungsberuf');
+      if (!data?.ausbildungsbetrieb?.trim()) missingFields.push('Ausbildungsbetrieb');
+      if (!data?.startjahr?.trim()) missingFields.push('Startjahr der Ausbildung');
+      if (!data?.voraussichtliches_ende?.trim()) missingFields.push('Voraussichtliches Ende der Ausbildung');
+    } else if (data?.status === 'ausgelernt' || data?.status === 'fachkraft') {
+      if (!data?.aktueller_beruf?.trim()) missingFields.push('Aktueller Beruf');
+    }
+    
+    // Sprachen: Mindestens 1 Sprache, davon mindestens 1 Muttersprache
+    let sprachen = data?.sprachen || [];
+    // Parse JSONB if it's a string
+    if (typeof sprachen === 'string') {
+      try {
+        sprachen = JSON.parse(sprachen);
+      } catch (e) {
+        sprachen = [];
+      }
+    }
+    if (!Array.isArray(sprachen) || sprachen.length === 0) {
+      missingFields.push('Mindestens 1 Sprache');
+    } else {
+      const hasMuttersprache = sprachen.some((s: any) => 
+        s?.niveau && s.niveau.toString().toLowerCase() === 'muttersprache'
+      );
+      if (!hasMuttersprache) {
+        missingFields.push('Mindestens 1 Muttersprache');
+      }
+    }
+    
+    // Fähigkeiten: Mindestens 3 Fähigkeiten
+    let faehigkeiten = data?.faehigkeiten || [];
+    // Parse JSONB if it's a string
+    if (typeof faehigkeiten === 'string') {
+      try {
+        faehigkeiten = JSON.parse(faehigkeiten);
+      } catch (e) {
+        faehigkeiten = [];
+      }
+    }
+    if (!Array.isArray(faehigkeiten) || faehigkeiten.length < 3) {
+      missingFields.push(`Mindestens 3 Fähigkeiten (aktuell: ${Array.isArray(faehigkeiten) ? faehigkeiten.length : 0})`);
+    }
+    
+    // Über mich: Text muss vorhanden sein
+    const ueberMich = data?.ueberMich || data?.ueber_mich || '';
+    if (!ueberMich.trim()) {
+      missingFields.push('Text "Über mich"');
+    }
+    
+    if (missingFields.length > 0) {
+      const statusText = data?.status === 'schueler' ? 'Schüler:in' : 
+                        data?.status === 'azubi' ? 'Azubi' : 
+                        data?.status === 'ausgelernt' || data?.status === 'fachkraft' ? 'Fachkraft' : 'unbekannt';
+      
+      return {
+        isValid: false,
+        missingFields,
+        errorMessage: `Bitte füllen Sie alle erforderlichen Felder aus (${statusText}):\n${missingFields.join(', ')}`
+      };
+    }
+    
+    return { isValid: true, missingFields: [] };
+  };
+
   const handleCreateProfile = async () => {
     console.log(`[${new Date().toISOString()}] ProfileCreationModal: handleCreateProfile called`);
     console.log(`[${new Date().toISOString()}] ProfileCreationModal: Form data received:`, formData);
@@ -116,6 +201,15 @@ export const ProfileCreationModal = ({
       }
     }
     
+    // CRITICAL: Comprehensive validation of all required fields
+    const validation = validateRequiredFields(effectiveFormData);
+    if (!validation.isValid) {
+      console.error('ProfileCreationModal: Missing required fields:', validation.missingFields);
+      showToast.error(validation.errorMessage || `Bitte füllen Sie alle erforderlichen Felder aus: ${validation.missingFields.join(', ')}`);
+      setIsCreating(false);
+      return;
+    }
+    
     // Additional debugging for CV data
     console.log(`[${new Date().toISOString()}] ProfileCreationModal: CV Data Analysis:`, {
       hasVorname: !!effectiveFormData?.vorname,
@@ -137,12 +231,7 @@ export const ProfileCreationModal = ({
 
     if (!email || !password) {
       showToast.error("Bitte füllen Sie alle Felder aus.");
-      return;
-    }
-
-    // Check if profile image exists
-    if (!effectiveFormData.profilbild && !effectiveFormData.avatar_url) {
-      showToast.error("Bitte lade zuerst ein Profilbild hoch (Schritt 2).");
+      setIsCreating(false);
       return;
     }
 
@@ -209,28 +298,17 @@ export const ProfileCreationModal = ({
           return;
         }
 
-        // If user already exists, try to sign in
+        // If user already exists, show error - DO NOT try to sign in
+        // This prevents accidentally overwriting another user's profile
         if (authError.message.includes('User already registered')) {
-          console.log('User exists, trying to sign in...');
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password
-          });
-
-          if (signInError) {
-            console.error('Sign in error:', signInError);
-            showToast.error("E-Mail oder Passwort ist falsch, oder der Account ist noch nicht bestätigt.");
-            return;
-          }
-
-          if (signInData.user) {
-            console.log('User signed in successfully:', signInData.user.id);
-            // Continue with existing user
-            var user = signInData.user;
-          } else {
-            showToast.error("Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.");
-            return;
-          }
+          console.error('User already exists with this email:', email);
+          showToast.error("Diese E-Mail-Adresse ist bereits registriert. Bitte verwenden Sie eine andere E-Mail oder melden Sie sich an.");
+          // Clean up any partial state
+          try {
+            await supabase.auth.signOut({ scope: 'global' });
+          } catch {}
+          cleanupAuthState();
+          return;
         } else {
           // Handle other auth errors
           showToast.error(`Fehler beim Account erstellen: ${authError.message}`);
@@ -284,12 +362,27 @@ export const ProfileCreationModal = ({
           return;
         }
         
-        // Check if profile exists
+        // Check if profile exists and verify ownership
         const { data: existingProfile } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, email, vorname, nachname, profile_complete')
           .eq('id', user.id)
           .maybeSingle();
+          
+        // CRITICAL: Verify that the email matches the user's email
+        if (existingProfile && existingProfile.email && existingProfile.email.toLowerCase() !== email.toLowerCase()) {
+          console.error('SECURITY: Email mismatch detected!', {
+            profileEmail: existingProfile.email,
+            providedEmail: email,
+            userId: user.id
+          });
+          showToast.error("Es gibt einen Konflikt mit der E-Mail-Adresse. Bitte kontaktieren Sie den Support.");
+          try {
+            await supabase.auth.signOut({ scope: 'global' });
+          } catch {}
+          cleanupAuthState();
+          return;
+        }
           
         if (!existingProfile) {
           console.log('Creating new profile...');
@@ -297,18 +390,141 @@ export const ProfileCreationModal = ({
             .from('profiles')
             .insert({
               id: user.id,
-              email: email,
+              email: email.trim().toLowerCase(),
               account_created: true
             });
             
           if (insertError) {
             console.error('Profile creation failed:', insertError);
-            showToast.error(insertError.message || "Das Profil konnte nicht erstellt werden. Bitte versuchen Sie es erneut.");
-            return;
+            // Check if profile was created by trigger in the meantime
+            const { data: triggerProfile } = await supabase
+              .from('profiles')
+              .select('id, email')
+              .eq('id', user.id)
+              .maybeSingle();
+              
+            if (triggerProfile) {
+              console.log('Profile was created by trigger, continuing...');
+              // Verify email matches
+              if (triggerProfile.email && triggerProfile.email.toLowerCase() !== email.toLowerCase()) {
+                console.error('Email mismatch with trigger-created profile');
+                showToast.error("Es gibt einen Konflikt mit der E-Mail-Adresse. Bitte kontaktieren Sie den Support.");
+                try {
+                  await supabase.auth.signOut({ scope: 'global' });
+                } catch {}
+                cleanupAuthState();
+                return;
+              }
+            } else {
+              showToast.error(insertError.message || "Das Profil konnte nicht erstellt werden. Bitte versuchen Sie es erneut.");
+              return;
+            }
+          } else {
+            console.log('Profile created successfully');
           }
-          console.log('Profile created successfully');
         } else {
           console.log('Profile already exists:', existingProfile);
+          
+          // CRITICAL: Use existing values as fallback if not in formData
+          // This prevents overwriting existing data with null/undefined
+          if (existingProfile.vorname && !effectiveFormData.vorname) {
+            effectiveFormData.vorname = existingProfile.vorname;
+          }
+          if (existingProfile.nachname && !effectiveFormData.nachname) {
+            effectiveFormData.nachname = existingProfile.nachname;
+          }
+          if (existingProfile.ort && !effectiveFormData.ort) {
+            effectiveFormData.ort = existingProfile.ort;
+          }
+          if (existingProfile.telefon && !effectiveFormData.telefon) {
+            effectiveFormData.telefon = existingProfile.telefon;
+          }
+          if (existingProfile.branche && !effectiveFormData.branche) {
+            effectiveFormData.branche = existingProfile.branche;
+          }
+          if (existingProfile.status && !effectiveFormData.status) {
+            effectiveFormData.status = existingProfile.status;
+          }
+          if (existingProfile.geburtsdatum && !effectiveFormData.geburtsdatum) {
+            effectiveFormData.geburtsdatum = existingProfile.geburtsdatum;
+          }
+          
+          // Status-spezifische Fallbacks
+          if (existingProfile.status === 'schueler') {
+            if (existingProfile.schule && !effectiveFormData.schule) {
+              effectiveFormData.schule = existingProfile.schule;
+            }
+            if (existingProfile.geplanter_abschluss && !effectiveFormData.geplanter_abschluss) {
+              effectiveFormData.geplanter_abschluss = existingProfile.geplanter_abschluss;
+            }
+            if (existingProfile.abschlussjahr && !effectiveFormData.abschlussjahr) {
+              effectiveFormData.abschlussjahr = existingProfile.abschlussjahr;
+            }
+          } else if (existingProfile.status === 'azubi') {
+            if (existingProfile.ausbildungsberuf && !effectiveFormData.ausbildungsberuf) {
+              effectiveFormData.ausbildungsberuf = existingProfile.ausbildungsberuf;
+            }
+            if (existingProfile.ausbildungsbetrieb && !effectiveFormData.ausbildungsbetrieb) {
+              effectiveFormData.ausbildungsbetrieb = existingProfile.ausbildungsbetrieb;
+            }
+            if (existingProfile.startjahr && !effectiveFormData.startjahr) {
+              effectiveFormData.startjahr = existingProfile.startjahr;
+            }
+            if (existingProfile.voraussichtliches_ende && !effectiveFormData.voraussichtliches_ende) {
+              effectiveFormData.voraussichtliches_ende = existingProfile.voraussichtliches_ende;
+            }
+          } else if (existingProfile.status === 'ausgelernt' || existingProfile.status === 'fachkraft') {
+            if (existingProfile.aktueller_beruf && !effectiveFormData.aktueller_beruf) {
+              effectiveFormData.aktueller_beruf = existingProfile.aktueller_beruf;
+            }
+          }
+          
+          // Fallback für Sprachen, Fähigkeiten und "Über mich"
+          if (existingProfile.sprachen && (!effectiveFormData.sprachen || effectiveFormData.sprachen.length === 0)) {
+            // Parse JSONB if it's a string
+            const existingSprachen = typeof existingProfile.sprachen === 'string' 
+              ? JSON.parse(existingProfile.sprachen) 
+              : existingProfile.sprachen;
+            if (Array.isArray(existingSprachen) && existingSprachen.length > 0) {
+              effectiveFormData.sprachen = existingSprachen;
+            }
+          }
+          
+          if (existingProfile.faehigkeiten && (!effectiveFormData.faehigkeiten || effectiveFormData.faehigkeiten.length < 3)) {
+            // Parse JSONB if it's a string
+            const existingFaehigkeiten = typeof existingProfile.faehigkeiten === 'string' 
+              ? JSON.parse(existingProfile.faehigkeiten) 
+              : existingProfile.faehigkeiten;
+            if (Array.isArray(existingFaehigkeiten) && existingFaehigkeiten.length >= 3) {
+              effectiveFormData.faehigkeiten = existingFaehigkeiten;
+            }
+          }
+          
+          if (existingProfile.uebermich && (!effectiveFormData.ueberMich && !effectiveFormData.ueber_mich)) {
+            effectiveFormData.ueberMich = existingProfile.uebermich;
+          }
+          
+          // Re-validate after fallback to ensure all required fields are still present
+          const reValidation = validateRequiredFields(effectiveFormData);
+          if (!reValidation.isValid) {
+            console.error('ProfileCreationModal: Missing required fields after fallback:', reValidation.missingFields);
+            showToast.error(reValidation.errorMessage || `Bitte füllen Sie alle erforderlichen Felder aus: ${reValidation.missingFields.join(', ')}`);
+            setIsCreating(false);
+            return;
+          }
+          
+          // Additional safety check: if profile is complete and has different name, warn
+          if (existingProfile.profile_complete && existingProfile.vorname && existingProfile.nachname) {
+            const existingName = `${existingProfile.vorname} ${existingProfile.nachname}`.trim().toLowerCase();
+            const newName = `${effectiveFormData.vorname} ${effectiveFormData.nachname}`.trim().toLowerCase();
+            if (existingName && newName && existingName !== newName) {
+              console.warn('Profile already has different name:', {
+                existing: existingName,
+                new: newName
+              });
+              // Still allow update, but log it for monitoring
+            }
+          }
         }
         
         // Handle file uploads first
@@ -384,56 +600,102 @@ export const ProfileCreationModal = ({
         
         console.log(`[${new Date().toISOString()}] ProfileCreationModal: Generated bio text:`, bioText);
         
+        // CRITICAL: Validate that vorname and nachname exist before proceeding
+        const vorname = effectiveFormData?.vorname?.trim();
+        const nachname = effectiveFormData?.nachname?.trim();
+        
+        if (!vorname || !nachname) {
+          console.error('ProfileCreationModal: Missing vorname or nachname!', {
+            vorname: vorname,
+            nachname: nachname,
+            effectiveFormData: effectiveFormData,
+            formData: formData
+          });
+          showToast.error("Vorname und Nachname sind erforderlich. Bitte füllen Sie alle Pflichtfelder aus.");
+          setIsCreating(false);
+          return;
+        }
+        
+        // CRITICAL: Always use the authenticated user's email from auth.users
+        // This prevents email mismatches between auth.users and profiles
+        const currentAuthUser = await supabase.auth.getUser();
+        const authEmail = currentAuthUser.data?.user?.email || email;
+        
+        // Verify the email matches what the user is authenticated with
+        if (authEmail.toLowerCase().trim() !== email.toLowerCase().trim()) {
+          console.error('SECURITY: Email mismatch between form and auth!', {
+            formEmail: email,
+            authEmail: authEmail,
+            userId: user.id
+          });
+          showToast.error("E-Mail-Konflikt erkannt. Bitte kontaktieren Sie den Support.");
+          try {
+            await supabase.auth.signOut({ scope: 'global' });
+          } catch {}
+          cleanupAuthState();
+          setIsCreating(false);
+          return;
+        }
+        
         // Prepare profile update data
-        const profileData = {
-          email: email.trim().toLowerCase(),
-          vorname: effectiveFormData.vorname,
-          nachname: effectiveFormData.nachname,
-              geburtsdatum: effectiveFormData.geburtsdatum ? 
-                (effectiveFormData.geburtsdatum instanceof Date ? 
-                  effectiveFormData.geburtsdatum.toISOString().split('T')[0] : 
-                  effectiveFormData.geburtsdatum
-                ) : null,
-          strasse: effectiveFormData.strasse,
-          hausnummer: effectiveFormData.hausnummer,
-          plz: effectiveFormData.plz,
-          ort: effectiveFormData.ort,
-          telefon: effectiveFormData.telefon,
-          avatar_url: avatarUrl,
-          cover_image_url: coverImageUrl,
-          cv_url: cvUrl,
-          headline: effectiveFormData.headline || `${getStatusTitle()} ${effectiveFormData.branche ? `in ${getBrancheTitle()}` : ''}`,
-          bio: bioText || effectiveFormData.ueberMich || effectiveFormData.ueber_mich,
-          branche: effectiveFormData.branche || null,
-          status: effectiveFormData.status || null,
-          schule: effectiveFormData.schule,
-          geplanter_abschluss: effectiveFormData.geplanter_abschluss,
-          abschlussjahr: effectiveFormData.abschlussjahr,
-          ausbildungsberuf: effectiveFormData.ausbildungsberuf,
-          ausbildungsbetrieb: effectiveFormData.ausbildungsbetrieb,
-          startjahr: effectiveFormData.startjahr,
-          voraussichtliches_ende: effectiveFormData.voraussichtliches_ende,
-          abschlussjahr_ausgelernt: effectiveFormData.abschlussjahr_ausgelernt,
-          aktueller_beruf: effectiveFormData.aktueller_beruf,
-          sprachen: effectiveFormData.sprachen || [],
-          faehigkeiten: effectiveFormData.faehigkeiten || [],
-          schulbildung: effectiveFormData.schulbildung || [],
-          berufserfahrung: effectiveFormData.berufserfahrung || [],
-          layout: effectiveFormData.layout || 1,
-          uebermich: effectiveFormData.ueberMich || effectiveFormData.ueber_mich,
-          kenntnisse: effectiveFormData.kenntnisse,
-          motivation: effectiveFormData.motivation,
-          praktische_erfahrung: effectiveFormData.praktische_erfahrung,
-          has_drivers_license: effectiveFormData.has_drivers_license || false,
-          has_own_vehicle: effectiveFormData.has_own_vehicle || false,
-          target_year: effectiveFormData.target_year,
-          visibility_industry: effectiveFormData.visibility_industry || [],
-          visibility_region: effectiveFormData.visibility_region || [],
-          einwilligung: effectiveFormData.einwilligung || false,
-          profile_complete: true,
-          profile_published: false,
+        // CRITICAL: Only update fields that have actual values
+        // Don't overwrite existing data with null/undefined/empty strings
+        const profileData: any = {
+          email: authEmail.trim().toLowerCase(), // Use email from auth.users, not form
+          vorname: vorname,
+          nachname: nachname,
           updated_at: new Date().toISOString()
         };
+        
+        // Only set fields that have actual values (prevent overwriting with null)
+        if (effectiveFormData.geburtsdatum) {
+          profileData.geburtsdatum = effectiveFormData.geburtsdatum instanceof Date 
+            ? effectiveFormData.geburtsdatum.toISOString().split('T')[0] 
+            : effectiveFormData.geburtsdatum;
+        }
+        
+        if (effectiveFormData.strasse) profileData.strasse = effectiveFormData.strasse;
+        if (effectiveFormData.hausnummer) profileData.hausnummer = effectiveFormData.hausnummer;
+        if (effectiveFormData.plz) profileData.plz = effectiveFormData.plz;
+        if (effectiveFormData.ort) profileData.ort = effectiveFormData.ort;
+        if (effectiveFormData.telefon) profileData.telefon = effectiveFormData.telefon;
+        
+        if (avatarUrl) profileData.avatar_url = avatarUrl;
+        if (coverImageUrl) profileData.cover_image_url = coverImageUrl;
+        if (cvUrl) profileData.cv_url = cvUrl;
+        
+        profileData.headline = effectiveFormData.headline || `${getStatusTitle()} ${effectiveFormData.branche ? `in ${getBrancheTitle()}` : ''}`;
+        profileData.bio = bioText || effectiveFormData.ueberMich || effectiveFormData.ueber_mich || null;
+        profileData.branche = effectiveFormData.branche || null;
+        profileData.status = effectiveFormData.status || null;
+        
+        if (effectiveFormData.schule) profileData.schule = effectiveFormData.schule;
+        if (effectiveFormData.geplanter_abschluss) profileData.geplanter_abschluss = effectiveFormData.geplanter_abschluss;
+        if (effectiveFormData.abschlussjahr) profileData.abschlussjahr = effectiveFormData.abschlussjahr;
+        if (effectiveFormData.ausbildungsberuf) profileData.ausbildungsberuf = effectiveFormData.ausbildungsberuf;
+        if (effectiveFormData.ausbildungsbetrieb) profileData.ausbildungsbetrieb = effectiveFormData.ausbildungsbetrieb;
+        if (effectiveFormData.startjahr) profileData.startjahr = effectiveFormData.startjahr;
+        if (effectiveFormData.voraussichtliches_ende) profileData.voraussichtliches_ende = effectiveFormData.voraussichtliches_ende;
+        if (effectiveFormData.abschlussjahr_ausgelernt) profileData.abschlussjahr_ausgelernt = effectiveFormData.abschlussjahr_ausgelernt;
+        if (effectiveFormData.aktueller_beruf) profileData.aktueller_beruf = effectiveFormData.aktueller_beruf;
+        
+        profileData.sprachen = effectiveFormData.sprachen || [];
+        profileData.faehigkeiten = effectiveFormData.faehigkeiten || [];
+        profileData.schulbildung = effectiveFormData.schulbildung || [];
+        profileData.berufserfahrung = effectiveFormData.berufserfahrung || [];
+        profileData.layout = effectiveFormData.layout || 1;
+        profileData.uebermich = effectiveFormData.ueberMich || effectiveFormData.ueber_mich || null;
+        if (effectiveFormData.kenntnisse) profileData.kenntnisse = effectiveFormData.kenntnisse;
+        if (effectiveFormData.motivation) profileData.motivation = effectiveFormData.motivation;
+        if (effectiveFormData.praktische_erfahrung) profileData.praktische_erfahrung = effectiveFormData.praktische_erfahrung;
+        profileData.has_drivers_license = effectiveFormData.has_drivers_license || false;
+        profileData.has_own_vehicle = effectiveFormData.has_own_vehicle || false;
+        if (effectiveFormData.target_year) profileData.target_year = effectiveFormData.target_year;
+        profileData.visibility_industry = effectiveFormData.visibility_industry || [];
+        profileData.visibility_region = effectiveFormData.visibility_region || [];
+        profileData.einwilligung = effectiveFormData.einwilligung || false;
+        profileData.profile_complete = true;
+        profileData.profile_published = false;
 
          console.log('ProfileCreationModal: Effective form data:', effectiveFormData);
          console.log('ProfileCreationModal: Effective form data keys:', Object.keys(effectiveFormData || {}));
@@ -448,15 +710,54 @@ export const ProfileCreationModal = ({
           try {
             console.log(`[${new Date().toISOString()}] ProfileCreationModal: Profile update attempt ${retryCount + 1}/${maxRetries}`);
             
+            // CRITICAL: Double-check profile ownership before update
+            const { data: ownershipCheck } = await supabase
+              .from('profiles')
+              .select('id, email')
+              .eq('id', user.id)
+              .maybeSingle();
+              
+            if (!ownershipCheck) {
+              throw new Error('Profile not found for user');
+            }
+            
+            // Verify email still matches (prevent race conditions)
+            if (ownershipCheck.email && ownershipCheck.email.toLowerCase() !== email.toLowerCase()) {
+              console.error('SECURITY: Email mismatch during update!', {
+                profileEmail: ownershipCheck.email,
+                providedEmail: email,
+                userId: user.id
+              });
+              throw new Error('Email mismatch detected. Update aborted for security.');
+            }
+            
+            // Use upsert with conflict handling to prevent overwriting wrong profile
             const { data: updatedProfile, error: profileError } = await supabase
               .from('profiles')
-              .update(profileData)
-              .eq('id', user.id)
+              .upsert({
+                ...profileData,
+                id: user.id, // Ensure ID is set
+                email: email.trim().toLowerCase() // Ensure email matches
+              }, {
+                onConflict: 'id',
+                // Only update if the profile belongs to this user
+                ignoreDuplicates: false
+              })
+              .eq('id', user.id) // Additional safety: only update this user's profile
               .select()
               .single();
 
             if (profileError) {
               throw profileError;
+            }
+            
+            // Final verification: check that the updated profile belongs to the correct user
+            if (updatedProfile && updatedProfile.id !== user.id) {
+              console.error('SECURITY: Updated profile does not belong to user!', {
+                updatedProfileId: updatedProfile.id,
+                userId: user.id
+              });
+              throw new Error('Profile ownership verification failed');
             }
 
             console.log(`[${new Date().toISOString()}] ProfileCreationModal: Profile updated successfully:`, updatedProfile);

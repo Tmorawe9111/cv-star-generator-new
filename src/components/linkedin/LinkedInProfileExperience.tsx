@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CompanyAutocomplete } from '@/components/shared/CompanyAutocomplete';
+import { FormattedDescription } from '@/components/shared/FormattedDescription';
 
 interface Experience {
   titel: string;
@@ -628,9 +629,13 @@ export const LinkedInProfileExperience: React.FC<LinkedInProfileExperienceProps>
                     </div>
                     
                     {exp.beschreibung && (
-                      <p className="text-muted-foreground mt-2 md:mt-3 leading-relaxed text-sm md:text-base">
-                        {exp.beschreibung}
-                      </p>
+                      <div className="mt-2 md:mt-3">
+                        <FormattedDescription 
+                          description={exp.beschreibung}
+                          className="text-muted-foreground"
+                          textSize="sm"
+                        />
+                      </div>
                     )}
                     {editingIndex === originalIndex && (
                       <div className="mt-3 md:mt-4">

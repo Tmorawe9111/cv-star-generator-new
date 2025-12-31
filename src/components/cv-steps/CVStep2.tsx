@@ -52,20 +52,29 @@ const CVStep2 = () => {
   }, [previewUrl, formData.profilbild]);
 
   // Parse location string (format: "PLZ Ort" or "Ort")
+  // Fixed: Verhindert doppelte PLZ-Werte
   const parseLocation = (locationStr: string) => {
     if (!locationStr || !locationStr.trim()) {
       return { plz: '', ort: '' };
     }
-    const parts = locationStr.trim().split(' ');
-    if (parts.length >= 2 && /^\d{5}$/.test(parts[0])) {
-      return { plz: parts[0], ort: parts.slice(1).join(' ') };
+    
+    const trimmed = locationStr.trim();
+    
+    // Prüfe ob Format "PLZ Ort" (z.B. "10115 Berlin")
+    const plzOrtMatch = trimmed.match(/^(\d{5})\s+(.+)$/);
+    if (plzOrtMatch) {
+      const [, plz, ort] = plzOrtMatch;
+      return { plz: plz.trim(), ort: ort.trim() };
     }
-    // Wenn nur PLZ ohne Ort, behalte PLZ
-    if (/^\d{5}$/.test(locationStr.trim())) {
-      return { plz: locationStr.trim(), ort: formData.ort || '' };
+    
+    // Wenn nur PLZ ohne Ort (z.B. "10115")
+    if (/^\d{5}$/.test(trimmed)) {
+      return { plz: trimmed, ort: formData.ort || '' };
     }
-    // Wenn nur Text (Stadt), setze nur Ort
-    return { plz: formData.plz || '', ort: locationStr.trim() };
+    
+    // Wenn nur Text (Stadt), setze nur Ort und behalte vorhandene PLZ
+    // WICHTIG: Wenn der Text bereits eine PLZ enthält, extrahiere sie nicht nochmal
+    return { plz: formData.plz || '', ort: trimmed };
   };
 
   const abschlussOptions = [
@@ -526,8 +535,12 @@ const CVStep2 = () => {
                     updateFormData({ plz: '', ort: '' });
                     return;
                   }
+                  // Fixed: Verhindert doppelte PLZ-Werte durch bessere parseLocation-Logik
                   const { plz, ort } = parseLocation(value);
-                  updateFormData({ plz, ort });
+                  // Nur updaten wenn sich etwas geändert hat, um unnötige Re-Renders zu vermeiden
+                  if (plz !== formData.plz || ort !== formData.ort) {
+                    updateFormData({ plz, ort });
+                  }
                 }}
                 placeholder="PLZ oder Stadt eingeben..."
                 className="h-9 md:h-10 text-xs md:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors touch-manipulation"

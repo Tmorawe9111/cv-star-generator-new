@@ -47,6 +47,26 @@ export default function CVPrintPage() {
         console.log('✅ CVPrintPage: Profile loaded:', profile);
 
         if (profile) {
+          // Helper function to parse JSONB fields
+          const parseJsonField = (field: any) => {
+            if (field === null || field === undefined) return null;
+            if (typeof field === 'string') {
+              try {
+                return JSON.parse(field);
+              } catch {
+                return field;
+              }
+            }
+            if (Array.isArray(field)) return field;
+            return field;
+          };
+
+          // Parse JSONB fields
+          const parsedSchulbildung = parseJsonField(profile.schulbildung) || [];
+          const parsedBerufserfahrung = parseJsonField(profile.berufserfahrung) || [];
+          const parsedSprachen = parseJsonField(profile.sprachen) || [];
+          const parsedFaehigkeiten = parseJsonField(profile.faehigkeiten) || [];
+
           // Convert profile to CVData format
           const cvData = {
             vorname: profile.vorname,
@@ -65,10 +85,10 @@ export default function CVPrintPage() {
             status: profile.status,
             branche: profile.branche,
             ueberMich: profile.uebermich || profile.bio,
-            schulbildung: profile.schulbildung || [],
-            berufserfahrung: profile.berufserfahrung || [],
-            sprachen: profile.sprachen || [],
-            faehigkeiten: profile.faehigkeiten || [],
+            schulbildung: parsedSchulbildung,
+            berufserfahrung: parsedBerufserfahrung,
+            sprachen: parsedSprachen,
+            faehigkeiten: parsedFaehigkeiten,
             qualifikationen: [],
             zertifikate: [],
             weiterbildung: [],

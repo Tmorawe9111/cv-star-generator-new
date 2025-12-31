@@ -84,6 +84,30 @@ const Profile = () => {
     
     setIsSaving(true);
     try {
+      // CRITICAL: Verify profile ownership before update
+      const { data: ownershipCheck } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('id', profile.id)
+        .maybeSingle();
+        
+      if (!ownershipCheck) {
+        throw new Error('Profil nicht gefunden');
+      }
+      
+      // Additional safety: verify email hasn't changed (prevent race conditions)
+      if (updates.email && ownershipCheck.email && ownershipCheck.email.toLowerCase() !== updates.email.toLowerCase()) {
+        // Check if new email is already taken
+        const { emailExists } = await checkProfileUniqueness(
+          updates.email,
+          undefined,
+          profile.id
+        );
+        if (emailExists) {
+          throw new Error('Diese E-Mail-Adresse wird bereits verwendet');
+        }
+      }
+      
       const { error } = await supabase
         .from('profiles')
         .update({

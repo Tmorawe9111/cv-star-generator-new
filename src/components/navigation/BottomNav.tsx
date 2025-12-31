@@ -64,13 +64,14 @@ const BottomNav: React.FC = () => {
     };
   }, []);
 
-  // Don't render if visibility prompt is open
+  // Always render - never hide the bottom nav
+  // Only hide if visibility prompt is open (temporary)
   if (isVisibilityPromptOpen) {
     return null;
   }
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 pb-safe">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[100] pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.05)]" style={{ position: 'fixed' }}>
       <div className="mx-auto max-w-screen-sm">
         <div className="grid grid-cols-5 items-center gap-0 py-1">
           {/* Home */}

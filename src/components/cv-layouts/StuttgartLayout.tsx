@@ -192,7 +192,7 @@ const StuttgartLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                         {schule.schulform}
                       </h3>
                       <span className="text-xs font-medium whitespace-nowrap ml-4" style={{ color: 'hsl(0, 0%, 45%)' }}>
-                        {formatMonthYear(schule.zeitraum_von)} - {formatMonthYear(schule.zeitraum_bis)}
+                        {formatMonthYear(schule.zeitraum_von)} - {schule.zeitraum_bis === 'heute' || !schule.zeitraum_bis ? 'heute' : formatMonthYear(schule.zeitraum_bis)}
                       </span>
                     </div>
                     <p className="text-xs" style={{ color: 'hsl(0, 0%, 40%)' }}>

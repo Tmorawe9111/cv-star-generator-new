@@ -25,10 +25,16 @@ export function usePublicJobs(filters?: {
   profession_id?: string;
   location?: string;
   work_mode?: string;
+  skipBranchFilter?: boolean; // If true, shows all jobs (for search)
 }) {
+  const { user } = useAuth();
+  
   return useQuery({
-    queryKey: ["public-jobs", filters],
-    queryFn: () => JobsService.getPublicJobs(filters),
+    queryKey: ["public-jobs", filters, user?.id],
+    queryFn: () => JobsService.getPublicJobs({
+      ...filters,
+      userId: user?.id, // Pass user ID for branch filtering
+    }),
   });
 }
 

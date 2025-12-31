@@ -247,8 +247,14 @@ const BerlinLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
                       <h3 className="font-semibold text-sm" style={{ color: 'hsl(30, 20%, 25%)' }}>
                         {schule.schulform}
                       </h3>
-                      <span className="text-xs font-medium" style={{ color: 'hsl(30, 20%, 45%)' }}>
-                        {formatMonthYear(schule.zeitraum_von)} - {formatMonthYear(schule.zeitraum_bis)}
+                      <span className="text-xs font-medium whitespace-nowrap ml-4" style={{ color: 'hsl(30, 20%, 45%)' }}>
+                        {schule.zeitraum_von && schule.zeitraum_bis 
+                          ? `${formatMonthYear(schule.zeitraum_von)} - ${schule.zeitraum_bis === 'heute' || !schule.zeitraum_bis ? 'heute' : formatMonthYear(schule.zeitraum_bis)}`
+                          : schule.zeitraum_von 
+                            ? formatMonthYear(schule.zeitraum_von)
+                            : schule.zeitraum_bis
+                              ? (schule.zeitraum_bis === 'heute' ? 'heute' : formatMonthYear(schule.zeitraum_bis))
+                              : ''}
                       </span>
                     </div>
                     <p className="text-xs" style={{ color: 'hsl(30, 20%, 40%)' }}>

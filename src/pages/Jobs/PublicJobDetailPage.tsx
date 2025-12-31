@@ -165,7 +165,7 @@ export default function PublicJobDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-[56px] md:pb-0">
       {/* Landing Header - Only for public (non-authenticated) users */}
       {showLandingHeader && <LandingHeader />}
       

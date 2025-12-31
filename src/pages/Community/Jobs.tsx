@@ -139,13 +139,24 @@ export default function CommunityJobs() {
   }, [search, setSearchParams]);
 
   // Fetch jobs
+  // Note: If user is actively searching (has search query or filters), show all jobs
+  // Otherwise, filter by branch for logged-in users
+  const hasActiveSearch = search.trim().length > 0 || 
+    selectedJobTypes.length > 0 || 
+    selectedWorkModes.length > 0 || 
+    selectedCity || 
+    selectedCompany || 
+    selectedIndustry ||
+    location;
+  
   const {
     data: jobs,
     isLoading: jobsLoading
   } = usePublicJobs({
     employment_type: selectedJobTypes[0],
     location: location || selectedCity,
-    work_mode: selectedWorkMode || undefined
+    work_mode: selectedWorkMode || undefined,
+    skipBranchFilter: hasActiveSearch // If actively searching, show all jobs
   });
 
   // Fetch applications

@@ -66,7 +66,8 @@ export function LinkedInProfileSidebar({
   showCVSection = true,
   showValuesAndInterview = false,
   profileId,
-  onEditingChange
+  onEditingChange,
+  isOwner = false
 }: LinkedInProfileSidebarProps) {
   const { user } = useAuth();
   const isCompanyUser = user?.user_metadata?.is_company === true;
@@ -387,16 +388,18 @@ export function LinkedInProfileSidebar({
         />
       ) : null}
 
-      {/* Availability Section - After Languages */}
-      <AvailabilityCard 
-        availableFrom={profile?.available_from} 
-        visibilityMode={profile?.visibility_mode}
-        jobSearchPreferences={profile?.job_search_preferences}
-        profileStatus={profile?.status}
-        profileId={profile?.id}
-        readOnly={readOnly}
-        onUpdate={onProfileUpdate}
-      />
+      {/* Availability Section - After Languages - Only show for profile owner */}
+      {isOwner && (
+        <AvailabilityCard 
+          availableFrom={profile?.available_from} 
+          visibilityMode={profile?.visibility_mode}
+          jobSearchPreferences={profile?.job_search_preferences}
+          profileStatus={profile?.status}
+          profileId={profile?.id}
+          readOnly={readOnly}
+          onUpdate={onProfileUpdate}
+        />
+      )}
 
       {/* Weitere Dokumente Widget Modal */}
       <WeitereDokumenteWidget

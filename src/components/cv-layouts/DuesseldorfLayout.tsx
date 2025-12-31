@@ -118,7 +118,7 @@ const DuesseldorfLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) =>
                       )}
                     </div>
                     <span className="text-xs whitespace-nowrap ml-4" style={{ color: 'hsl(0, 0%, 45%)' }}>
-                      {formatMonthYear(schule.zeitraum_von)} - {formatMonthYear(schule.zeitraum_bis)}
+                      {formatMonthYear(schule.zeitraum_von)} - {schule.zeitraum_bis === 'heute' || !schule.zeitraum_bis ? 'heute' : formatMonthYear(schule.zeitraum_bis)}
                     </span>
                   </div>
                   <p className="text-xs italic" style={{ color: 'hsl(0, 0%, 35%)' }}>

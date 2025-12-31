@@ -399,10 +399,12 @@ export default function TopNavBar() {
                 onSelect={(type: SuggestionType, item: {
                   id: string;
                   label: string;
+                  profile_slug?: string | null;
                 }) => {
                   setOpen(false);
                   if (type === 'person') {
-                    navigate(`/u/${item.id}`);
+                    // Use profile_slug if available, otherwise fallback to ID
+                    navigate(item.profile_slug ? `/profil/${item.profile_slug}` : `/u/${item.id}`);
                   } else if (type === 'company') {
                     navigate(`/companies/${item.id}`);
                   }
@@ -513,7 +515,8 @@ export default function TopNavBar() {
               setOpen(false);
               setIsSearchMode(false);
               if (type === 'person') {
-                navigate(`/u/${item.id}`);
+                // Use profile_slug if available, otherwise fallback to ID
+                navigate(item.profile_slug ? `/profil/${item.profile_slug}` : `/u/${item.id}`);
               } else if (type === 'company') {
                 navigate(`/companies/${item.id}`);
               }

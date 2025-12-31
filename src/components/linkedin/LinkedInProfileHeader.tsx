@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, MapPin, Loader2 } from 'lucide-react';
+import { Camera, MapPin, Loader2, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -16,6 +16,9 @@ interface LinkedInProfileHeaderProps {
   onSave?: () => void;
   isSaving?: boolean;
   actionButtons?: React.ReactNode;
+  connectionCount?: number;
+  mutualConnections?: Array<{ id: string; avatar_url: string | null; name: string }>;
+  mutualCount?: number;
 }
 
 export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
@@ -26,7 +29,10 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
   onCancelEdit,
   onSave,
   isSaving = false,
-  actionButtons
+  actionButtons,
+  connectionCount,
+  mutualConnections = [],
+  mutualCount = 0
 }) => {
   const { refetchProfile, user } = useAuth();
   const queryClient = useQueryClient();
@@ -582,6 +588,74 @@ export const LinkedInProfileHeader: React.FC<LinkedInProfileHeaderProps> = ({
               <MapPin className="h-3.5 w-3.5" />
               {location}
             </p>
+          )}
+        </div>
+
+        {/* Connection Stats & Mutual Connections - Apple Style */}
+        <div className="mt-5 space-y-3.5">
+          {/* Connection Count - Clean Apple Style */}
+          {connectionCount !== undefined && connectionCount > 0 && (
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-muted/50">
+                <Users className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
+              </div>
+              <div className="flex flex-col gap-0">
+                <span className="text-[13px] font-semibold text-foreground tracking-tight">
+                  {connectionCount} {connectionCount === 1 ? 'Kontakt' : 'Kontakte'}
+                </span>
+                <span className="text-[11px] text-muted-foreground/70 font-normal">
+                  Verbindungen
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Mutual Connections - Apple Style with subtle divider */}
+          {!isOwner && mutualCount > 0 && mutualConnections.length > 0 && (
+            <div className="flex flex-col gap-2.5 pt-3 border-t border-border/40">
+              <div className="flex items-start gap-3.5">
+                {/* Overlapping Avatars - Refined Apple Style */}
+                <div className="flex -space-x-2.5 flex-shrink-0">
+                  {mutualConnections.slice(0, 3).map((mutual, idx) => (
+                    <Avatar 
+                      key={mutual.id} 
+                      className="h-9 w-9 border-2 border-background ring-1 ring-border/30 shadow-sm hover:ring-border/50 transition-all"
+                      style={{ zIndex: 3 - idx }}
+                    >
+                      <AvatarImage src={mutual.avatar_url ?? undefined} alt={mutual.name} className="object-cover" />
+                      <AvatarFallback className="text-[11px] font-semibold bg-gradient-to-br from-muted to-muted/80 text-foreground">
+                        {mutual.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  ))}
+                  {mutualCount > 3 && (
+                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-muted to-muted/80 border-2 border-background ring-1 ring-border/30 flex items-center justify-center shadow-sm">
+                      <span className="text-[11px] font-semibold text-foreground">+{mutualCount - 3}</span>
+                    </div>
+                  )}
+                </div>
+                {/* Text - Clean Typography */}
+                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                  <span className="text-[14px] text-foreground font-semibold tracking-tight leading-tight">
+                    {mutualCount === 1 ? 'Gemeinsamer Kontakt' : `${mutualCount} gemeinsame Kontakte`}
+                  </span>
+                  {mutualConnections.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {mutualConnections.slice(0, 2).map((mutual, idx) => (
+                        <span key={mutual.id} className="text-[12px] text-muted-foreground font-medium tracking-tight">
+                          {mutual.name}{idx < Math.min(mutualConnections.length, 2) - 1 && ','}
+                        </span>
+                      ))}
+                      {mutualCount > 2 && (
+                        <span className="text-[12px] text-muted-foreground/70 font-normal tracking-tight">
+                          und {mutualCount - 2} weitere
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
 

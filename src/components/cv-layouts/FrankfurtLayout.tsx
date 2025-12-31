@@ -76,14 +76,17 @@ const FrankfurtLayout: React.FC<CVLayoutProps> = ({ data, className = '' }) => {
               <div className="space-y-3 text-xs">
                 {data.schulbildung.map((schule, idx) => (
                   <div key={idx}>
-                    <div className="font-semibold" style={{ color: 'hsl(0, 0%, 20%)' }}>
-                      {schule.schulform}
+                    <div className="flex justify-between items-start mb-1">
+                      <div className="font-semibold" style={{ color: 'hsl(0, 0%, 20%)' }}>
+                        {schule.schulform}
+                      </div>
+                      <span className="text-[10px] font-medium whitespace-nowrap ml-4" style={{ color: 'hsl(0, 0%, 50%)' }}>
+                        {formatMonthYear(schule.zeitraum_von)} - {schule.zeitraum_bis === 'heute' || !schule.zeitraum_bis ? 'heute' : formatMonthYear(schule.zeitraum_bis)}
+                      </span>
                     </div>
                     <div className="text-[10px]" style={{ color: 'hsl(0, 0%, 40%)' }}>
                       {schule.name}
-                    </div>
-                    <div className="text-[10px]" style={{ color: 'hsl(0, 0%, 50%)' }}>
-                      {formatMonthYear(schule.zeitraum_von)} - {formatMonthYear(schule.zeitraum_bis)}
+                      {schule.ort && ` • ${schule.ort}`}
                     </div>
                   </div>
                 ))}

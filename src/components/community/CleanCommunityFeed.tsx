@@ -77,10 +77,26 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
           .from('profiles')
-          .select('id, vorname, nachname, avatar_url, headline, employer_free, aktueller_beruf, ausbildungsberuf, ausbildungsbetrieb, company_name, status, branche, ort')
+          .select('id, vorname, nachname, avatar_url, headline, employer_free, aktueller_beruf, ausbildungsberuf, ausbildungsbetrieb, company_name, status, branche, ort, profile_slug')
           .in('id', userIds);
         authors = profilesData || [];
-        console.log('[feed] Loaded authors:', authors.length);
+        console.log('[feed] Loaded authors:', authors.length, 'for', userIds.length, 'user IDs');
+        
+        // CRITICAL: Filter out posts from deleted users (users without profiles)
+        const validUserIds = new Set(authors.map(a => a.id));
+        const originalPostCount = posts?.length || 0;
+        posts = posts?.filter(p => {
+          if (!p.user_id) return false; // No user_id = invalid
+          if (!validUserIds.has(p.user_id)) {
+            console.warn('[feed] Filtering post from deleted user:', p.id, p.user_id);
+            return false;
+          }
+          return true;
+        }) || [];
+        console.log('[feed] Filtered posts:', originalPostCount, '->', posts.length, '(removed', originalPostCount - posts.length, 'posts from deleted users)');
+      } else {
+        // No user IDs means no valid posts
+        posts = [];
       }
 
       // Get counts for all posts
@@ -99,10 +115,21 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
       }, {} as Record<string, number>);
 
       // Transform posts to match PostCard interface
-      const transformedPosts = posts?.map(post => {
-        const author = authors.find(a => a.id === post.user_id);
-        
-        return {
+      // CRITICAL: Only include posts with valid authors (filter out deleted users)
+      const transformedPosts = posts
+        ?.filter(post => {
+          if (!post.user_id) return false;
+          const author = authors.find(a => a.id === post.user_id);
+          if (!author) {
+            console.warn('[feed] Filtering post from deleted user:', post.id, post.user_id);
+            return false;
+          }
+          return true;
+        })
+        .map(post => {
+          const author = authors.find(a => a.id === post.user_id);
+          
+          return {
           id: post.id,
           content: post.content || '',
           body_md: post.content || '',

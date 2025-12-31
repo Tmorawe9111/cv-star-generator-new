@@ -58,9 +58,9 @@ export function AuthenticatedLayout() {
       {/* Sidebar - Mobile als Overlay, Desktop persistent */}
       <AppSidebar />
       
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col relative">
         {/* Main Content - TopNavBar is now handled by UniversalLayout */}
-        <div className={cn("flex-1 p-0 pb-20 md:pb-0", isJobsPage && "mt-0")}>
+        <div className={cn("flex-1 p-0 pb-[56px] md:pb-0", isJobsPage && "mt-0")}>
           {isJobsPage ? (
             <Outlet />
           ) : (
@@ -70,7 +70,7 @@ export function AuthenticatedLayout() {
           )}
         </div>
 
-        {/* BottomNav nur Mobile */}
+        {/* BottomNav nur Mobile - Always visible */}
         <BottomNav />
 
         {/* Global UI */}

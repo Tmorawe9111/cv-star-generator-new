@@ -114,6 +114,26 @@ export const CVLayoutSelectorDialog: React.FC<CVLayoutSelectorDialogProps> = ({
 
   const recommendedLayoutId = getRecommendedLayout();
 
+  // Helper function to parse JSONB fields
+  const parseJsonField = (field: any) => {
+    if (field === null || field === undefined) return null;
+    if (typeof field === 'string') {
+      try {
+        return JSON.parse(field);
+      } catch {
+        return field;
+      }
+    }
+    if (Array.isArray(field)) return field;
+    return field;
+  };
+
+  // Parse JSONB fields from profile
+  const parsedSchulbildung = parseJsonField(profile?.schulbildung) || [];
+  const parsedBerufserfahrung = parseJsonField(profile?.berufserfahrung) || [];
+  const parsedSprachen = parseJsonField(profile?.sprachen) || [];
+  const parsedFaehigkeiten = parseJsonField(profile?.faehigkeiten) || [];
+
   const cvData = {
     vorname: profile?.vorname,
     nachname: profile?.nachname,
@@ -125,13 +145,14 @@ export const CVLayoutSelectorDialog: React.FC<CVLayoutSelectorDialogProps> = ({
     ort: profile?.ort,
     geburtsdatum: profile?.geburtsdatum ? new Date(profile.geburtsdatum) : undefined,
     profilbild: profile?.avatar_url,
+    avatar_url: profile?.avatar_url,
     status: profile?.status,
     branche: profile?.branche,
     ueberMich: profile?.uebermich || profile?.bio,
-    schulbildung: profile?.schulbildung || [],
-    berufserfahrung: profile?.berufserfahrung || [],
-    sprachen: profile?.sprachen || [],
-    faehigkeiten: profile?.faehigkeiten || []
+    schulbildung: parsedSchulbildung,
+    berufserfahrung: parsedBerufserfahrung,
+    sprachen: parsedSprachen,
+    faehigkeiten: parsedFaehigkeiten
   };
 
   const renderPreview = () => {

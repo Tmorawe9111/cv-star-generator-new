@@ -41,6 +41,10 @@ export const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, dept
       }
       // Company users CAN click on user profiles (but see restricted view)
       if (comment.author?.id || comment.user_id) {
+        // Use profile_slug if available, otherwise fallback to ID
+        if (comment.author?.profile_slug) {
+          return `/profil/${comment.author.profile_slug}`;
+        }
         return `/u/${comment.author?.id || comment.user_id}`;
       }
       return null;
@@ -51,7 +55,10 @@ export const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, dept
       return `/companies/${comment.company.id}`;
     }
     
-    // User profile
+    // User profile - use profile_slug if available
+    if (comment.author?.profile_slug) {
+      return `/profil/${comment.author.profile_slug}`;
+    }
     return `/u/${comment.author?.id || comment.user_id}`;
   };
   

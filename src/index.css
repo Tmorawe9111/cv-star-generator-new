@@ -582,11 +582,24 @@ body {
 
 body::-webkit-scrollbar {
   display: none;
+}
 
-  /* Subtle background patterns */
-  .bg-pattern-dots {
-    background-image: radial-gradient(circle, hsl(214, 20%, 95%) 1px, transparent 1px);
-    background-size: 20px 20px;
-  }
+/* Horizontal scroll containers for mobile */
+[data-hscroll="true"] {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+[data-hscroll="true"]::-webkit-scrollbar {
+  display: none;
+}
+
+/* Subtle background patterns */
+.bg-pattern-dots {
+  background-image: radial-gradient(circle, hsl(214, 20%, 95%) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
