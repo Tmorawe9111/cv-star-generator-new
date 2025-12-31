@@ -215,7 +215,8 @@ export default function LandingPage() {
         <section className="hero-section relative overflow-hidden bg-black w-full">
           <div className="mx-auto max-w-7xl px-4 py-16 md:py-24">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-              <div>
+              {/* Text Content - First on Mobile, Left on Desktop */}
+              <div className="order-1 lg:order-1">
                 <div className="mb-4 text-[color:var(--brand)] text-lg font-medium">
                   Hey, wir sind bevisible 👋
                 </div>
@@ -238,7 +239,8 @@ export default function LandingPage() {
                   *Dein Profil wird automatisch aus deinem Lebenslauf erstellt.
                 </p>
               </div>
-              <div className="relative lg:ml-8 mx-0">
+              {/* Image - Second on Mobile, Right on Desktop */}
+              <div className="relative lg:ml-8 mx-0 order-2 lg:order-2">
                 <picture>
                   <source srcSet="/lovable-uploads/hero-mobile-576x576.webp" type="image/webp" />
                   <img 
