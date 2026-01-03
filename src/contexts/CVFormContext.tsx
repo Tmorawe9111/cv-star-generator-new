@@ -352,6 +352,7 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         // Step 3: Beruflicher Werdegang & Ausbildung
         
         // Status-spezifische Pflichtfelder (werden in Step 3 abgefragt)
+        // HINWEIS: aktueller_beruf wird nicht mehr direkt abgefragt, sondern über Berufserfahrung
         if (data.status === 'schueler') {
           if (!data.schule?.trim()) errors.schule = 'Schule ist erforderlich';
           if (!data.geplanter_abschluss?.trim()) errors.geplanter_abschluss = 'Geplanter Abschluss ist erforderlich';
@@ -361,9 +362,9 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
           if (!data.ausbildungsbetrieb?.trim()) errors.ausbildungsbetrieb = 'Ausbildungsbetrieb ist erforderlich';
           if (!data.startjahr?.trim()) errors.startjahr = 'Startjahr der Ausbildung ist erforderlich';
           if (!data.voraussichtliches_ende?.trim()) errors.voraussichtliches_ende = 'Voraussichtliches Ende der Ausbildung ist erforderlich';
-        } else if (data.status === 'ausgelernt' || data.status === 'fachkraft') {
-          if (!data.aktueller_beruf?.trim()) errors.aktueller_beruf = 'Aktueller Beruf ist erforderlich';
         }
+        // Fachkraft/Ausgelernt: aktueller_beruf wird nicht mehr als Pflichtfeld validiert,
+        // da es über Berufserfahrung (berufserfahrung) erfasst wird
         
         // Schulbildung ist nur für Schüler und Azubis erforderlich
         if ((data.status === 'schueler' || data.status === 'azubi') && (!data.schulbildung || data.schulbildung.length === 0)) {
