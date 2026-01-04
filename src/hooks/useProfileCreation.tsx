@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { updateReferralWithUser } from '@/hooks/useReferralTracking';
 
 // Profile creation data interface
 export interface ProfileCreationData {
@@ -439,6 +440,11 @@ export const useProfileCreation = () => {
       // Clear draft from localStorage on success
       localStorage.removeItem(STORAGE_KEY);
       setRetryCount(0);
+
+      // Update referral tracking with user ID and profile completion
+      if (user.id) {
+        await updateReferralWithUser(user.id);
+      }
 
       toast({
         title: 'Profil erstellt!',

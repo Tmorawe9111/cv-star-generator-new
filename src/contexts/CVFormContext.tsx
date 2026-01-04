@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
 import { syncCVDataToProfile, loadProfileDataToCV } from '@/utils/profileSync';
 import { useAuthForCV } from '@/hooks/useAuthForCV';
+import { updateReferralWithCV } from '@/hooks/useReferralTracking';
 
 export interface SchulbildungEntry {
   schulform: string;
@@ -223,6 +224,10 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       await syncCVDataToProfile(user.id, formData);
+      
+      // Track CV creation in referral analytics
+      await updateReferralWithCV();
+      
       console.log(`[${new Date().toISOString()}] CVFormContext: Successfully synced CV data to profile`);
     } catch (error) {
       console.error(`[${new Date().toISOString()}] CVFormContext: Error syncing CV data to profile:`, error);

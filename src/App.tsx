@@ -12,6 +12,7 @@ import { useEffect, useState, lazy, Suspense } from "react";
 import { useSupabaseInit } from "@/hooks/useSupabaseInit";
 import TopNavBar from "@/components/navigation/TopNavBar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { ReferralTracker } from "@/components/ReferralTracker";
 
 // Critical pages - loaded immediately for landing page
 import Index from "./pages/Index";
@@ -147,6 +148,7 @@ const CreateAdmin = lazy(() => import("./pages/Admin/CreateAdmin"));
 const AdminLogin = lazy(() => import("./pages/Admin/Login"));
 const PendingVerifications = lazy(() => import("./pages/Admin/PendingVerifications"));
 const Advertisements = lazy(() => import("./pages/Admin/Advertisements"));
+const ReferralAnalytics = lazy(() => import("./pages/Admin/ReferralAnalytics"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -317,6 +319,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   
   return (
     <div className="min-h-screen flex flex-col w-full">
+      {/* Referral Tracking - tracks UTM parameters and referral links */}
+      <ReferralTracker />
+      
       {/* TopNavBar conditionally rendered */}
       {showTopNav && <TopNavBar />}
       
@@ -691,6 +696,7 @@ const App = () => {
                 <Route path="settings" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><AdminSettings /></Suspense>} />
                 <Route path="pending-verifications" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><PendingVerifications /></Suspense>} />
                 <Route path="advertisements" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Advertisements /></Suspense>} />
+                <Route path="referral-analytics" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><ReferralAnalytics /></Suspense>} />
               </Route>
                 
               {/* Legacy redirects - English to German */}
