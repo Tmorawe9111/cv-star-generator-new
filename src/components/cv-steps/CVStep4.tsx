@@ -138,12 +138,22 @@ const CVStep4 = () => {
   };
 
   // Schulform-Optionen: Nur die gewünschten Optionen
+  // Wird für ALLE Status-Typen verwendet (Schüler, Azubi, Fachkraft)
   const schulformOptions = [
     'Realschule',
     'Hauptschule',
     'Berufsschule',
     'Gymnasium',
     'Andere'
+  ];
+
+  // Schüler-spezifische Abschlussoptionen (nur für Step 2: "Geplanter Abschluss")
+  const studentAbschlussOptions = [
+    'Hauptschulabschluss',
+    'Realschulabschluss / Mittlere Reife',
+    'Fachhochschulreife',
+    'Abitur',
+    'Ohne Abschluss'
   ];
 
   // Alle Status-Typen (Schüler, Azubi, Fachkraft) verwenden die gleichen Schulform-Optionen
