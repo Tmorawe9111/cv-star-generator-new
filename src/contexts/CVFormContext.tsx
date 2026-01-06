@@ -362,12 +362,10 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
           if (!data.schule?.trim()) errors.schule = 'Schule ist erforderlich';
           if (!data.geplanter_abschluss?.trim()) errors.geplanter_abschluss = 'Geplanter Abschluss ist erforderlich';
           if (!data.abschlussjahr?.trim()) errors.abschlussjahr = 'Abschlussjahr ist erforderlich';
-        } else if (data.status === 'azubi') {
-          if (!data.ausbildungsberuf?.trim()) errors.ausbildungsberuf = 'Ausbildungsberuf ist erforderlich';
-          if (!data.ausbildungsbetrieb?.trim()) errors.ausbildungsbetrieb = 'Ausbildungsbetrieb ist erforderlich';
-          if (!data.startjahr?.trim()) errors.startjahr = 'Startjahr der Ausbildung ist erforderlich';
-          if (!data.voraussichtliches_ende?.trim()) errors.voraussichtliches_ende = 'Voraussichtliches Ende der Ausbildung ist erforderlich';
         }
+        // Azubi: Ausbildungsfelder (ausbildungsberuf, ausbildungsbetrieb, startjahr, voraussichtliches_ende) 
+        // werden nicht mehr direkt abgefragt. Die Ausbildung wird durch Berufserfahrung (praktische Erfahrung) 
+        // und Schulbildung abgedeckt. Keine Validierung für diese Felder mehr erforderlich.
         // Fachkraft/Ausgelernt: aktueller_beruf wird nicht mehr als Pflichtfeld validiert,
         // da es über Berufserfahrung (berufserfahrung) erfasst wird
         
