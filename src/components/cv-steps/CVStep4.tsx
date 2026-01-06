@@ -146,16 +146,8 @@ const CVStep4 = () => {
     'Andere'
   ];
 
-  // Schüler-spezifische Abschlussoptionen (aus Step 2, jetzt in Step 3/Werdegang)
-  const studentAbschlussOptions = [
-    'Hauptschulabschluss',
-    'Realschulabschluss / Mittlere Reife',
-    'Fachhochschulreife',
-    'Abitur',
-    'Ohne Abschluss'
-  ];
-
-  const schoolTitleOptions = formData.status === 'schueler' ? studentAbschlussOptions : schulformOptions;
+  // Alle Status-Typen (Schüler, Azubi, Fachkraft) verwenden die gleichen Schulform-Optionen
+  const schoolTitleOptions = schulformOptions;
 
   const currentYearForStudent = new Date().getFullYear();
   const studentYearOptions = Array.from({ length: 7 }, (_, i) => (currentYearForStudent - 1 + i).toString());
