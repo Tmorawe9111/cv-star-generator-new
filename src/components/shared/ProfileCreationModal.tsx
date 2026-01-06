@@ -109,14 +109,12 @@ export const ProfileCreationModal = ({
       if (!data?.schule?.trim()) missingFields.push('Schule');
       if (!data?.geplanter_abschluss?.trim()) missingFields.push('Geplanter Abschluss');
       if (!data?.abschlussjahr?.trim()) missingFields.push('Abschlussjahr');
-    } else if (data?.status === 'azubi') {
-      if (!data?.ausbildungsberuf?.trim()) missingFields.push('Ausbildungsberuf');
-      if (!data?.ausbildungsbetrieb?.trim()) missingFields.push('Ausbildungsbetrieb');
-      if (!data?.startjahr?.trim()) missingFields.push('Startjahr der Ausbildung');
-      if (!data?.voraussichtliches_ende?.trim()) missingFields.push('Voraussichtliches Ende der Ausbildung');
-    } else if (data?.status === 'ausgelernt' || data?.status === 'fachkraft') {
-      if (!data?.aktueller_beruf?.trim()) missingFields.push('Aktueller Beruf');
     }
+    // Azubi: Ausbildungsfelder (ausbildungsberuf, ausbildungsbetrieb, startjahr, voraussichtliches_ende) 
+    // werden nicht mehr direkt abgefragt. Die Ausbildung wird durch Berufserfahrung (praktische Erfahrung) 
+    // und Schulbildung abgedeckt. Keine Validierung für diese Felder mehr erforderlich.
+    // Fachkraft/Ausgelernt: aktueller_beruf wird nicht mehr als Pflichtfeld validiert,
+    // da es über Berufserfahrung (berufserfahrung) erfasst wird
     
     // Sprachen: Mindestens 1 Sprache, davon mindestens 1 Muttersprache
     let sprachen = data?.sprachen || [];
