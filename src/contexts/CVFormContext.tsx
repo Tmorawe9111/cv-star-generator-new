@@ -450,8 +450,8 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
           errors.faehigkeiten = `Bitte wähle mindestens 3 Fähigkeiten aus (aktuell: ${Array.isArray(faehigkeiten) ? faehigkeiten.length : 0})`;
         }
         
-        // About-me text is required (AI or manual)
-        const about = (data.ueberMich || data.ueber_mich || '').trim();
+              // About-me text is required (AI or manual)
+              const about = (data.ueberMich || '').trim();
         if (about.length === 0) {
           errors.ueberMich = 'Text "Über mich" ist erforderlich';
         } else if (about.length < 20) {
