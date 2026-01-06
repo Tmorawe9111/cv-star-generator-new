@@ -137,18 +137,12 @@ const CVStep4 = () => {
     };
   };
 
+  // Schulform-Optionen: Nur die gewünschten Optionen
   const schulformOptions = [
-    'Grundschule',
+    'Realschule',
     'Hauptschule',
-    'Realschule', 
-    'Gymnasium',
-    'Gesamtschule',
-    'Förderschule',
     'Berufsschule',
-    'Berufsfachschule',
-    'Fachoberschule',
-    'Berufsoberschule',
-    'Hochschule/Universität',
+    'Gymnasium',
     'Andere'
   ];
 
@@ -248,8 +242,8 @@ const CVStep4 = () => {
       abschluss: '',
       name: '',
       ort: '',
-      zeitraum_von: '',
-      zeitraum_bis: '',
+      zeitraum_von: '', // Format: YYYY-MM
+      zeitraum_bis: '', // Format: YYYY-MM
       beschreibung: ''
     };
     
@@ -268,13 +262,22 @@ const CVStep4 = () => {
     setLocalEntryInputs(prev => ({ ...prev, [key]: value }));
   };
 
-  const updateSchulbildungDate = (index: number, field: 'zeitraum_von' | 'zeitraum_bis', year: string) => {
+  // Update Schulbildung Date with Month and Year (Format: YYYY-MM)
+  const updateSchulbildungDate = (index: number, field: 'zeitraum_von' | 'zeitraum_bis', month: string, year: string) => {
+    const currentValue = formData.schulbildung?.[index]?.[field] || '';
+    const parts = currentValue.split('-');
+    const currentYear = parts[0] || '';
+    const currentMonth = parts[1] || '';
+    
+    const finalYear = year || currentYear;
+    const finalMonth = month || currentMonth;
+    
     // Validate year is not more than 1 year in the future
     const currentYearNum = new Date().getFullYear();
     const maxFutureYear = currentYearNum + 1;
     
-    if (year) {
-      const yearNum = parseInt(year);
+    if (finalYear && finalYear !== '0000') {
+      const yearNum = parseInt(finalYear);
       if (!isNaN(yearNum) && yearNum > maxFutureYear) {
         toast({
           title: "Ungültiges Datum",
@@ -285,7 +288,97 @@ const CVStep4 = () => {
       }
     }
     
-    updateSchulbildungEntry(index, field, year);
+    // If only month is provided, store it temporarily with placeholder year
+    if (finalMonth && !finalYear) {
+      updateSchulbildungEntry(index, field, `0000-${finalMonth}`);
+    } else if (finalYear && finalMonth) {
+      // If both are provided, store the complete date
+      const monthYear = `${finalYear}-${finalMonth}`;
+      updateSchulbildungEntry(index, field, monthYear);
+      
+      // Validate: "Bis" darf nicht vor "Von" sein
+      if (field === 'zeitraum_von') {
+        const schulbildung = formData.schulbildung || [];
+        const schule = schulbildung[index];
+        if (schule && schule.zeitraum_bis && schule.zeitraum_bis !== 'heute') {
+          const bisParts = schule.zeitraum_bis.split('-');
+          const bisYear = parseInt(bisParts[0] || '0');
+          const bisMonth = parseInt(bisParts[1] || '0');
+          const vonYear = parseInt(finalYear);
+          const vonMonth = parseInt(finalMonth);
+          
+          // If bis is before von, reset bis
+          if (bisYear < vonYear || (bisYear === vonYear && bisMonth < vonMonth)) {
+            updateSchulbildungEntry(index, 'zeitraum_bis', '');
+            toast({
+              title: "Ungültiges Datum",
+              description: "Das Enddatum wurde zurückgesetzt, da es vor dem Startdatum lag.",
+              variant: "destructive"
+            });
+          }
+        }
+      } else if (field === 'zeitraum_bis') {
+        // Validate: "Bis" darf nicht vor "Von" sein
+        const schulbildung = formData.schulbildung || [];
+        const schule = schulbildung[index];
+        if (schule && schule.zeitraum_von && schule.zeitraum_von.split('-')[0] !== '0000') {
+          const vonParts = schule.zeitraum_von.split('-');
+          const vonYear = parseInt(vonParts[0] || '0');
+          const vonMonth = parseInt(vonParts[1] || '0');
+          const bisYear = parseInt(finalYear);
+          const bisMonth = parseInt(finalMonth);
+          
+          // If bis is before von, don't save it
+          if (bisYear < vonYear || (bisYear === vonYear && bisMonth < vonMonth)) {
+            toast({
+              title: "Ungültiges Datum",
+              description: "Das Enddatum darf nicht vor dem Startdatum liegen.",
+              variant: "destructive"
+            });
+            return; // Don't update if invalid
+          }
+        }
+      }
+    } else if (finalYear) {
+      // Only year provided, keep existing month or set to empty
+      updateSchulbildungEntry(index, field, finalYear);
+    }
+  };
+
+  // Helper function to get available months/years for "Bis" based on "Von" for Schulbildung
+  const getAvailableSchulbildungBisOptions = (vonValue: string) => {
+    if (!vonValue || vonValue === 'heute' || vonValue.split('-')[0] === '0000') {
+      return {
+        availableMonths: monthOptions,
+        availableYears: yearOptions,
+        minYear: null,
+        minMonth: null
+      };
+    }
+
+    const vonParts = vonValue.split('-');
+    const vonYear = parseInt(vonParts[0] || '0');
+    const vonMonth = parseInt(vonParts[1] || '0');
+
+    if (vonYear === 0 || vonMonth === 0) {
+      return {
+        availableMonths: monthOptions,
+        availableYears: yearOptions,
+        minYear: null,
+        minMonth: null
+      };
+    }
+
+    // Alle 12 Monate anzeigen, aber Validierung prüft die Reihenfolge
+    // Years: nur Jahre >= vonYear erlauben
+    const availableYears = yearOptions.filter(year => year >= vonYear);
+
+    return {
+      availableMonths: monthOptions, // Immer alle 12 Monate
+      availableYears,
+      minYear: vonYear,
+      minMonth: vonMonth
+    };
   };
 
   const updateBerufserfahrungDate = (index: number, field: 'zeitraum_von' | 'zeitraum_bis', month: string, year: string) => {
@@ -716,42 +809,115 @@ const CVStep4 = () => {
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label>Von (Jahr) *</Label>
-                          <Select
-                            value={schule.zeitraum_von}
-                            onValueChange={(value) => updateSchulbildungDate(index, 'zeitraum_von', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Jahr wählen" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {yearOptions.map((year) => (
-                                <SelectItem key={year} value={year.toString()}>
-                                  {year}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Bis (Jahr) *</Label>
-                          <Select
-                            value={schule.zeitraum_bis}
-                            onValueChange={(value) => updateSchulbildungDate(index, 'zeitraum_bis', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Voraussichtlicher Abschluss" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {yearOptions.map((year) => (
-                                <SelectItem key={year} value={year.toString()}>
-                                  {year}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                      {/* Zeitraum: Von Monat/Jahr bis Monat/Jahr */}
+                      <div className="space-y-3">
+                        <Label>Zeitraum *</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Von */}
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Von</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Select
+                                value={schule.zeitraum_von ? (schule.zeitraum_von.split('-')[1] || '') : ''}
+                                onValueChange={(month) => {
+                                  const currentValue = schule.zeitraum_von || '';
+                                  const currentYear = currentValue.split('-')[0] || '';
+                                  updateSchulbildungDate(index, 'zeitraum_von', month, currentYear);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Monat" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {monthOptions.map((month) => (
+                                    <SelectItem key={month.value} value={month.value}>
+                                      {month.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={
+                                  schule.zeitraum_von && schule.zeitraum_von.split('-')[0] !== '0000'
+                                    ? (schule.zeitraum_von.split('-')[0] || '')
+                                    : ''
+                                }
+                                onValueChange={(year) => {
+                                  const currentValue = schule.zeitraum_von || '';
+                                  const currentMonth = currentValue.split('-')[1] || '';
+                                  updateSchulbildungDate(index, 'zeitraum_von', currentMonth, year);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Jahr" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {yearOptions.map((year) => (
+                                    <SelectItem key={year} value={year.toString()}>
+                                      {year}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          
+                          {/* Bis */}
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Bis</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {(() => {
+                                const bisOptions = getAvailableSchulbildungBisOptions(schule.zeitraum_von || '');
+                                const currentBisValue = schule.zeitraum_bis || '';
+                                const bisParts = currentBisValue.split('-');
+                                const bisYear = bisParts[0] === '0000' ? '' : (bisParts[0] || '');
+                                const bisMonth = bisParts[1] || '';
+                                
+                                return (
+                                  <>
+                                    <Select
+                                      value={bisMonth}
+                                      onValueChange={(month) => {
+                                        const currentValue = schule.zeitraum_bis || '';
+                                        const currentYear = currentValue.split('-')[0] === '0000' ? '' : (currentValue.split('-')[0] || '');
+                                        updateSchulbildungDate(index, 'zeitraum_bis', month, currentYear);
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Monat" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {bisOptions.availableMonths.map((month) => (
+                                          <SelectItem key={month.value} value={month.value}>
+                                            {month.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Select
+                                      value={bisYear}
+                                      onValueChange={(year) => {
+                                        const currentValue = schule.zeitraum_bis || '';
+                                        const currentMonth = currentValue.split('-')[1] || '';
+                                        updateSchulbildungDate(index, 'zeitraum_bis', currentMonth, year);
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Jahr" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {bisOptions.availableYears.map((year) => (
+                                          <SelectItem key={year} value={year.toString()}>
+                                            {year}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
