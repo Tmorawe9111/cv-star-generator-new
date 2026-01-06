@@ -16,6 +16,7 @@ export interface SchulbildungEntry {
 
 export interface BerufserfahrungEntry {
   titel: string;
+  art?: string; // Art der Tätigkeit: Ausbildung, Praktikum, Ferienjob, Aushilfe, Vollzeit, Teilzeit, etc.
   unternehmen: string;
   ort: string;
   plz?: string;
@@ -408,6 +409,7 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         // Validate each berufserfahrung entry
         data.berufserfahrung?.forEach((arbeit, index) => {
           if (!arbeit.titel) errors[`berufserfahrung_${index}_titel`] = 'Position ist erforderlich';
+          if (!arbeit.art) errors[`berufserfahrung_${index}_art`] = 'Art ist erforderlich';
           if (!arbeit.unternehmen) errors[`berufserfahrung_${index}_unternehmen`] = 'Unternehmen ist erforderlich';
           if (!arbeit.ort) errors[`berufserfahrung_${index}_ort`] = 'Ort ist erforderlich';
           if (!arbeit.zeitraum_von) errors[`berufserfahrung_${index}_zeitraum_von`] = 'Start-Datum ist erforderlich';

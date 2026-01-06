@@ -504,6 +504,7 @@ const CVStep4 = () => {
   const addBerufserfahrungEntry = () => {
     const newEntry: BerufserfahrungEntry = {
       titel: '',
+      art: '',
       unternehmen: '',
       ort: '',
       zeitraum_von: '',
@@ -979,11 +980,42 @@ const CVStep4 = () => {
                         <Label htmlFor={`titel-${index}`}>Titel *</Label>
                         <Input
                           id={`titel-${index}`}
-                          placeholder="z.B. Praktikum, Ferienjob"
+                          placeholder="z.B. Softwareentwickler, Verkäufer"
                           value={getLocalInputValue('berufs', index, 'titel', arbeit.titel)}
                           onChange={(e) => handleDynamicInputChange('berufs', index, 'titel', e.target.value)}
                           onBlur={(e) => handleDynamicInputBlur('berufs', index, 'titel', e.target.value)}
                         />
+                      </div>
+                      <div>
+                        <Label htmlFor={`art-${index}`}>Art *</Label>
+                        <Select
+                          value={arbeit.art || ''}
+                          onValueChange={(value) => updateBerufserfahrungEntry(index, 'art', value)}
+                        >
+                          <SelectTrigger className={cn(
+                            'bg-background',
+                            validationErrors[`berufserfahrung_${index}_art`] || !arbeit.art ? 'border-destructive' : ''
+                          )}>
+                            <SelectValue placeholder="Art wählen" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-lg z-50">
+                            <SelectItem value="Ausbildung">Ausbildung</SelectItem>
+                            <SelectItem value="Praktikum">Praktikum</SelectItem>
+                            <SelectItem value="Ferienjob">Ferienjob</SelectItem>
+                            <SelectItem value="Aushilfe">Aushilfe</SelectItem>
+                            <SelectItem value="Vollzeit">Vollzeit</SelectItem>
+                            <SelectItem value="Teilzeit">Teilzeit</SelectItem>
+                            <SelectItem value="Werkstudent">Werkstudent</SelectItem>
+                            <SelectItem value="Minijob">Minijob</SelectItem>
+                            <SelectItem value="Freelance">Freelance</SelectItem>
+                            <SelectItem value="Selbstständig">Selbstständig</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {validationErrors[`berufserfahrung_${index}_art`] && (
+                          <p className="mt-1 text-sm text-destructive font-medium">
+                            {validationErrors[`berufserfahrung_${index}_art`]}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor={`unternehmen-${index}`}>Unternehmen/Einrichtung *</Label>
