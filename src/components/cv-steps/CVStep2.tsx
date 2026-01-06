@@ -52,7 +52,7 @@ const CVStep2 = () => {
   }, [previewUrl, formData.profilbild]);
 
   // Parse location string (format: "PLZ Ort" or "Ort")
-  // Fixed: Verhindert doppelte PLZ-Werte
+  // Fixed: Verhindert doppelte PLZ-Werte und behandelt unvollständige PLZs korrekt
   const parseLocation = (locationStr: string) => {
     if (!locationStr || !locationStr.trim()) {
       return { plz: '', ort: '' };
@@ -60,15 +60,26 @@ const CVStep2 = () => {
     
     const trimmed = locationStr.trim();
     
-    // Prüfe ob Format "PLZ Ort" (z.B. "10115 Berlin")
-    const plzOrtMatch = trimmed.match(/^(\d{5})\s+(.+)$/);
+    // Prüfe ob Format "PLZ Ort" (z.B. "10115 Berlin" oder "1011 Berlin" während Eingabe)
+    // WICHTIG: Erlaube auch unvollständige PLZs (3-5 Ziffern) während der Eingabe
+    const plzOrtMatch = trimmed.match(/^(\d{3,5})\s+(.+)$/);
     if (plzOrtMatch) {
       const [, plz, ort] = plzOrtMatch;
-      return { plz: plz.trim(), ort: ort.trim() };
+      // Nur wenn PLZ vollständig ist (5 Ziffern), setze sie
+      if (plz.length === 5) {
+        return { plz: plz.trim(), ort: ort.trim() };
+      }
+      // Während Eingabe: Behalte bisherige PLZ, setze nur Ort
+      return { plz: formData.plz || '', ort: ort.trim() };
     }
     
-    // Wenn nur PLZ ohne Ort (z.B. "10115")
-    if (/^\d{5}$/.test(trimmed)) {
+    // Wenn nur PLZ ohne Ort (z.B. "10115" oder "1011" während Eingabe)
+    if (/^\d{3,5}$/.test(trimmed)) {
+      // Nur wenn PLZ vollständig ist (5 Ziffern), setze sie
+      if (trimmed.length === 5) {
+        return { plz: trimmed, ort: formData.ort || '' };
+      }
+      // Während Eingabe: Setze nur PLZ, behalte Ort
       return { plz: trimmed, ort: formData.ort || '' };
     }
     
@@ -535,11 +546,18 @@ const CVStep2 = () => {
                     updateFormData({ plz: '', ort: '' });
                     return;
                   }
+                  
                   // Fixed: Verhindert doppelte PLZ-Werte durch bessere parseLocation-Logik
                   const { plz, ort } = parseLocation(value);
-                  // Nur updaten wenn sich etwas geändert hat, um unnötige Re-Renders zu vermeiden
-                  if (plz !== formData.plz || ort !== formData.ort) {
-                    updateFormData({ plz, ort });
+                  
+                  // WICHTIG: Verhindere doppelte PLZ-Werte
+                  // Wenn die neue PLZ bereits in formData.plz enthalten ist, überschreibe nicht
+                  const newPlz = plz && plz.length === 5 ? plz : (formData.plz || plz);
+                  const newOrt = ort || formData.ort || '';
+                  
+                  // Nur updaten wenn sich etwas geändert hat
+                  if (newPlz !== formData.plz || newOrt !== formData.ort) {
+                    updateFormData({ plz: newPlz, ort: newOrt });
                   }
                 }}
                 placeholder="PLZ oder Stadt eingeben..."
