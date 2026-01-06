@@ -27,9 +27,23 @@ const CVStep2 = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [showTipsDialog, setShowTipsDialog] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [locationInputValue, setLocationInputValue] = useState<string>('');
   
   // Auto-Save
   useAutoSave(formData, 'cv-form-data-step2', 1000);
+
+  // Sync locationInputValue with formData
+  useEffect(() => {
+    if (formData.plz && formData.ort) {
+      setLocationInputValue(`${formData.plz} ${formData.ort}`);
+    } else if (formData.plz) {
+      setLocationInputValue(formData.plz);
+    } else if (formData.ort) {
+      setLocationInputValue(formData.ort);
+    } else {
+      setLocationInputValue('');
+    }
+  }, [formData.plz, formData.ort]);
 
   // If user already has an avatar_url (or a saved profilbild URL), show it as preview
   useEffect(() => {
@@ -525,30 +539,59 @@ const CVStep2 = () => {
             <div className="space-y-1 md:space-y-1.5 relative z-10">
               <Label className="text-[10px] md:text-xs font-medium text-gray-700">PLZ & Ort *</Label>
               <LocationAutocomplete
-                value={
-                  formData.plz && formData.ort 
-                    ? `${formData.plz} ${formData.ort}` 
-                    : formData.plz 
-                      ? formData.plz 
-                      : formData.ort || ''
-                }
+                value={locationInputValue}
                 onChange={(value) => {
+                  // WICHTIG: Während der Eingabe wird nur der Input-Wert aktualisiert, NICHT die PLZ/Ort
+                  // Die PLZ/Ort wird nur gesetzt wenn:
+                  // 1. Eine Option aus dem Dropdown ausgewählt wird (Format: "PLZ Ort")
+                  // 2. Eine vollständige PLZ (5 Ziffern) eingegeben wird
+                  setLocationInputValue(value);
+                  
+                  // Wenn leer, auch PLZ/Ort leeren
                   if (!value || !value.trim()) {
                     updateFormData({ plz: '', ort: '' });
                     return;
                   }
                   
-                  // Fixed: Verhindert doppelte PLZ-Werte durch bessere parseLocation-Logik
-                  const { plz, ort } = parseLocation(value);
+                  const trimmed = value.trim();
                   
-                  // WICHTIG: Verwende immer die geparste PLZ direkt (auch wenn unvollständig)
-                  // Die alte PLZ wird nur beibehalten, wenn der Benutzer Text eingibt (keine PLZ)
-                  const newPlz = plz || formData.plz || '';
-                  const newOrt = ort || formData.ort || '';
+                  // Prüfe ob Format "PLZ Ort" (Option aus Dropdown wurde ausgewählt)
+                  const plzOrtMatch = trimmed.match(/^(\d{5})\s+(.+)$/);
+                  if (plzOrtMatch) {
+                    const [, plz, ort] = plzOrtMatch;
+                    updateFormData({ plz: plz.trim(), ort: ort.trim() });
+                    return;
+                  }
                   
-                  // Nur updaten wenn sich etwas geändert hat
-                  if (newPlz !== formData.plz || newOrt !== formData.ort) {
-                    updateFormData({ plz: newPlz, ort: newOrt });
+                  // Prüfe ob es eine vollständige PLZ ist (5 Ziffern) - dann sofort setzen
+                  if (/^\d{5}$/.test(trimmed)) {
+                    updateFormData({ plz: trimmed, ort: formData.ort || '' });
+                    return;
+                  }
+                  
+                  // Für unvollständige PLZs (3-4 Ziffern) oder Text: Nichts setzen, nur Input-Wert aktualisieren
+                  // Die PLZ wird erst beim Blur oder bei Auswahl aus Dropdown gesetzt
+                }}
+                onBlur={() => {
+                  // Wenn das Feld verlassen wird, prüfe ob eine vollständige PLZ eingegeben wurde
+                  const trimmed = locationInputValue.trim();
+                  
+                  // Wenn leer, nichts tun
+                  if (!trimmed) {
+                    return;
+                  }
+                  
+                  // Parse den Wert und setze PLZ/Ort nur wenn vollständig
+                  const { plz, ort } = parseLocation(trimmed);
+                  
+                  // Nur setzen wenn:
+                  // 1. Vollständige PLZ (5 Ziffern) vorhanden ist
+                  // 2. Oder Format "PLZ Ort" erkannt wurde
+                  if (plz && plz.length === 5) {
+                    updateFormData({ plz, ort: ort || formData.ort || '' });
+                  } else if (ort && !plz) {
+                    // Nur Ort ohne PLZ - behalte alte PLZ
+                    updateFormData({ ort });
                   }
                 }}
                 placeholder="PLZ oder Stadt eingeben..."

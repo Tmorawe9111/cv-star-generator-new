@@ -15,6 +15,7 @@ interface LocationSuggestion {
 interface LocationAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   className?: string;
   id?: string;
@@ -25,6 +26,7 @@ interface LocationAutocompleteProps {
 export function LocationAutocomplete({
   value,
   onChange,
+  onBlur,
   placeholder = 'z. B. 10115 Berlin oder Berlin',
   className,
   id,
@@ -220,6 +222,10 @@ export function LocationAutocomplete({
     // Delay um Click-Events zu ermöglichen
     setTimeout(() => {
       setIsOpen(false);
+      // Rufe onBlur Callback auf wenn vorhanden
+      if (onBlur) {
+        onBlur();
+      }
     }, 200);
   };
 
