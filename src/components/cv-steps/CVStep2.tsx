@@ -554,21 +554,27 @@ const CVStep2 = () => {
                   // Wenn leer, auch PLZ/Ort leeren
                   if (!value || !value.trim()) {
                     updateFormData({ plz: '', ort: '' });
+                    setLocationInputValue('');
                     return;
                   }
                   
                   const trimmed = value.trim();
                   
                   // NUR wenn Format "PLZ Ort" (Option aus Dropdown wurde ausgewählt) - dann setzen
+                  // Format muss exakt sein: 5 Ziffern, Leerzeichen, dann Text
                   const plzOrtMatch = trimmed.match(/^(\d{5})\s+(.+)$/);
-                  if (plzOrtMatch) {
+                  if (plzOrtMatch && plzOrtMatch[1] && plzOrtMatch[2]) {
                     const [, plz, ort] = plzOrtMatch;
-                    updateFormData({ plz: plz.trim(), ort: ort.trim() });
-                    return;
+                    // Nur setzen wenn beide Werte vorhanden sind
+                    if (plz && plz.length === 5 && ort && ort.trim().length > 0) {
+                      updateFormData({ plz: plz.trim(), ort: ort.trim() });
+                      return;
+                    }
                   }
                   
-                  // Für alles andere (unvollständige PLZ, Text, etc.): NICHTS setzen
+                  // Für ALLES andere (unvollständige PLZ wie "603", Text, etc.): NICHTS setzen
                   // Die PLZ wird NUR bei Auswahl aus Dropdown gesetzt
+                  // Während der Eingabe wird formData.plz NICHT verändert
                 }}
                 placeholder="PLZ eingeben"
                 className="h-9 md:h-10 text-xs md:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors touch-manipulation"
