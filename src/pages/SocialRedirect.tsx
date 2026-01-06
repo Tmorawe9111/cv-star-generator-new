@@ -1,59 +1,15 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { trackReferralClick } from '@/hooks/useReferralTracking';
-
-// Mapping von Creator-Codes zu vollständigen Referral-Daten
-const CREATOR_MAPPING: Record<string, {
-  referral_code: string;
-  referral_name: string;
-  utm_source: string;
-  utm_medium: string;
-  utm_campaign?: string;
-  redirectTo?: 'gesundheitswesen' | 'cv-generator';
-}> = {
-  // Instagram Creators
-  'nakam': {
-    referral_code: 'NAKAM_IG',
-    referral_name: 'Nakam',
-    utm_source: 'instagram',
-    utm_medium: 'social',
-    utm_campaign: 'creator_nakam',
-    redirectTo: 'gesundheitswesen',
-  },
-  'creator1': {
-    referral_code: 'CREATOR1_IG',
-    referral_name: 'Creator 1',
-    utm_source: 'instagram',
-    utm_medium: 'social',
-    utm_campaign: 'creator_1',
-    redirectTo: 'cv-generator',
-  },
-  // Facebook Creators
-  'nakam_fb': {
-    referral_code: 'NAKAM_FB',
-    referral_name: 'Nakam',
-    utm_source: 'facebook',
-    utm_medium: 'social',
-    utm_campaign: 'creator_nakam',
-    redirectTo: 'gesundheitswesen',
-  },
-  'creator1_fb': {
-    referral_code: 'CREATOR1_FB',
-    referral_name: 'Creator 1',
-    utm_source: 'facebook',
-    utm_medium: 'social',
-    utm_campaign: 'creator_1',
-    redirectTo: 'cv-generator',
-  },
-};
+import { supabase } from '@/integrations/supabase/client';
 
 export default function SocialRedirect() {
-  const { platform, creator } = useParams<{ platform: string; creator: string }>();
+  const { platform } = useParams<{ platform: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    if (!platform || !creator) {
+    if (!platform) {
       navigate('/');
       return;
     }
@@ -65,71 +21,92 @@ export default function SocialRedirect() {
       ? 'facebook'
       : platform.toLowerCase();
 
-    // Create creator key (e.g., 'nakam' for Instagram, 'nakam_fb' for Facebook)
-    const creatorKey = normalizedPlatform === 'facebook' 
-      ? `${creator.toLowerCase()}_fb`
-      : creator.toLowerCase();
-
-    const referralData = CREATOR_MAPPING[creatorKey];
-
-    if (!referralData) {
-      // Fallback: Create default referral data
-      const defaultData = {
-        referral_code: `${creator.toUpperCase()}_${normalizedPlatform.toUpperCase()}`,
-        referral_name: creator,
-        utm_source: normalizedPlatform,
-        utm_medium: 'social',
-        utm_campaign: `creator_${creator.toLowerCase()}`,
-        redirectTo: 'cv-generator' as const,
-      };
-
-      // Track with default data
-      trackReferralClick({
-        referral_code: defaultData.referral_code,
-        referral_name: defaultData.referral_name,
-        referral_source: defaultData.utm_source,
-        utm_source: defaultData.utm_source,
-        utm_medium: defaultData.utm_medium,
-        utm_campaign: defaultData.utm_campaign,
-      });
-
-      // Set UTM parameters
-      const params = new URLSearchParams();
-      params.set('ref', defaultData.referral_code);
-      params.set('ref_name', defaultData.referral_name);
-      params.set('utm_source', defaultData.utm_source);
-      params.set('utm_medium', defaultData.utm_medium);
-      params.set('utm_campaign', defaultData.utm_campaign);
-
-      navigate(`/${defaultData.redirectTo}?${params.toString()}`, { replace: true });
+    // Get creator code from query parameter (c=creator_code)
+    const creatorCode = searchParams.get('c') || searchParams.get('creator') || searchParams.get('ref');
+    
+    if (!creatorCode) {
+      // No creator code - redirect to default landing page
+      navigate('/cv-generator', { replace: true });
       return;
     }
 
-    // Track den Referral-Click im Hintergrund
-    trackReferralClick({
-      referral_code: referralData.referral_code,
-      referral_name: referralData.referral_name,
-      referral_source: referralData.utm_source,
-      utm_source: referralData.utm_source,
-      utm_medium: referralData.utm_medium,
-      utm_campaign: referralData.utm_campaign,
-    });
+    // Try to load creator from localStorage (from admin panel) or use default
+    const loadCreatorData = async () => {
+      try {
+        // Try to load from localStorage first (from admin panel)
+        const savedCreators = localStorage.getItem('creators');
+        let creatorData = null;
+        
+        if (savedCreators) {
+          const creators = JSON.parse(savedCreators);
+          creatorData = creators.find((c: any) => 
+            c.code.toLowerCase() === creatorCode.toLowerCase()
+          );
+        }
 
-    // Setze UTM-Parameter für die Weiterleitung
-    const params = new URLSearchParams();
-    params.set('ref', referralData.referral_code);
-    params.set('ref_name', referralData.referral_name);
-    params.set('utm_source', referralData.utm_source);
-    params.set('utm_medium', referralData.utm_medium);
-    if (referralData.utm_campaign) params.set('utm_campaign', referralData.utm_campaign);
+        // If found in localStorage, use it
+        if (creatorData) {
+          const referralCode = `${creatorData.code.toUpperCase()}_${normalizedPlatform.toUpperCase()}`;
+          
+          trackReferralClick({
+            referral_code: referralCode,
+            referral_name: creatorData.name,
+            referral_source: normalizedPlatform,
+            utm_source: normalizedPlatform,
+            utm_medium: 'social',
+            utm_campaign: creatorData.utm_campaign || `creator_${creatorData.code.toLowerCase()}`,
+          });
 
-    // Weiterleitung basierend auf redirectTo
-    const targetPath = referralData.redirectTo === 'gesundheitswesen' 
-      ? '/gesundheitswesen' 
-      : '/cv-generator';
-    
-    navigate(`${targetPath}?${params.toString()}`, { replace: true });
-  }, [platform, creator, navigate]);
+          const params = new URLSearchParams();
+          params.set('ref', referralCode);
+          params.set('ref_name', creatorData.name);
+          params.set('utm_source', normalizedPlatform);
+          params.set('utm_medium', 'social');
+          if (creatorData.utm_campaign) params.set('utm_campaign', creatorData.utm_campaign);
+
+          const targetPath = creatorData.redirectTo === 'gesundheitswesen' 
+            ? '/gesundheitswesen' 
+            : '/cv-generator';
+          
+          navigate(`${targetPath}?${params.toString()}`, { replace: true });
+          return;
+        }
+
+        // Fallback: Create default referral data from creator code
+        const defaultData = {
+          referral_code: `${creatorCode.toUpperCase()}_${normalizedPlatform.toUpperCase()}`,
+          referral_name: creatorCode,
+          utm_source: normalizedPlatform,
+          utm_medium: 'social',
+          utm_campaign: `creator_${creatorCode.toLowerCase()}`,
+          redirectTo: 'cv-generator' as const,
+        };
+
+        trackReferralClick({
+          referral_code: defaultData.referral_code,
+          referral_name: defaultData.referral_name,
+          referral_source: defaultData.utm_source,
+          utm_source: defaultData.utm_source,
+          utm_medium: defaultData.utm_medium,
+          utm_campaign: defaultData.utm_campaign,
+        });
+
+        const params = new URLSearchParams();
+        params.set('ref', defaultData.referral_code);
+        params.set('ref_name', defaultData.referral_name);
+        params.set('utm_source', defaultData.utm_source);
+        params.set('utm_medium', defaultData.utm_medium);
+        params.set('utm_campaign', defaultData.utm_campaign);
+
+        navigate(`/${defaultData.redirectTo}?${params.toString()}`, { replace: true });
+      } catch (error) {
+        console.error('Error loading creator data:', error);
+        navigate('/cv-generator', { replace: true });
+      }
+    };
+
+    loadCreatorData();
+  }, [platform, searchParams, navigate]);
 
   // Loading state während der Weiterleitung
   return (

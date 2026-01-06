@@ -128,19 +128,22 @@ export default function CreatorManagement() {
     const baseUrl = window.location.origin;
     const links = [];
     
+    // Einheitlicher Link für alle Creators mit Query-Parameter
     if (creator.platform === 'instagram' || creator.platform === 'both') {
       links.push({
         platform: 'Instagram',
-        url: `${baseUrl}/ig/${creator.code}`,
-        short: `bevisiblle.de/ig/${creator.code}`,
+        url: `${baseUrl}/ig?c=${creator.code}`,
+        short: `bevisiblle.de/ig?c=${creator.code}`,
+        display: 'bevisiblle.de/ig', // Zeigt nur den Basis-Link an
       });
     }
     
     if (creator.platform === 'facebook' || creator.platform === 'both') {
       links.push({
         platform: 'Facebook',
-        url: `${baseUrl}/fb/${creator.code}`,
-        short: `bevisiblle.de/fb/${creator.code}`,
+        url: `${baseUrl}/fb?c=${creator.code}`,
+        short: `bevisiblle.de/fb?c=${creator.code}`,
+        display: 'bevisiblle.de/fb', // Zeigt nur den Basis-Link an
       });
     }
     
@@ -295,25 +298,31 @@ export default function CreatorManagement() {
                         </p>
                         <div className="space-y-2">
                           {links.map((link) => (
-                            <div key={link.platform} className="flex items-center gap-2">
-                              <span className="text-sm font-medium w-24">{link.platform}:</span>
-                              <code className="flex-1 bg-muted px-2 py-1 rounded text-sm">
-                                {link.short}
-                              </code>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => copyToClipboard(link.url)}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => window.open(link.url, '_blank')}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </Button>
+                            <div key={link.platform} className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium w-24">{link.platform}:</span>
+                                <code className="flex-1 bg-muted px-2 py-1 rounded text-sm">
+                                  {link.display || link.short}
+                                </code>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => copyToClipboard(link.url)}
+                                  title="Vollständigen Link kopieren"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => window.open(link.url, '_blank')}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <p className="text-xs text-muted-foreground ml-24">
+                                Vollständiger Link: <code className="bg-muted px-1 rounded">{link.short}</code>
+                              </p>
                             </div>
                           ))}
                         </div>

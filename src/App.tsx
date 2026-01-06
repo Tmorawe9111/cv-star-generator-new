@@ -408,10 +408,11 @@ const App = () => {
               <Route path="/ref/:code" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><ReferralRedirect /></Suspense>} />
               
               {/* Social Media Links - Instagram & Facebook Creator Tracking */}
-              <Route path="/ig/:creator" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
-              <Route path="/instagram/:creator" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
-              <Route path="/fb/:creator" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
-              <Route path="/facebook/:creator" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
+              {/* Einheitlicher Link für alle Creators: bevisiblle.de/ig?c=creator_code */}
+              <Route path="/ig" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
+              <Route path="/instagram" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
+              <Route path="/fb" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
+              <Route path="/facebook" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
               
               {/* Registration / CV Generator - All lead to same destination */}
               <Route path="/registrieren" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CVGeneratorGate><CVGenerator /></CVGeneratorGate></Suspense>} />
