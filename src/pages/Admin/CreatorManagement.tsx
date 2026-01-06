@@ -38,24 +38,102 @@ export default function CreatorManagement() {
 
   const loadCreators = async () => {
     try {
-      // Load from localStorage (in production, this would be from a database)
-      const saved = localStorage.getItem('creators');
-      if (saved) {
-        setCreators(JSON.parse(saved));
-      }
+      setLoading(true);
+      // Load from Supabase database
+      const { data, error } = await supabase
+        .from('creators')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform database data to Creator format
+      const transformedCreators: Creator[] = (data || []).map((c: any) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name,
+        platform: c.platform as 'instagram' | 'facebook' | 'both',
+        utm_campaign: c.utm_campaign || undefined,
+        redirectTo: c.redirect_to as 'gesundheitswesen' | 'cv-generator',
+        created_at: c.created_at,
+      }));
+
+      setCreators(transformedCreators);
     } catch (error) {
       console.error('Error loading creators:', error);
+      toast({
+        title: 'Fehler',
+        description: 'Creators konnten nicht geladen werden',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const saveCreators = (newCreators: Creator[]) => {
-    localStorage.setItem('creators', JSON.stringify(newCreators));
-    setCreators(newCreators);
+  const saveCreators = async (creator: Omit<Creator, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('creators')
+        .insert({
+          code: creator.code,
+          name: creator.name,
+          platform: creator.platform,
+          utm_campaign: creator.utm_campaign || null,
+          redirect_to: creator.redirectTo,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return data;
+    } catch (error: any) {
+      console.error('Error saving creator:', error);
+      throw error;
+    }
   };
 
-  const handleSave = () => {
+  const updateCreator = async (id: string, creator: Omit<Creator, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('creators')
+        .update({
+          code: creator.code,
+          name: creator.name,
+          platform: creator.platform,
+          utm_campaign: creator.utm_campaign || null,
+          redirect_to: creator.redirectTo,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return data;
+    } catch (error: any) {
+      console.error('Error updating creator:', error);
+      throw error;
+    }
+  };
+
+  const deleteCreator = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('creators')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error deleting creator:', error);
+      throw error;
+    }
+  };
+
+  const handleSave = async () => {
     if (!formData.code || !formData.name) {
       toast({
         title: 'Fehler',
@@ -65,50 +143,60 @@ export default function CreatorManagement() {
       return;
     }
 
-    if (editingCreator) {
-      // Update existing
-      const updated = creators.map(c => 
-        c.id === editingCreator.id 
-          ? { ...editingCreator, ...formData }
-          : c
-      );
-      saveCreators(updated);
-      toast({
-        title: 'Erfolg',
-        description: 'Creator aktualisiert',
+    try {
+      if (editingCreator) {
+        // Update existing
+        await updateCreator(editingCreator.id, formData);
+        toast({
+          title: 'Erfolg',
+          description: 'Creator aktualisiert',
+        });
+      } else {
+        // Create new
+        await saveCreators(formData);
+        toast({
+          title: 'Erfolg',
+          description: 'Creator erstellt',
+        });
+      }
+
+      // Reload creators
+      await loadCreators();
+
+      setShowForm(false);
+      setEditingCreator(null);
+      setFormData({
+        code: '',
+        name: '',
+        platform: 'instagram',
+        utm_campaign: '',
+        redirectTo: 'cv-generator',
       });
-    } else {
-      // Create new
-      const newCreator: Creator = {
-        id: Date.now().toString(),
-        ...formData,
-        created_at: new Date().toISOString(),
-      };
-      saveCreators([...creators, newCreator]);
+    } catch (error: any) {
       toast({
-        title: 'Erfolg',
-        description: 'Creator erstellt',
+        title: 'Fehler',
+        description: error.message || 'Fehler beim Speichern',
+        variant: 'destructive',
       });
     }
-
-    setShowForm(false);
-    setEditingCreator(null);
-    setFormData({
-      code: '',
-      name: '',
-      platform: 'instagram',
-      utm_campaign: '',
-      redirectTo: 'cv-generator',
-    });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Möchtest du diesen Creator wirklich löschen?')) {
-      saveCreators(creators.filter(c => c.id !== id));
-      toast({
-        title: 'Erfolg',
-        description: 'Creator gelöscht',
-      });
+      try {
+        await deleteCreator(id);
+        await loadCreators();
+        toast({
+          title: 'Erfolg',
+          description: 'Creator gelöscht',
+        });
+      } catch (error: any) {
+        toast({
+          title: 'Fehler',
+          description: error.message || 'Fehler beim Löschen',
+          variant: 'destructive',
+        });
+      }
     }
   };
 

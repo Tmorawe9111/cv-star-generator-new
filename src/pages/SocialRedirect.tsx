@@ -30,22 +30,34 @@ export default function SocialRedirect() {
       return;
     }
 
-    // Try to load creator from localStorage (from admin panel) or use default
+    // Try to load creator from database or use default
     const loadCreatorData = async () => {
       try {
-        // Try to load from localStorage first (from admin panel)
-        const savedCreators = localStorage.getItem('creators');
+        // Try to load from Supabase database
+        const { data, error } = await supabase
+          .from('creators')
+          .select('*')
+          .eq('code', creatorCode.toLowerCase())
+          .eq('is_active', true)
+          .single();
+
         let creatorData = null;
-        
-        if (savedCreators) {
-          const creators = JSON.parse(savedCreators);
-          creatorData = creators.find((c: any) => 
-            c.code.toLowerCase() === creatorCode.toLowerCase()
-          );
+        if (!error && data) {
+          creatorData = data;
         }
 
-        // If found in localStorage, use it
+        // If found in database, use it
         if (creatorData) {
+          // Check if platform matches (if creator is set to 'both', allow any platform)
+          const platformMatches = creatorData.platform === 'both' || 
+                                  creatorData.platform === normalizedPlatform;
+          
+          if (!platformMatches) {
+            // Platform doesn't match, use fallback
+            navigate('/cv-generator', { replace: true });
+            return;
+          }
+
           const referralCode = `${creatorData.code.toUpperCase()}_${normalizedPlatform.toUpperCase()}`;
           
           trackReferralClick({
@@ -64,7 +76,7 @@ export default function SocialRedirect() {
           params.set('utm_medium', 'social');
           if (creatorData.utm_campaign) params.set('utm_campaign', creatorData.utm_campaign);
 
-          const targetPath = creatorData.redirectTo === 'gesundheitswesen' 
+          const targetPath = creatorData.redirect_to === 'gesundheitswesen' 
             ? '/gesundheitswesen' 
             : '/cv-generator';
           
