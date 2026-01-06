@@ -60,26 +60,17 @@ const CVStep2 = () => {
     
     const trimmed = locationStr.trim();
     
-    // Prüfe ob Format "PLZ Ort" (z.B. "10115 Berlin" oder "1011 Berlin" während Eingabe)
-    // WICHTIG: Erlaube auch unvollständige PLZs (3-5 Ziffern) während der Eingabe
+    // Prüfe ob Format "PLZ Ort" (z.B. "10115 Berlin" oder "603 Frankfurt" während Eingabe)
     const plzOrtMatch = trimmed.match(/^(\d{3,5})\s+(.+)$/);
     if (plzOrtMatch) {
       const [, plz, ort] = plzOrtMatch;
-      // Nur wenn PLZ vollständig ist (5 Ziffern), setze sie
-      if (plz.length === 5) {
-        return { plz: plz.trim(), ort: ort.trim() };
-      }
-      // Während Eingabe: Behalte bisherige PLZ, setze nur Ort
-      return { plz: formData.plz || '', ort: ort.trim() };
+      // WICHTIG: Verwende immer die eingegebene PLZ (auch wenn unvollständig), nicht die alte PLZ
+      return { plz: plz.trim(), ort: ort.trim() };
     }
     
-    // Wenn nur PLZ ohne Ort (z.B. "10115" oder "1011" während Eingabe)
+    // Wenn nur PLZ ohne Ort (z.B. "10115" oder "603" während Eingabe)
     if (/^\d{3,5}$/.test(trimmed)) {
-      // Nur wenn PLZ vollständig ist (5 Ziffern), setze sie
-      if (trimmed.length === 5) {
-        return { plz: trimmed, ort: formData.ort || '' };
-      }
-      // Während Eingabe: Setze nur PLZ, behalte Ort
+      // WICHTIG: Verwende immer die eingegebene PLZ (auch wenn unvollständig), nicht die alte PLZ
       return { plz: trimmed, ort: formData.ort || '' };
     }
     
@@ -550,9 +541,9 @@ const CVStep2 = () => {
                   // Fixed: Verhindert doppelte PLZ-Werte durch bessere parseLocation-Logik
                   const { plz, ort } = parseLocation(value);
                   
-                  // WICHTIG: Verhindere doppelte PLZ-Werte
-                  // Wenn die neue PLZ bereits in formData.plz enthalten ist, überschreibe nicht
-                  const newPlz = plz && plz.length === 5 ? plz : (formData.plz || plz);
+                  // WICHTIG: Verwende immer die geparste PLZ direkt (auch wenn unvollständig)
+                  // Die alte PLZ wird nur beibehalten, wenn der Benutzer Text eingibt (keine PLZ)
+                  const newPlz = plz || formData.plz || '';
                   const newOrt = ort || formData.ort || '';
                   
                   // Nur updaten wenn sich etwas geändert hat
