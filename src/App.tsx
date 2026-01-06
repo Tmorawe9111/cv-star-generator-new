@@ -149,6 +149,7 @@ const AdminLogin = lazy(() => import("./pages/Admin/Login"));
 const PendingVerifications = lazy(() => import("./pages/Admin/PendingVerifications"));
 const Advertisements = lazy(() => import("./pages/Admin/Advertisements"));
 const ReferralAnalytics = lazy(() => import("./pages/Admin/ReferralAnalytics"));
+const ReferralRedirect = lazy(() => import("./pages/ReferralRedirect"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -400,6 +401,9 @@ const App = () => {
               {/* Auth - German routes */}
               <Route path="/auth" element={<Auth />} />
               <Route path="/anmelden" element={<Auth />} />
+              
+              {/* Referral Links - Kurze, saubere URLs */}
+              <Route path="/ref/:code" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><ReferralRedirect /></Suspense>} />
               
               {/* Registration / CV Generator - All lead to same destination */}
               <Route path="/registrieren" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CVGeneratorGate><CVGenerator /></CVGeneratorGate></Suspense>} />
