@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Heart, MessageCircle, Share2, Send, FileText, Download, Pencil, Megaphone } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Send, FileText, Download, Pencil, Megaphone, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { usePostLikes, usePostComments, usePostReposts, useCommentLikes } from '@/hooks/usePostInteractions';
 import { useNavigate } from 'react-router-dom';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import QuickMessageDialog from '@/components/community/QuickMessageDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompany } from '@/hooks/useCompany';
@@ -82,6 +82,8 @@ export default function PostCard({ post }: PostCardProps) {
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const [imageOpen, setImageOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { user } = useAuth();
   const { company } = useCompany();
   const { toast } = useToast();
@@ -90,6 +92,16 @@ export default function PostCard({ post }: PostCardProps) {
   
   // Check if current user is a company user
   const isCompanyUser = !!company?.id;
+  
+  // Check if current user is the author of this post
+  const isOwnPost = useMemo(() => {
+    if (post.author_type === 'user') {
+      return user?.id && (post.user_id === user.id || post.author?.id === user.id);
+    } else if (post.author_type === 'company') {
+      return company?.id && (post.company_id === company.id || post.author_id === company.id);
+    }
+    return false;
+  }, [post.author_type, post.user_id, post.author?.id, post.company_id, post.author_id, user?.id, company?.id]);
   
   // CRITICAL: Debug log to verify author data
   useEffect(() => {
@@ -284,6 +296,46 @@ const authorSubtitle = useMemo(() => {
     setIsEditing(false);
   };
 
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    
+    // Build the delete query based on author type
+    let deleteQuery = supabase
+      .from('posts')
+      .delete()
+      .eq('id', post.id);
+    
+    // Add author check based on post type
+    if (post.author_type === 'user') {
+      deleteQuery = deleteQuery.eq('user_id', user?.id);
+    } else if (post.author_type === 'company') {
+      deleteQuery = deleteQuery.eq('company_id', company?.id);
+    }
+
+    const { error } = await deleteQuery;
+
+    if (error) {
+      console.error('Delete post error:', error);
+      toast({
+        title: "Fehler",
+        description: "Der Beitrag konnte nicht gelöscht werden",
+        variant: "destructive"
+      });
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+      return;
+    }
+
+    toast({
+      title: "Gelöscht",
+      description: "Dein Beitrag wurde gelöscht"
+    });
+    
+    setShowDeleteConfirm(false);
+    // Reload page to refresh feed
+    window.location.reload();
+  };
+
   const handleOpenComments = () => {
     setShowComments(true);
     setTimeout(() => commentInputRef.current?.focus(), 0);
@@ -392,14 +444,27 @@ const authorSubtitle = useMemo(() => {
               <p className="text-xs text-muted-foreground truncate">{authorSubtitle}</p>
             )}
           </div>
-          {post.author_type === 'user' && post.user_id === user?.id && !isEditing && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
+          {isOwnPost && !isEditing && (
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="h-8 w-8 p-0"
+                title="Beitrag bearbeiten"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                title="Beitrag löschen"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           )}
         </div>
 
@@ -659,6 +724,34 @@ const authorSubtitle = useMemo(() => {
 
       {/* DM dialog */}
       <QuickMessageDialog open={sendOpen} onOpenChange={setSendOpen} initialContent={`Schau dir diesen Beitrag an: ${postLink}`} />
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Beitrag löschen?</DialogTitle>
+            <DialogDescription>
+              Möchtest du diesen Beitrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Wird gelöscht...' : 'Löschen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
