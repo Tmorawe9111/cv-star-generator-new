@@ -32,15 +32,21 @@ const CVStep2 = () => {
   // Auto-Save
   useAutoSave(formData, 'cv-form-data-step2', 1000);
 
-  // Sync locationInputValue with formData
+  // Sync locationInputValue with formData (nur wenn formData sich ändert, nicht während Eingabe)
   useEffect(() => {
-    if (formData.plz && formData.ort) {
-      setLocationInputValue(`${formData.plz} ${formData.ort}`);
-    } else if (formData.plz) {
-      setLocationInputValue(formData.plz);
-    } else if (formData.ort) {
-      setLocationInputValue(formData.ort);
-    } else {
+    // Nur synchronisieren wenn formData.plz oder formData.ort von außen gesetzt wurde
+    // Nicht während der Eingabe, da locationInputValue dann die Quelle der Wahrheit ist
+    const currentValue = locationInputValue.trim();
+    const expectedValue = formData.plz && formData.ort 
+      ? `${formData.plz} ${formData.ort}` 
+      : formData.plz || formData.ort || '';
+    
+    // Nur synchronisieren wenn sich formData geändert hat UND es nicht mit dem aktuellen Input übereinstimmt
+    // Das verhindert, dass während der Eingabe der Wert überschrieben wird
+    if (expectedValue && currentValue !== expectedValue && (formData.plz || formData.ort)) {
+      setLocationInputValue(expectedValue);
+    } else if (!formData.plz && !formData.ort && currentValue === '') {
+      // Beide leer - synchronisieren
       setLocationInputValue('');
     }
   }, [formData.plz, formData.ort]);
