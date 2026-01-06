@@ -149,7 +149,9 @@ const AdminLogin = lazy(() => import("./pages/Admin/Login"));
 const PendingVerifications = lazy(() => import("./pages/Admin/PendingVerifications"));
 const Advertisements = lazy(() => import("./pages/Admin/Advertisements"));
 const ReferralAnalytics = lazy(() => import("./pages/Admin/ReferralAnalytics"));
+const CreatorManagement = lazy(() => import("./pages/Admin/CreatorManagement"));
 const ReferralRedirect = lazy(() => import("./pages/ReferralRedirect"));
+const SocialRedirect = lazy(() => import("./pages/SocialRedirect"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -404,6 +406,12 @@ const App = () => {
               
               {/* Referral Links - Kurze, saubere URLs */}
               <Route path="/ref/:code" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><ReferralRedirect /></Suspense>} />
+              
+              {/* Social Media Links - Instagram & Facebook Creator Tracking */}
+              <Route path="/ig/:creator" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
+              <Route path="/instagram/:creator" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
+              <Route path="/fb/:creator" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
+              <Route path="/facebook/:creator" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><SocialRedirect /></Suspense>} />
               
               {/* Registration / CV Generator - All lead to same destination */}
               <Route path="/registrieren" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CVGeneratorGate><CVGenerator /></CVGeneratorGate></Suspense>} />
@@ -701,6 +709,7 @@ const App = () => {
                 <Route path="pending-verifications" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><PendingVerifications /></Suspense>} />
                 <Route path="advertisements" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Advertisements /></Suspense>} />
                 <Route path="referral-analytics" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><ReferralAnalytics /></Suspense>} />
+                <Route path="creators" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CreatorManagement /></Suspense>} />
               </Route>
                 
               {/* Legacy redirects - English to German */}
