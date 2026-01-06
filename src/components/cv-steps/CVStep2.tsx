@@ -541,10 +541,8 @@ const CVStep2 = () => {
               <LocationAutocomplete
                 value={locationInputValue}
                 onChange={(value) => {
-                  // WICHTIG: Während der Eingabe wird nur der Input-Wert aktualisiert, NICHT die PLZ/Ort
-                  // Die PLZ/Ort wird nur gesetzt wenn:
-                  // 1. Eine Option aus dem Dropdown ausgewählt wird (Format: "PLZ Ort")
-                  // 2. Eine vollständige PLZ (5 Ziffern) eingegeben wird
+                  // WICHTIG: Während der Eingabe wird NUR der Input-Wert aktualisiert
+                  // Die PLZ/Ort wird NUR gesetzt wenn eine Option aus dem Dropdown ausgewählt wird
                   setLocationInputValue(value);
                   
                   // Wenn leer, auch PLZ/Ort leeren
@@ -555,7 +553,7 @@ const CVStep2 = () => {
                   
                   const trimmed = value.trim();
                   
-                  // Prüfe ob Format "PLZ Ort" (Option aus Dropdown wurde ausgewählt)
+                  // NUR wenn Format "PLZ Ort" (Option aus Dropdown wurde ausgewählt) - dann setzen
                   const plzOrtMatch = trimmed.match(/^(\d{5})\s+(.+)$/);
                   if (plzOrtMatch) {
                     const [, plz, ort] = plzOrtMatch;
@@ -563,38 +561,10 @@ const CVStep2 = () => {
                     return;
                   }
                   
-                  // Prüfe ob es eine vollständige PLZ ist (5 Ziffern) - dann sofort setzen
-                  if (/^\d{5}$/.test(trimmed)) {
-                    updateFormData({ plz: trimmed, ort: formData.ort || '' });
-                    return;
-                  }
-                  
-                  // Für unvollständige PLZs (3-4 Ziffern) oder Text: Nichts setzen, nur Input-Wert aktualisieren
-                  // Die PLZ wird erst beim Blur oder bei Auswahl aus Dropdown gesetzt
+                  // Für alles andere (unvollständige PLZ, Text, etc.): NICHTS setzen
+                  // Die PLZ wird NUR bei Auswahl aus Dropdown gesetzt
                 }}
-                onBlur={() => {
-                  // Wenn das Feld verlassen wird, prüfe ob eine vollständige PLZ eingegeben wurde
-                  const trimmed = locationInputValue.trim();
-                  
-                  // Wenn leer, nichts tun
-                  if (!trimmed) {
-                    return;
-                  }
-                  
-                  // Parse den Wert und setze PLZ/Ort nur wenn vollständig
-                  const { plz, ort } = parseLocation(trimmed);
-                  
-                  // Nur setzen wenn:
-                  // 1. Vollständige PLZ (5 Ziffern) vorhanden ist
-                  // 2. Oder Format "PLZ Ort" erkannt wurde
-                  if (plz && plz.length === 5) {
-                    updateFormData({ plz, ort: ort || formData.ort || '' });
-                  } else if (ort && !plz) {
-                    // Nur Ort ohne PLZ - behalte alte PLZ
-                    updateFormData({ ort });
-                  }
-                }}
-                placeholder="PLZ oder Stadt eingeben..."
+                placeholder="PLZ eingeben"
                 className="h-9 md:h-10 text-xs md:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors touch-manipulation"
               />
             </div>
