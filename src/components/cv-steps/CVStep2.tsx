@@ -36,32 +36,29 @@ const CVStep2 = () => {
   useEffect(() => {
     // Nur synchronisieren wenn formData.plz oder formData.ort von außen gesetzt wurde
     // Nicht während der Eingabe, da locationInputValue dann die Quelle der Wahrheit ist
-    const currentValue = locationInputValue.trim();
     const expectedValue = formData.plz && formData.ort 
       ? `${formData.plz} ${formData.ort}` 
       : formData.plz || formData.ort || '';
     
+    // Nur synchronisieren wenn formData gesetzt wurde
     // Prüfe ob der aktuelle Input-Wert bereits dem erwarteten Wert entspricht
-    // Wenn ja, nichts tun (verhindert Überschreibung während Eingabe)
-    if (currentValue === expectedValue) {
-      return;
-    }
-    
-    // Nur synchronisieren wenn formData gesetzt wurde UND der Input-Wert nicht passt
-    // Das verhindert, dass während der Eingabe der Wert überschrieben wird
+    // Wenn ja, nichts tun (verhindert Überschreibung während Eingabe oder nach Auswahl)
     if (expectedValue && (formData.plz || formData.ort)) {
-      // Prüfe ob der aktuelle Input-Wert bereits eine PLZ enthält, die mit formData.plz übereinstimmt
-      const currentPlzMatch = currentValue.match(/^(\d{5})/);
+      // Prüfe ob der aktuelle Input-Wert bereits die richtige PLZ enthält
+      const currentPlzMatch = locationInputValue.match(/^(\d{5})/);
       if (currentPlzMatch && currentPlzMatch[1] === formData.plz) {
         // PLZ stimmt bereits überein - nichts tun
         return;
       }
-      setLocationInputValue(expectedValue);
-    } else if (!formData.plz && !formData.ort && currentValue !== '') {
+      // Nur setzen wenn der erwartete Wert nicht mit dem aktuellen übereinstimmt
+      if (locationInputValue.trim() !== expectedValue) {
+        setLocationInputValue(expectedValue);
+      }
+    } else if (!formData.plz && !formData.ort && locationInputValue.trim() !== '') {
       // Beide leer - Input auch leeren
       setLocationInputValue('');
     }
-  }, [formData.plz, formData.ort, locationInputValue]);
+  }, [formData.plz, formData.ort]);
 
   // If user already has an avatar_url (or a saved profilbild URL), show it as preview
   useEffect(() => {
