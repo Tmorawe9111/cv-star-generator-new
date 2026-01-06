@@ -41,15 +41,27 @@ const CVStep2 = () => {
       ? `${formData.plz} ${formData.ort}` 
       : formData.plz || formData.ort || '';
     
-    // Nur synchronisieren wenn sich formData geändert hat UND es nicht mit dem aktuellen Input übereinstimmt
+    // Prüfe ob der aktuelle Input-Wert bereits dem erwarteten Wert entspricht
+    // Wenn ja, nichts tun (verhindert Überschreibung während Eingabe)
+    if (currentValue === expectedValue) {
+      return;
+    }
+    
+    // Nur synchronisieren wenn formData gesetzt wurde UND der Input-Wert nicht passt
     // Das verhindert, dass während der Eingabe der Wert überschrieben wird
-    if (expectedValue && currentValue !== expectedValue && (formData.plz || formData.ort)) {
+    if (expectedValue && (formData.plz || formData.ort)) {
+      // Prüfe ob der aktuelle Input-Wert bereits eine PLZ enthält, die mit formData.plz übereinstimmt
+      const currentPlzMatch = currentValue.match(/^(\d{5})/);
+      if (currentPlzMatch && currentPlzMatch[1] === formData.plz) {
+        // PLZ stimmt bereits überein - nichts tun
+        return;
+      }
       setLocationInputValue(expectedValue);
-    } else if (!formData.plz && !formData.ort && currentValue === '') {
-      // Beide leer - synchronisieren
+    } else if (!formData.plz && !formData.ort && currentValue !== '') {
+      // Beide leer - Input auch leeren
       setLocationInputValue('');
     }
-  }, [formData.plz, formData.ort]);
+  }, [formData.plz, formData.ort, locationInputValue]);
 
   // If user already has an avatar_url (or a saved profilbild URL), show it as preview
   useEffect(() => {
@@ -549,12 +561,11 @@ const CVStep2 = () => {
                 onChange={(value) => {
                   // WICHTIG: Während der Eingabe wird NUR der Input-Wert aktualisiert
                   // Die PLZ/Ort wird NUR gesetzt wenn eine Option aus dem Dropdown ausgewählt wird
-                  setLocationInputValue(value);
                   
                   // Wenn leer, auch PLZ/Ort leeren
                   if (!value || !value.trim()) {
-                    updateFormData({ plz: '', ort: '' });
                     setLocationInputValue('');
+                    updateFormData({ plz: '', ort: '' });
                     return;
                   }
                   
@@ -567,14 +578,17 @@ const CVStep2 = () => {
                     const [, plz, ort] = plzOrtMatch;
                     // Nur setzen wenn beide Werte vorhanden sind
                     if (plz && plz.length === 5 && ort && ort.trim().length > 0) {
+                      // Setze zuerst den Input-Wert, dann formData
+                      setLocationInputValue(trimmed);
                       updateFormData({ plz: plz.trim(), ort: ort.trim() });
                       return;
                     }
                   }
                   
-                  // Für ALLES andere (unvollständige PLZ wie "603", Text, etc.): NICHTS setzen
+                  // Für ALLES andere (unvollständige PLZ wie "603", Text, etc.): NUR Input-Wert setzen
                   // Die PLZ wird NUR bei Auswahl aus Dropdown gesetzt
                   // Während der Eingabe wird formData.plz NICHT verändert
+                  setLocationInputValue(value);
                 }}
                 placeholder="PLZ eingeben"
                 className="h-9 md:h-10 text-xs md:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors touch-manipulation"
