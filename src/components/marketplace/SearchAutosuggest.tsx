@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Building2, FileText, User2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 
 function useDebouncedValue<T>(value: T, delay: number) {
   const [debounced, setDebounced] = React.useState(value);
@@ -47,6 +48,7 @@ export interface SearchAutosuggestProps {
 const MAX_PER_GROUP = 5;
 
 export default function SearchAutosuggest({ query, onSelect, open, anchorRef, onClose }: SearchAutosuggestProps) {
+  const { company } = useCompany();
   const [loading, setLoading] = React.useState(false);
   const [people, setPeople] = React.useState<SuggestionPerson[]>([]);
   const [companies, setCompanies] = React.useState<SuggestionCompany[]>([]);
@@ -54,6 +56,9 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
   const [position, setPosition] = React.useState({ top: 0, left: 0, width: 0 });
 
   const debouncedQ = useDebouncedValue(query, 200);
+  
+  // Check if user is a company user
+  const isCompanyUser = !!company;
 
   // Update position when open state changes
   React.useEffect(() => {
@@ -76,13 +81,24 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
       setLoading(true);
       try {
         const q = debouncedQ.trim();
+        
+        // Build profile query - different filters for companies vs regular users
+        let profileQuery = supabase
+          .from("profiles")
+          .select("id, vorname, nachname, avatar_url, profile_slug")
+          .eq("profile_complete", true)
+          .or(`vorname.ilike.%${q}%,nachname.ilike.%${q}%`);
+        
+        // Companies should only see published and visible profiles
+        // Regular users should see all complete profiles (even if not published for companies)
+        if (isCompanyUser) {
+          profileQuery = profileQuery
+            .eq("profile_published", true)
+            .eq("visibility_mode", "visible");
+        }
+        
         const [peopleRes, companiesRes, postsRes] = await Promise.all([
-          supabase
-            .from("profiles")
-            .select("id, vorname, nachname, avatar_url, profile_slug")
-            .eq("profile_complete", true)
-            .or(`vorname.ilike.%${q}%,nachname.ilike.%${q}%`)
-            .limit(MAX_PER_GROUP),
+          profileQuery.limit(MAX_PER_GROUP),
           supabase
             .rpc('get_companies_public', { search: q, limit_count: MAX_PER_GROUP, offset_count: 0 }),
           supabase
