@@ -80,6 +80,7 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
           supabase
             .from("profiles")
             .select("id, vorname, nachname, avatar_url, profile_slug")
+            .eq("profile_complete", true)
             .or(`vorname.ilike.%${q}%,nachname.ilike.%${q}%`)
             .limit(MAX_PER_GROUP),
           supabase
