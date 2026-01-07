@@ -73,6 +73,7 @@ const MyCareer = lazy(() => import("./pages/MyCareer"));
 const CompanyLayout = lazy(() => import("@/components/Company/CompanyLayout").then(m => ({ default: m.CompanyLayout })));
 const CompanyOnboarding = lazy(() => import('@/pages/Company/Onboarding'));
 const CompanySignup = lazy(() => import('@/pages/signup/CompanySignup'));
+const QuickSignup = lazy(() => import('@/pages/signup/QuickSignup'));
 const AppleOnboardingWizard = lazy(() => import('@/components/Company/onboarding/AppleOnboardingWizard').then(m => ({ default: m.AppleOnboardingWizard })));
 const CompanyDashboard = lazy(() => import("./pages/Company/CompanyDashboard"));
 const CompanyProfile = lazy(() => import("./pages/Company/Profile"));
@@ -421,6 +422,10 @@ const App = () => {
               
               {/* Company Registration - German */}
               <Route path="/unternehmensregistrierung" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySignup /></Suspense>} />
+              
+              {/* Quick Signup - Simplified registration flow */}
+              <Route path="/signup-quick" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><QuickSignup /></Suspense>} />
+              <Route path="/quick-signup" element={<Navigate to="/signup-quick" replace />} />
               
               {/* Backup Routes */}
               <Route path="/cv-star" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-black"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>}><BaseLayout className="bg-black text-white"><Index /></BaseLayout></Suspense>} />

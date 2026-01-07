@@ -166,6 +166,8 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
   // Load form data from localStorage on initial load
   useEffect(() => {
     const savedData = localStorage.getItem('cvFormData');
+    let initialData: any = {};
+    
     if (savedData) {
       try {
         const parsedData = JSON.parse(savedData);
@@ -177,13 +179,46 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
         if (sanitized.cover_image && typeof sanitized.cover_image !== 'string') {
           delete sanitized.cover_image;
         }
-        localStorage.setItem('cvFormData', JSON.stringify(sanitized));
+        initialData = sanitized;
         console.log('Lebenslauf Generator: Loading saved CV data from localStorage:', parsedData);
-        setFormData(sanitized);
       } catch (error) {
         console.error('Lebenslauf Generator: Error parsing saved CV data:', error);
         localStorage.removeItem('cvFormData');
       }
+    }
+
+    // Load quick signup data if available and merge with existing data
+    const quickSignupData = localStorage.getItem('quick_signup_data');
+    if (quickSignupData) {
+      try {
+        const parsedQuickSignup = JSON.parse(quickSignupData);
+        console.log('Lebenslauf Generator: Loading quick signup data:', parsedQuickSignup);
+        
+        // Merge quick signup data with existing data (quick signup takes precedence for these fields)
+        initialData = {
+          ...initialData,
+          vorname: parsedQuickSignup.vorname || initialData.vorname,
+          nachname: parsedQuickSignup.nachname || initialData.nachname,
+          plz: parsedQuickSignup.plz || initialData.plz,
+          ort: parsedQuickSignup.ort || initialData.ort,
+          email: parsedQuickSignup.email || initialData.email,
+          branche: parsedQuickSignup.branche || initialData.branche,
+          status: parsedQuickSignup.status || initialData.status,
+        };
+        
+        // Save merged data back to localStorage
+        localStorage.setItem('cvFormData', JSON.stringify(initialData));
+        
+        // Clear quick signup data after loading (so it doesn't interfere with future sessions)
+        localStorage.removeItem('quick_signup_data');
+      } catch (error) {
+        console.error('Lebenslauf Generator: Error parsing quick signup data:', error);
+        localStorage.removeItem('quick_signup_data');
+      }
+    }
+
+    if (Object.keys(initialData).length > 0) {
+      setFormData(initialData);
     }
   }, []);
 
