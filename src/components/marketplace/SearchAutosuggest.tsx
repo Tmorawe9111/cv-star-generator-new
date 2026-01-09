@@ -86,15 +86,18 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
         let profileQuery = supabase
           .from("profiles")
           .select("id, vorname, nachname, avatar_url, profile_slug")
-          .eq("profile_complete", true)
           .or(`vorname.ilike.%${q}%,nachname.ilike.%${q}%`);
         
         // Companies should only see published and visible profiles
-        // Regular users should see all complete profiles (even if not published for companies)
+        // Regular users should see ALL profiles when searching (including incomplete ones)
+        // This allows users to find and connect with anyone, even if profile is not complete
         if (isCompanyUser) {
           profileQuery = profileQuery
             .eq("profile_published", true)
             .eq("visibility_mode", "visible");
+        } else {
+          // For regular users: show all profiles (complete or not) when explicitly searching
+          // This ensures users can find and connect with anyone
         }
         
         const [peopleRes, companiesRes, postsRes] = await Promise.all([
