@@ -424,8 +424,9 @@ const App = () => {
               <Route path="/unternehmensregistrierung" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CompanySignup /></Suspense>} />
               
               {/* Quick Signup - Simplified registration flow */}
-              <Route path="/signup-quick" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><QuickSignup /></Suspense>} />
-              <Route path="/quick-signup" element={<Navigate to="/signup-quick" replace />} />
+              <Route path="/jetztanmelden" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><QuickSignup /></Suspense>} />
+              <Route path="/signup-quick" element={<Navigate to="/jetztanmelden" replace />} />
+              <Route path="/quick-signup" element={<Navigate to="/jetztanmelden" replace />} />
               
               {/* Backup Routes */}
               <Route path="/cv-star" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-black"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>}><BaseLayout className="bg-black text-white"><Index /></BaseLayout></Suspense>} />
