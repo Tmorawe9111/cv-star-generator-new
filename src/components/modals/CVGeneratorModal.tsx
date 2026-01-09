@@ -48,8 +48,9 @@ export const CVGeneratorModal: React.FC<CVGeneratorModalProps> = ({
             Fülle die folgenden Felder aus, um dein Profil zu vervollständigen.
           </p>
         </DialogHeader>
-        <div className="overflow-y-auto px-6 pb-6">
+        <div className="overflow-y-auto px-6 pb-6" style={{ maxHeight: 'calc(90vh - 120px)' }}>
           <CVFormProvider>
+            {/* CVGenerator is used directly without CVGeneratorGate since user just signed up */}
             <CVGenerator onComplete={handleComplete} />
           </CVFormProvider>
         </div>
