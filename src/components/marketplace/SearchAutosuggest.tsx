@@ -80,9 +80,11 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
       }
       setLoading(true);
       try {
-        const q = debouncedQ.trim();
+        const q = debouncedQ.trim().toLowerCase();
+        console.log('[SearchAutosuggest] Searching for:', q, 'isCompanyUser:', isCompanyUser);
         
         // Build profile query - different filters for companies vs regular users
+        // Use separate queries for vorname and nachname to ensure better results
         let profileQuery = supabase
           .from("profiles")
           .select("id, vorname, nachname, avatar_url, profile_slug")
@@ -95,10 +97,8 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
           profileQuery = profileQuery
             .eq("profile_published", true)
             .eq("visibility_mode", "visible");
-        } else {
-          // For regular users: show all profiles (complete or not) when explicitly searching
-          // This ensures users can find and connect with anyone
         }
+        // For regular users: no additional filters - show all profiles
         
         const [peopleRes, companiesRes, postsRes] = await Promise.all([
           profileQuery.limit(MAX_PER_GROUP),
@@ -110,19 +110,33 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
             .ilike("content", `%${q}%`)
             .limit(MAX_PER_GROUP),
         ]);
+        
         if (!active) return;
+        
+        console.log('[SearchAutosuggest] Results:', {
+          people: peopleRes.data?.length || 0,
+          companies: companiesRes.data?.length || 0,
+          posts: postsRes.data?.length || 0,
+          peopleError: peopleRes.error,
+          peopleData: peopleRes.data
+        });
+        
+        if (peopleRes.error) {
+          console.error('[SearchAutosuggest] Error fetching people:', peopleRes.error);
+        }
+        
         setPeople(peopleRes.data || []);
         setCompanies((companiesRes.data as any) || []);
         setPosts((postsRes.data as any) || []);
       } catch (e) {
-        // ignore errors for autosuggest
+        console.error('[SearchAutosuggest] Unexpected error:', e);
       } finally {
         if (active) setLoading(false);
       }
     };
     run();
     return () => { active = false; };
-  }, [debouncedQ, open]);
+  }, [debouncedQ, open, isCompanyUser]);
 
   if (!open) return null;
 
