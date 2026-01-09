@@ -201,63 +201,66 @@ const QuickSignup = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
+    <div className="h-screen bg-gradient-to-br from-background to-muted/50 flex items-center justify-center p-2 sm:p-4 overflow-hidden">
+      <div className="w-full max-w-md h-full flex flex-col">
+        {/* Header - Compact */}
+        <div className="text-center space-y-1 mb-2 flex-shrink-0">
           <Button 
             variant="ghost" 
             onClick={() => navigate('/')}
-            className="mb-4"
+            className="mb-1 h-8 text-xs px-2"
+            size="sm"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Zurück zur Startseite
+            <ArrowLeft className="h-3 w-3 mr-1" />
+            Zurück
           </Button>
           
-          <h1 className="text-3xl font-bold">Schnellregistrierung</h1>
-          <p className="text-muted-foreground">
-            Erstellen Sie Ihr Profil in wenigen Schritten
+          <h1 className="text-xl sm:text-2xl font-bold">Jetzt anmelden</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Profil in wenigen Schritten erstellen
           </p>
         </div>
 
-        {/* Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center">Registrierung</CardTitle>
+        {/* Form - Scrollable if needed, but optimized for no-scroll */}
+        <Card className="flex-1 flex flex-col overflow-hidden">
+          <CardHeader className="pb-2 pt-3 px-4 flex-shrink-0">
+            <CardTitle className="text-center text-base sm:text-lg">Registrierung</CardTitle>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Vorname */}
-              <div className="space-y-2">
-                <Label htmlFor="vorname">Vorname *</Label>
-                <Input
-                  id="vorname"
-                  type="text"
-                  value={formData.vorname}
-                  onChange={(e) => setFormData(prev => ({ ...prev, vorname: e.target.value }))}
-                  placeholder="Max"
-                  disabled={isSubmitting}
-                  required
-                />
-              </div>
-
-              {/* Nachname */}
-              <div className="space-y-2">
-                <Label htmlFor="nachname">Nachname *</Label>
-                <Input
-                  id="nachname"
-                  type="text"
-                  value={formData.nachname}
-                  onChange={(e) => setFormData(prev => ({ ...prev, nachname: e.target.value }))}
-                  placeholder="Mustermann"
-                  disabled={isSubmitting}
-                  required
-                />
+          <CardContent className="flex-1 overflow-y-auto px-4 pb-4">
+            <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3">
+              {/* Vorname & Nachname - Side by side on larger screens */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="vorname" className="text-xs sm:text-sm">Vorname *</Label>
+                  <Input
+                    id="vorname"
+                    type="text"
+                    value={formData.vorname}
+                    onChange={(e) => setFormData(prev => ({ ...prev, vorname: e.target.value }))}
+                    placeholder="Max"
+                    disabled={isSubmitting}
+                    required
+                    className="h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="nachname" className="text-xs sm:text-sm">Nachname *</Label>
+                  <Input
+                    id="nachname"
+                    type="text"
+                    value={formData.nachname}
+                    onChange={(e) => setFormData(prev => ({ ...prev, nachname: e.target.value }))}
+                    placeholder="Mustermann"
+                    disabled={isSubmitting}
+                    required
+                    className="h-9 text-sm"
+                  />
+                </div>
               </div>
 
               {/* PLZ & Ort */}
-              <div className="space-y-2">
-                <Label htmlFor="location">PLZ & Ort *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="location" className="text-xs sm:text-sm">PLZ & Ort *</Label>
                 <LocationAutocomplete
                   value={locationInputValue}
                   onChange={handleLocationChange}
@@ -267,8 +270,8 @@ const QuickSignup = () => {
               </div>
 
               {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email">E-Mail-Adresse *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="email" className="text-xs sm:text-sm">E-Mail *</Label>
                 <Input
                   id="email"
                   type="email"
@@ -277,27 +280,29 @@ const QuickSignup = () => {
                   placeholder="ihre@email.com"
                   disabled={isSubmitting}
                   required
+                  className="h-9 text-sm"
                 />
               </div>
 
               {/* Password */}
-              <div className="space-y-2">
-                <Label htmlFor="password">Passwort *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="password" className="text-xs sm:text-sm">Passwort *</Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Mindestens 8 Zeichen"
+                    placeholder="Min. 8 Zeichen, Großbuchstabe, Zahl"
                     disabled={isSubmitting}
                     required
+                    className="h-9 text-sm pr-10"
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={isSubmitting}
                   >
@@ -308,14 +313,11 @@ const QuickSignup = () => {
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Passwort muss mindestens 8 Zeichen, einen Großbuchstaben und eine Zahl enthalten.
-                </p>
               </div>
 
               {/* Confirm Password */}
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Passwort bestätigen *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="confirm-password" className="text-xs sm:text-sm">Passwort bestätigen *</Label>
                 <div className="relative">
                   <Input
                     id="confirm-password"
@@ -325,12 +327,13 @@ const QuickSignup = () => {
                     placeholder="Passwort wiederholen"
                     disabled={isSubmitting}
                     required
+                    className="h-9 text-sm pr-10"
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     disabled={isSubmitting}
                   >
@@ -343,51 +346,51 @@ const QuickSignup = () => {
                 </div>
               </div>
 
-              {/* Branche */}
-              <div className="space-y-2">
-                <Label htmlFor="branche">Branche *</Label>
-                <Select
-                  value={formData.branche}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, branche: value }))}
-                  disabled={isSubmitting}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Branche wählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BRANCHES.map((branch) => (
-                      <SelectItem key={branch.key} value={branch.key}>
-                        {branch.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Status */}
-              <div className="space-y-2">
-                <Label htmlFor="status">Art *</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
-                  disabled={isSubmitting}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Art wählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="schueler">Schüler:in</SelectItem>
-                    <SelectItem value="azubi">Auszubildender</SelectItem>
-                    <SelectItem value="fachkraft">Fachkraft</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Branche & Status - Side by side on larger screens */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="branche" className="text-xs sm:text-sm">Branche *</Label>
+                  <Select
+                    value={formData.branche}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, branche: value }))}
+                    disabled={isSubmitting}
+                    required
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Branche" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BRANCHES.map((branch) => (
+                        <SelectItem key={branch.key} value={branch.key}>
+                          {branch.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="status" className="text-xs sm:text-sm">Art *</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+                    disabled={isSubmitting}
+                    required
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Art" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="schueler">Schüler:in</SelectItem>
+                      <SelectItem value="azubi">Auszubildender</SelectItem>
+                      <SelectItem value="fachkraft">Fachkraft</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full h-10 text-sm font-semibold mt-2" 
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -400,7 +403,7 @@ const QuickSignup = () => {
                 )}
               </Button>
 
-              <div className="text-center text-sm text-muted-foreground">
+              <div className="text-center text-xs text-muted-foreground pt-1">
                 <p>
                   Mit der Registrierung stimmen Sie unseren{' '}
                   <a href="/agb" className="underline hover:text-foreground" target="_blank" rel="noopener noreferrer">
