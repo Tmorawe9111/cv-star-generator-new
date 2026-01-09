@@ -177,30 +177,36 @@ const QuickSignup = () => {
         // Create profile immediately with available data
         const profileData = {
           id: data.user.id,
-          vorname: formData.vorname,
-          nachname: formData.nachname,
-          email: formData.email,
-          plz: formData.plz,
-          ort: formData.ort,
+          vorname: formData.vorname.trim(),
+          nachname: formData.nachname.trim(),
+          email: formData.email.trim(),
+          plz: formData.plz.trim(),
+          ort: formData.ort.trim(),
           branche: formData.branche,
           status: formData.status,
           profile_complete: false, // Will be set to true after CV completion
           profile_published: false,
         };
 
-        const { error: profileError } = await supabase
+        console.log('[QuickSignup] Creating profile with data:', profileData);
+
+        const { error: profileError, data: profileInsertData } = await supabase
           .from('profiles')
-          .insert(profileData);
+          .insert(profileData)
+          .select()
+          .single();
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
           toast({
             title: "Profil konnte nicht erstellt werden",
-            description: "Bitte versuchen Sie es erneut.",
+            description: profileError.message || "Bitte versuchen Sie es erneut.",
             variant: "destructive"
           });
           return;
         }
+
+        console.log('[QuickSignup] Profile created successfully:', profileInsertData);
 
         // Store quick signup data in localStorage for CV generator
         const quickSignupData = {
