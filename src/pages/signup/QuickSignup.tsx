@@ -261,12 +261,14 @@ const QuickSignup = () => {
               {/* PLZ & Ort */}
               <div className="space-y-1">
                 <Label htmlFor="location" className="text-xs sm:text-sm">PLZ & Ort *</Label>
-                <LocationAutocomplete
-                  value={locationInputValue}
-                  onChange={handleLocationChange}
-                  placeholder="PLZ eingeben"
-                  disabled={isSubmitting}
-                />
+                <div className="[&_input]:h-9 [&_input]:text-sm">
+                  <LocationAutocomplete
+                    value={locationInputValue}
+                    onChange={handleLocationChange}
+                    placeholder="PLZ eingeben"
+                    disabled={isSubmitting}
+                  />
+                </div>
               </div>
 
               {/* Email */}
