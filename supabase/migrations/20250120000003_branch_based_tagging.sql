@@ -351,7 +351,7 @@ AS $$
     FROM profiles p
     CROSS JOIN viewer_profile vp
     WHERE p.id NOT IN (SELECT blocked.id FROM blocked)
-      AND p.profile_published = true
+      AND p.profile_complete = true  -- Changed: Show all complete profiles to regular users (not just published ones)
       -- IMPORTANT: Only suggest profiles from same branch OR same school
       AND (
         p.branche = vp.u_branche
