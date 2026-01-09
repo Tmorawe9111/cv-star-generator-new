@@ -17,6 +17,7 @@ import { isPrivateEmail } from "@/lib/email-policy";
 interface ProfileCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   prefilledEmail: string;
   formData: any;
 }
@@ -24,6 +25,7 @@ interface ProfileCreationModalProps {
 export const ProfileCreationModal = ({ 
   isOpen, 
   onClose, 
+  onSuccess,
   prefilledEmail, 
   formData 
 }: ProfileCreationModalProps) => {
@@ -795,6 +797,10 @@ export const ProfileCreationModal = ({
             
             // Refresh the profile in auth context and navigate
             await refetchProfile();
+            
+            // Call onSuccess callback if provided (e.g., for modal completion)
+            onSuccess?.();
+            
             onClose();
             
             // Navigate back to job page if returnTo is set, otherwise to profile

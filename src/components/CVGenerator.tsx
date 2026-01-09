@@ -13,7 +13,11 @@ import CVStep4 from './cv-steps/CVStep4';
 import CVStep5 from './cv-steps/CVStep5';
 import CVStep6 from './cv-steps/CVStep6';
 import CVStep7 from './cv-steps/CVStep7';
-const CVGeneratorContent = () => {
+interface CVGeneratorContentProps {
+  onComplete?: () => void;
+}
+
+const CVGeneratorContent = ({ onComplete }: CVGeneratorContentProps = {}) => {
   const {
     currentStep,
     setCurrentStep,
@@ -90,7 +94,7 @@ const CVGeneratorContent = () => {
       case 6:
         return <CVStep6 />; // Final Review (optional, can be skipped)
       case 7:
-        return <CVStep7 />;
+        return <CVStep7 onComplete={onComplete} />;
       default:
         return <CVStep0 />;
     }
@@ -319,7 +323,7 @@ const CVGeneratorContent = () => {
     </div>
   );
 };
-const CVGenerator = () => {
-  return <CVGeneratorContent />;
+const CVGenerator = ({ onComplete }: { onComplete?: () => void } = {}) => {
+  return <CVGeneratorContent onComplete={onComplete} />;
 };
 export default CVGenerator;

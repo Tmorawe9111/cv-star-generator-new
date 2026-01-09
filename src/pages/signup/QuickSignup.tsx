@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CVGeneratorModal } from '@/components/modals/CVGeneratorModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ const QuickSignup = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locationInputValue, setLocationInputValue] = useState('');
+  const [showCVModal, setShowCVModal] = useState(false);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -172,19 +174,18 @@ const QuickSignup = () => {
 
         toast({
           title: "Registrierung erfolgreich",
-          description: "Jetzt können Sie Ihr Profil vervollständigen!",
+          description: "Vervollständige jetzt dein Profil!",
         });
 
-        // Redirect to CV generator for onboarding
-        if (data.user.email_confirmed_at) {
-          navigate('/cv-generator');
-        } else {
+        // Open CV Generator Modal instead of redirecting
+        setShowCVModal(true);
+        
+        // If email not confirmed, show additional toast
+        if (!data.user.email_confirmed_at) {
           toast({
             title: "E-Mail bestätigen",
             description: "Bitte überprüfen Sie Ihre E-Mails und bestätigen Sie Ihre E-Mail-Adresse.",
           });
-          // Still redirect to CV generator - they can continue after email confirmation
-          navigate('/cv-generator');
         }
       }
     } catch (error) {
@@ -416,6 +417,23 @@ const QuickSignup = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* CV Generator Modal - opens after successful signup */}
+      <CVGeneratorModal
+        open={showCVModal}
+        onClose={() => {
+          // Only allow closing if user explicitly wants to
+          if (window.confirm('Möchtest du wirklich abbrechen? Du kannst dein Profil später vervollständigen.')) {
+            setShowCVModal(false);
+            navigate('/mein-bereich');
+          }
+        }}
+        onComplete={() => {
+          // Profile is complete, close modal and navigate
+          setShowCVModal(false);
+          // Navigation happens in modal's handleComplete
+        }}
+      />
     </div>
   );
 };

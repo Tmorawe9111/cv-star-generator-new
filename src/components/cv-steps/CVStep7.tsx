@@ -11,7 +11,11 @@ import { trackCVDownloadError } from '@/lib/telemetry';
 import { cn } from '@/lib/utils';
 import confetti from 'canvas-confetti';
 
-const CVStep7 = () => {
+interface CVStep7Props {
+  onComplete?: () => void;
+}
+
+const CVStep7 = ({ onComplete }: CVStep7Props = {}) => {
   const { formData } = useCVForm();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(true);
@@ -267,6 +271,10 @@ const CVStep7 = () => {
         onClose={() => {
           localStorage.removeItem('creating-profile');
           setShowProfileModal(false);
+        }}
+        onSuccess={() => {
+          // Call onComplete when profile is successfully created
+          onComplete?.();
         }}
         prefilledEmail={formData.email || ''}
         formData={formData}
