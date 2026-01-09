@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CVGeneratorModal } from '@/components/modals/CVGeneratorModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { BRANCHES } from '@/lib/branches';
 import { LocationAutocomplete } from '@/components/Company/LocationAutocomplete';
+import confetti from 'canvas-confetti';
 
 const QUICK_SIGNUP_STORAGE_KEY = 'quick_signup_data';
 
@@ -42,6 +44,9 @@ const QuickSignup = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locationInputValue, setLocationInputValue] = useState('');
   const [showCVModal, setShowCVModal] = useState(false);
+  const [acceptedAGB, setAcceptedAGB] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -84,6 +89,15 @@ const QuickSignup = () => {
       toast({
         title: "Fehler",
         description: "Bitte füllen Sie alle Felder aus.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!acceptedAGB || !acceptedPrivacy) {
+      toast({
+        title: "Fehler",
+        description: "Bitte akzeptieren Sie die AGB und Datenschutzbestimmungen.",
         variant: "destructive"
       });
       return;
@@ -160,7 +174,35 @@ const QuickSignup = () => {
       }
 
       if (data.user) {
-        // Store quick signup data in localStorage for onboarding
+        // Create profile immediately with available data
+        const profileData = {
+          id: data.user.id,
+          vorname: formData.vorname,
+          nachname: formData.nachname,
+          email: formData.email,
+          plz: formData.plz,
+          ort: formData.ort,
+          branche: formData.branche,
+          status: formData.status,
+          profile_complete: false, // Will be set to true after CV completion
+          profile_published: false,
+        };
+
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert(profileData);
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          toast({
+            title: "Profil konnte nicht erstellt werden",
+            description: "Bitte versuchen Sie es erneut.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // Store quick signup data in localStorage for CV generator
         const quickSignupData = {
           vorname: formData.vorname,
           nachname: formData.nachname,
@@ -172,20 +214,57 @@ const QuickSignup = () => {
         };
         localStorage.setItem(QUICK_SIGNUP_STORAGE_KEY, JSON.stringify(quickSignupData));
 
-        toast({
-          title: "Registrierung erfolgreich",
-          description: "Vervollständige jetzt dein Profil!",
+        // Trigger Slack notification (non-blocking)
+        try {
+          await supabase.functions.invoke('slack-signup-notify', {
+            body: {
+              kind: 'user',
+              test: false,
+              source: 'QuickSignup.profileCreated',
+              user: {
+                firstName: formData.vorname,
+                lastName: formData.nachname,
+                industry: formData.branche,
+                zip: formData.plz,
+                city: formData.ort,
+                status: formData.status,
+              },
+            },
+          });
+        } catch (error) {
+          // Never block signup UX on Slack failures
+          console.error('Slack notification failed:', error);
+        }
+
+        // Trigger confetti
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
         });
 
-        // Open CV Generator Modal instead of redirecting
-        setShowCVModal(true);
+        toast({
+          title: "Profil erstellt! 🎉",
+          description: "Willkommen bei bevisible!",
+        });
+
+        // Show dashboard for 5 seconds
+        setShowDashboard(true);
+        navigate('/mein-bereich');
+
+        // After 5 seconds, open CV Generator Modal
+        setTimeout(() => {
+          setShowCVModal(true);
+        }, 5000);
         
         // If email not confirmed, show additional toast
         if (!data.user.email_confirmed_at) {
-          toast({
-            title: "E-Mail bestätigen",
-            description: "Bitte überprüfen Sie Ihre E-Mails und bestätigen Sie Ihre E-Mail-Adresse.",
-          });
+          setTimeout(() => {
+            toast({
+              title: "E-Mail bestätigen",
+              description: "Bitte überprüfen Sie Ihre E-Mails und bestätigen Sie Ihre E-Mail-Adresse.",
+            });
+          }, 6000);
         }
       }
     } catch (error) {
@@ -390,10 +469,46 @@ const QuickSignup = () => {
                 </div>
               </div>
 
+              {/* AGB & Datenschutz Checkboxes */}
+              <div className="space-y-2 pt-2">
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="agb"
+                    checked={acceptedAGB}
+                    onCheckedChange={(checked) => setAcceptedAGB(checked === true)}
+                    disabled={isSubmitting}
+                    className="mt-1"
+                  />
+                  <Label htmlFor="agb" className="text-xs leading-tight cursor-pointer">
+                    Ich akzeptiere die{' '}
+                    <a href="/agb" className="underline hover:text-foreground" target="_blank" rel="noopener noreferrer">
+                      AGB
+                    </a>
+                    {' '}*
+                  </Label>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="privacy"
+                    checked={acceptedPrivacy}
+                    onCheckedChange={(checked) => setAcceptedPrivacy(checked === true)}
+                    disabled={isSubmitting}
+                    className="mt-1"
+                  />
+                  <Label htmlFor="privacy" className="text-xs leading-tight cursor-pointer">
+                    Ich akzeptiere die{' '}
+                    <a href="/datenschutz" className="underline hover:text-foreground" target="_blank" rel="noopener noreferrer">
+                      Datenschutzbestimmungen
+                    </a>
+                    {' '}*
+                  </Label>
+                </div>
+              </div>
+
               <Button 
                 type="submit" 
                 className="w-full h-10 text-sm font-semibold mt-2" 
-                disabled={isSubmitting}
+                disabled={isSubmitting || !acceptedAGB || !acceptedPrivacy}
               >
                 {isSubmitting ? (
                   <>
@@ -404,20 +519,6 @@ const QuickSignup = () => {
                   'Jetzt registrieren'
                 )}
               </Button>
-
-              <div className="text-center text-xs text-muted-foreground pt-1">
-                <p>
-                  Mit der Registrierung stimmen Sie unseren{' '}
-                  <a href="/agb" className="underline hover:text-foreground" target="_blank" rel="noopener noreferrer">
-                    AGB
-                  </a>{' '}
-                  und{' '}
-                  <a href="/datenschutz" className="underline hover:text-foreground" target="_blank" rel="noopener noreferrer">
-                    Datenschutzbestimmungen
-                  </a>{' '}
-                  zu.
-                </p>
-              </div>
             </form>
           </CardContent>
         </Card>
