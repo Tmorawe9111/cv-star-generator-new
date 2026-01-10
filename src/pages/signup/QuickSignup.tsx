@@ -188,16 +188,20 @@ const QuickSignup = () => {
           profile_published: false,
         };
 
-        console.log('[QuickSignup] Creating profile with data:', profileData);
+        console.log('[QuickSignup] Creating/updating profile with data:', profileData);
 
+        // Use UPSERT (INSERT ... ON CONFLICT DO UPDATE) to handle existing profiles
         const { error: profileError, data: profileInsertData } = await supabase
           .from('profiles')
-          .insert(profileData)
+          .upsert(profileData, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          })
           .select()
           .single();
 
         if (profileError) {
-          console.error('Profile creation error:', profileError);
+          console.error('Profile creation/update error:', profileError);
           toast({
             title: "Profil konnte nicht erstellt werden",
             description: profileError.message || "Bitte versuchen Sie es erneut.",
@@ -206,7 +210,7 @@ const QuickSignup = () => {
           return;
         }
 
-        console.log('[QuickSignup] Profile created successfully:', profileInsertData);
+        console.log('[QuickSignup] Profile created/updated successfully:', profileInsertData);
 
         // Store quick signup data in localStorage for CV generator
         const quickSignupData = {
