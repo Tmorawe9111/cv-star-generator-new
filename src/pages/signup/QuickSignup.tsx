@@ -190,15 +190,49 @@ const QuickSignup = () => {
 
         console.log('[QuickSignup] Creating/updating profile with data:', profileData);
 
-        // Use UPSERT (INSERT ... ON CONFLICT DO UPDATE) to handle existing profiles
-        const { error: profileError, data: profileInsertData } = await supabase
+        // First check if profile already exists
+        const { data: existingProfile } = await supabase
           .from('profiles')
-          .upsert(profileData, {
-            onConflict: 'id',
-            ignoreDuplicates: false
-          })
-          .select()
+          .select('id')
+          .eq('id', data.user.id)
           .single();
+
+        let profileInsertData;
+        let profileError;
+
+        if (existingProfile) {
+          // Profile exists, update it
+          console.log('[QuickSignup] Profile exists, updating...');
+          const { error: updateError, data: updateData } = await supabase
+            .from('profiles')
+            .update({
+              vorname: formData.vorname.trim(),
+              nachname: formData.nachname.trim(),
+              email: formData.email.trim(),
+              plz: formData.plz.trim(),
+              ort: formData.ort.trim(),
+              branche: formData.branche,
+              status: formData.status,
+              // Don't overwrite profile_complete or profile_published if already set
+            })
+            .eq('id', data.user.id)
+            .select()
+            .single();
+          
+          profileError = updateError;
+          profileInsertData = updateData;
+        } else {
+          // Profile doesn't exist, create it
+          console.log('[QuickSignup] Profile does not exist, creating...');
+          const { error: insertError, data: insertData } = await supabase
+            .from('profiles')
+            .insert(profileData)
+            .select()
+            .single();
+          
+          profileError = insertError;
+          profileInsertData = insertData;
+        }
 
         if (profileError) {
           console.error('Profile creation/update error:', profileError);
