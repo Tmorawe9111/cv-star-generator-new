@@ -287,8 +287,16 @@ const QuickSignup = () => {
         // Set user name for popup
         setUserName(formData.vorname);
 
-        // Show profile created popup immediately
-        setShowProfileCreatedPopup(true);
+        // Show profile completion modal directly (skip ProfileCreatedPopup for now)
+        // Navigate to dashboard first
+        navigate('/mein-bereich');
+        // Small delay to ensure navigation completes, then open modal
+        setTimeout(() => {
+          setShowProfileCompletionModal(true);
+        }, 500);
+        
+        // Also show profile created popup (optional - can be removed if not needed)
+        // setShowProfileCreatedPopup(true);
         
         // If email not confirmed, show toast after popup
         if (!data.user.email_confirmed_at) {

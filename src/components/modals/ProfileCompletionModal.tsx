@@ -565,7 +565,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                             <SelectTrigger className={cn('bg-background h-10 md:h-11 text-sm md:text-base', !schule.schulform ? 'border-destructive' : '')}>
                               <SelectValue placeholder="Schulform wählen" />
                             </SelectTrigger>
-                            <SelectContent className="bg-background border shadow-lg z-50">
+                            <SelectContent className="bg-background border shadow-lg z-[10000]" position="popper">
                               {schulformOptions.map((option) => (
                                 <SelectItem key={option} value={option} className="hover:bg-muted">
                                   {option}
@@ -600,7 +600,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                             <SelectTrigger className="bg-background h-10 md:h-11 text-sm md:text-base">
                               <SelectValue placeholder="Abschluss wählen" />
                             </SelectTrigger>
-                            <SelectContent className="bg-background border shadow-lg z-50">
+                            <SelectContent className="bg-background border shadow-lg z-[10000]" position="popper">
                               {schulabschlussOptions.map((option) => (
                                 <SelectItem key={option} value={option} className="hover:bg-muted">
                                   {option}
@@ -646,7 +646,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                 <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
                                   <SelectValue placeholder="Jahr wählen" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[10000]" position="popper">
                                   {yearOptions.map((year) => (
                                     <SelectItem key={year} value={year.toString()}>
                                       {year}
@@ -666,7 +666,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                 <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
                                   <SelectValue placeholder="Jahr wählen" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[10000]" position="popper">
                                   {getAvailableSchulbildungBisYears(schule.zeitraum_von || '').map((year) => (
                                     <SelectItem key={year} value={year.toString()}>
                                       {year}
@@ -751,7 +751,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                             <SelectTrigger className={cn('bg-background h-10 md:h-11 text-sm md:text-base', !arbeit.art ? 'border-destructive' : '')}>
                               <SelectValue placeholder="Art wählen" />
                             </SelectTrigger>
-                            <SelectContent className="bg-background border shadow-lg z-50">
+                            <SelectContent className="bg-background border shadow-lg z-[10000]" position="popper">
                               <SelectItem value="Ausbildung">Ausbildung</SelectItem>
                               <SelectItem value="Praktikum">Praktikum</SelectItem>
                               <SelectItem value="Ferienjob">Ferienjob</SelectItem>
@@ -817,7 +817,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                 <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
                                   <SelectValue placeholder="Monat" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[10000]" position="popper">
                                   {monthOptions.map((month) => (
                                     <SelectItem key={month.value} value={month.value}>
                                       {month.label}
@@ -844,7 +844,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                 <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
                                   <SelectValue placeholder="Jahr" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[10000]" position="popper">
                                   {yearOptions.map((year) => (
                                     <SelectItem key={year} value={year.toString()}>
                                       {year}
@@ -888,7 +888,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                     <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
                                       <SelectValue placeholder="Monat" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="z-[10000]" position="popper">
                                       {bisOptions.availableMonths.map((month) => (
                                         <SelectItem key={month.value} value={month.value}>
                                           {month.label}
@@ -909,7 +909,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                     <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
                                       <SelectValue placeholder="Jahr" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="z-[10000]" position="popper">
                                       {bisOptions.availableYears.map((year) => (
                                         <SelectItem key={year} value={year.toString()}>
                                           {year}
