@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getSkillsForBranch } from '@/data/branchenSkills';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface SkillSelectorProps {
   selectedSkills: string[];
@@ -28,9 +30,11 @@ export const SkillSelector = ({
   className = ''
 }: SkillSelectorProps) => {
   const [customSkill, setCustomSkill] = useState('');
+  const isMobile = useIsMobile();
   
   // Get branch-specific skills
   const branchSkills = getSkillsForBranch(branch);
+  const availableSkills = branchSkills.filter(skill => !selectedSkills.includes(skill));
 
   const addSkill = (skillName: string) => {
     if (!skillName.trim()) return;
@@ -59,16 +63,38 @@ export const SkillSelector = ({
       </div>
       
       <div className="space-y-4">
+        {/* Mobile: Use Select Dropdown, Desktop: Use Combobox */}
+        {isMobile ? (
+          <Select
+            value=""
+            onValueChange={(value) => {
+              if (value) {
+                addSkill(value);
+              }
+            }}
+            disabled={selectedSkills.length >= maxSkills || availableSkills.length === 0}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={selectedSkills.length >= maxSkills ? "Maximum erreicht" : placeholder} />
+            </SelectTrigger>
+            <SelectContent className="z-[10000] max-h-[300px]">
+              {availableSkills.map((skill) => (
+                <SelectItem key={skill} value={skill}>
+                  {skill}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
           <Combobox
-            items={branchSkills
-              .filter(skill => !selectedSkills.includes(skill))
-              .map((skill) => ({ value: skill, label: skill }))}
+            items={availableSkills.map((skill) => ({ value: skill, label: skill }))}
             value={undefined}
             onChange={(value) => addSkill(value)}
             placeholder={selectedSkills.length >= maxSkills ? "Maximum erreicht" : placeholder}
             searchPlaceholder="Fähigkeit suchen..."
             disabled={selectedSkills.length >= maxSkills}
           />
+        )}
 
         {/* Custom Skill Input */}
         <div className="flex flex-col sm:flex-row gap-2">
