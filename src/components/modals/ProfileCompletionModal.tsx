@@ -69,19 +69,36 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
       // Load avatar
       if (profile.avatar_url) {
         setAvatarPreview(profile.avatar_url);
+      } else {
+        setAvatarPreview('');
       }
       // Load bio
       setBio(profile.uebermich || profile.bio || '');
       // Load schulbildung
       if (profile.schulbildung && Array.isArray(profile.schulbildung) && profile.schulbildung.length > 0) {
         setSchulbildung(profile.schulbildung as SchulbildungEntry[]);
+      } else {
+        setSchulbildung([
+          { schule: '', abschluss: '', ort: '', plz: '', zeitraum_von: '', zeitraum_bis: '', beschreibung: '' }
+        ]);
       }
       // Load berufserfahrung
       if (profile.berufserfahrung && Array.isArray(profile.berufserfahrung) && profile.berufserfahrung.length > 0) {
         setBerufserfahrung(profile.berufserfahrung as BerufserfahrungEntry[]);
+      } else {
+        setBerufserfahrung([
+          { titel: '', unternehmen: '', ort: '', zeitraum_von: '', zeitraum_bis: '', beschreibung: '', art: '' }
+        ]);
       }
     }
   }, [open, profile]);
+
+  // Reset step to 1 when modal opens (separate effect to avoid resetting when profile changes)
+  useEffect(() => {
+    if (open) {
+      setStep(1);
+    }
+  }, [open]);
 
   const handleAvatarSelect = async (file: File | null) => {
     if (!file) {
