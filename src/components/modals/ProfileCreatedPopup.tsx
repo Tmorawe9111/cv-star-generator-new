@@ -18,7 +18,7 @@ export const ProfileCreatedPopup: React.FC<ProfileCreatedPopupProps> = ({
   useEffect(() => {
     if (open) {
       // Trigger confetti animation when popup opens
-      const duration = 3000;
+      const duration = 2000; // Reduced to 2 seconds
       const animationEnd = Date.now() + duration;
       const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
 
@@ -49,8 +49,18 @@ export const ProfileCreatedPopup: React.FC<ProfileCreatedPopupProps> = ({
           origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
         });
       }, 250);
+
+      // Auto-continue after 2.5 seconds (show confetti, then open modal)
+      const autoContinueTimer = setTimeout(() => {
+        onContinue();
+      }, 2500);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(autoContinueTimer);
+      };
     }
-  }, [open]);
+  }, [open, onContinue]);
 
   return (
     <Dialog open={open} onOpenChange={() => {}} modal={true}>
