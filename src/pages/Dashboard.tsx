@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import CommunityFeed from '@/components/community/CommunityFeed';
 import { ComposerTeaser } from '@/components/dashboard/ComposerTeaser';
 import FeedSortBar from '@/components/community/FeedSortBar';
@@ -6,12 +6,43 @@ import { LeftPanel } from '@/components/dashboard/LeftPanel';
 import { RightPanel } from '@/components/dashboard/RightPanel';
 import { WelcomePopup } from '@/components/welcome/WelcomePopup';
 import { ValuesReminderBanner } from '@/components/reminders/ValuesReminderBanner';
+import { ProfileCompletionModal } from '@/components/modals/ProfileCompletionModal';
+import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard = () => {
+  const { profile, isLoading } = useAuth();
+  const [showProfileCompletionModal, setShowProfileCompletionModal] = useState(false);
+
+  // Show Profile Completion modal if profile is incomplete - always show until profile is complete
+  useEffect(() => {
+    if (!isLoading && profile) {
+      if (!profile.profile_complete) {
+        // Always show modal if profile is incomplete
+        setShowProfileCompletionModal(true);
+      } else {
+        // Close modal when profile is complete
+        setShowProfileCompletionModal(false);
+      }
+    }
+  }, [profile, isLoading]);
 
   return (
     <>
       <WelcomePopup type="user" />
+      {/* Profile Completion Modal for incomplete profiles */}
+      {profile && !profile.profile_complete && (
+        <ProfileCompletionModal
+          open={showProfileCompletionModal}
+          onClose={() => {
+            // Modal will only close when profile is complete
+            setShowProfileCompletionModal(false);
+          }}
+          onComplete={() => {
+            // Profile is complete, close modal
+            setShowProfileCompletionModal(false);
+          }}
+        />
+      )}
     <main className="w-full min-h-dvh pb-[56px] md:pb-0">
       <h1 className="sr-only">Dashboard</h1>
       

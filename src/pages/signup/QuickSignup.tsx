@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CVGeneratorModal } from '@/components/modals/CVGeneratorModal';
+import { ProfileCompletionModal } from '@/components/modals/ProfileCompletionModal';
+import { ProfileCreatedPopup } from '@/components/modals/ProfileCreatedPopup';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,6 @@ import { Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { BRANCHES } from '@/lib/branches';
 import { LocationAutocomplete } from '@/components/Company/LocationAutocomplete';
-import confetti from 'canvas-confetti';
 
 const QUICK_SIGNUP_STORAGE_KEY = 'quick_signup_data';
 
@@ -43,10 +43,11 @@ const QuickSignup = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locationInputValue, setLocationInputValue] = useState('');
-  const [showCVModal, setShowCVModal] = useState(false);
+  const [showProfileCreatedPopup, setShowProfileCreatedPopup] = useState(false);
+  const [showProfileCompletionModal, setShowProfileCompletionModal] = useState(false);
   const [acceptedAGB, setAcceptedAGB] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [userName, setUserName] = useState<string>('');
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -260,7 +261,7 @@ const QuickSignup = () => {
 
         // Trigger Slack notification (non-blocking)
         try {
-          await supabase.functions.invoke('slack-signup-notify', {
+          const { error: slackError } = await supabase.functions.invoke('slack-signup-notify', {
             body: {
               kind: 'user',
               test: false,
@@ -275,40 +276,28 @@ const QuickSignup = () => {
               },
             },
           });
+          if (slackError) {
+            console.error('Slack notification error:', slackError);
+          }
         } catch (error) {
           // Never block signup UX on Slack failures
           console.error('Slack notification failed:', error);
         }
 
-        // Trigger confetti
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
+        // Set user name for popup
+        setUserName(formData.vorname);
 
-        toast({
-          title: "Profil erstellt! 🎉",
-          description: "Willkommen bei bevisible!",
-        });
-
-        // Show dashboard for 5 seconds
-        setShowDashboard(true);
-        navigate('/mein-bereich');
-
-        // After 5 seconds, open CV Generator Modal
-        setTimeout(() => {
-          setShowCVModal(true);
-        }, 5000);
+        // Show profile created popup immediately
+        setShowProfileCreatedPopup(true);
         
-        // If email not confirmed, show additional toast
+        // If email not confirmed, show toast after popup
         if (!data.user.email_confirmed_at) {
           setTimeout(() => {
             toast({
               title: "E-Mail bestätigen",
               description: "Bitte überprüfen Sie Ihre E-Mails und bestätigen Sie Ihre E-Mail-Adresse.",
             });
-          }, 6000);
+          }, 2000);
         }
       }
     } catch (error) {
@@ -568,20 +557,31 @@ const QuickSignup = () => {
         </Card>
       </div>
       
-      {/* CV Generator Modal - opens after successful signup */}
-      <CVGeneratorModal
-        open={showCVModal}
+      {/* Profile Created Popup - shows first after signup */}
+      <ProfileCreatedPopup
+        open={showProfileCreatedPopup}
+        userName={userName}
+        onContinue={() => {
+          setShowProfileCreatedPopup(false);
+          // Navigate to dashboard first, then open Profile Completion Modal
+          navigate('/mein-bereich');
+          // Small delay to ensure navigation completes
+          setTimeout(() => {
+            setShowProfileCompletionModal(true);
+          }, 300);
+        }}
+      />
+
+      {/* Profile Completion Modal - opens after clicking continue on ProfileCreatedPopup */}
+      <ProfileCompletionModal
+        open={showProfileCompletionModal}
         onClose={() => {
-          // Only allow closing if user explicitly wants to
-          if (window.confirm('Möchtest du wirklich abbrechen? Du kannst dein Profil später vervollständigen.')) {
-            setShowCVModal(false);
-            navigate('/mein-bereich');
-          }
+          // Modal will only close when profile is complete
+          setShowProfileCompletionModal(false);
         }}
         onComplete={() => {
-          // Profile is complete, close modal and navigate
-          setShowCVModal(false);
-          // Navigation happens in modal's handleComplete
+          // Profile is complete, close modal
+          setShowProfileCompletionModal(false);
         }}
       />
     </div>
