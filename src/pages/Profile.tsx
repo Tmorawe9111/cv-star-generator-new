@@ -31,6 +31,7 @@ import { Switch } from '@/components/ui/switch';
 import { InView } from '@/components/util/InView';
 import { checkProfileUniqueness } from '@/lib/profile-validation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ProfileCompletionModal } from '@/components/modals/ProfileCompletionModal';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -50,6 +51,7 @@ const Profile = () => {
   const [mobileInfoModal, setMobileInfoModal] = useState<null | 'contact' | 'activity'>(null);
   const [showLayoutSelector, setShowLayoutSelector] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [showProfileCompletionModal, setShowProfileCompletionModal] = useState(false);
 
   // All hooks must be called before any conditional returns
   const handleProfileUpdateImmediate = useCallback(async (updates: any) => {
@@ -139,6 +141,15 @@ const Profile = () => {
       setIsSaving(false);
     }
   }, [profile?.id, profile?.email, profile?.telefon]);
+
+  // Show ProfileCompletionModal if profile is incomplete
+  useEffect(() => {
+    if (!isLoading && profile && !profile.profile_complete) {
+      setShowProfileCompletionModal(true);
+    } else if (!isLoading && profile && profile.profile_complete) {
+      setShowProfileCompletionModal(false);
+    }
+  }, [profile, isLoading]);
 
   // Simple profile update without debouncing for form submissions
   const handleProfileUpdate = handleProfileUpdateImmediate;
@@ -806,6 +817,21 @@ const Profile = () => {
             setShowPreview(false);
           }} 
           onClose={() => setShowPreview(false)} 
+        />
+      )}
+
+      {/* Profile Completion Modal for incomplete profiles */}
+      {profile && !profile.profile_complete && (
+        <ProfileCompletionModal
+          open={showProfileCompletionModal}
+          onClose={() => {
+            setShowProfileCompletionModal(false);
+          }}
+          onComplete={async () => {
+            // Profile is complete, refresh profile data
+            await refetchProfile();
+            setShowProfileCompletionModal(false);
+          }}
         />
       )}
     </div>
