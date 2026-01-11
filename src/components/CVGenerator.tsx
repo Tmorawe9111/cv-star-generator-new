@@ -15,9 +15,10 @@ import CVStep6 from './cv-steps/CVStep6';
 import CVStep7 from './cv-steps/CVStep7';
 interface CVGeneratorContentProps {
   onComplete?: () => void;
+  skipWelcomeStep?: boolean;
 }
 
-const CVGeneratorContent = ({ onComplete }: CVGeneratorContentProps = {}) => {
+const CVGeneratorContent = ({ onComplete, skipWelcomeStep = false }: CVGeneratorContentProps = {}) => {
   const {
     currentStep,
     setCurrentStep,
@@ -34,6 +35,9 @@ const CVGeneratorContent = ({ onComplete }: CVGeneratorContentProps = {}) => {
   const returnTo = searchParams.get('returnTo');
   const startTimeRef = useRef<number>(Date.now());
   const stepContentRef = useRef<HTMLDivElement | null>(null);
+  
+  // Check if we're inside a modal (not on /cv-generator route)
+  const isInModal = location.pathname !== '/cv-generator';
   const stepNames: Record<number, string> = {
     0: 'Willkommen',
     1: 'Persönliche Daten',
@@ -54,6 +58,14 @@ const CVGeneratorContent = ({ onComplete }: CVGeneratorContentProps = {}) => {
       trackButtonClick('CV Generator Start', 'cv_generator');
     }
   }, [location.pathname, setLayoutEditMode]);
+
+  // Skip welcome step if skipWelcomeStep is true and we're at step 0
+  useEffect(() => {
+    if (skipWelcomeStep && currentStep === 0 && !isLayoutEditMode) {
+      // Skip to step 3 (Beruflicher Werdegang) since profile is already complete
+      setCurrentStep(3);
+    }
+  }, [skipWelcomeStep, currentStep, isLayoutEditMode, setCurrentStep]);
 
   // Track step changes
   useEffect(() => {
@@ -218,7 +230,11 @@ const CVGeneratorContent = ({ onComplete }: CVGeneratorContentProps = {}) => {
 
   return (
     // Use dvh to behave correctly on iOS Safari (URL bar / keyboard)
-    <div className="min-h-[100dvh] h-[100dvh] bg-background overflow-hidden flex flex-col" data-cv-preview>
+    // If in modal, use 100% height instead of 100dvh
+    <div 
+      className={`${isInModal ? 'h-full min-h-0' : 'min-h-[100dvh] h-[100dvh]'} bg-background overflow-hidden flex flex-col`}
+      data-cv-preview
+    >
       <div className="flex-1 flex flex-col overflow-hidden container mx-auto px-3 md:px-4 max-w-full md:max-w-2xl w-full">
         {/* Header (Apple-style, minimal height) */}
         <div className="flex-shrink-0 z-30 bg-background/90 backdrop-blur border-b py-2">

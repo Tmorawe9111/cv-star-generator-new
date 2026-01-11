@@ -145,6 +145,23 @@ interface CVFormContextType {
 
 const CVFormContext = createContext<CVFormContextType | undefined>(undefined);
 
+// Helper function to find the first incomplete step
+const findFirstIncompleteStep = (data: CVFormData): number => {
+  // Step 1: Branch & Status
+  if (!data.branche || !data.status) return 1;
+  
+  // Step 2: Personal Data (vorname, nachname, plz, ort, email, telefon are required)
+  // Skip step 2 check for profilbild and has_drivers_license as they might not be set yet from QuickSignup
+  if (!data.vorname || !data.nachname || !data.plz || !data.ort || !data.email || !data.telefon) return 2;
+  
+  // Step 3: Beruflicher Werdegang (Step 3 in render, but case 3 in validation)
+  // This step requires status-specific fields
+  // We'll let the user go to step 3 even if not all fields are filled
+  
+  // Default to step 3 if steps 1 and 2 are complete
+  return 3;
+};
+
 export const CVFormProvider = ({ children }: { children: ReactNode }) => {
   const { user, profile } = useAuthForCV();
   
@@ -156,7 +173,41 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
   const [currentStep, setCurrentStep] = useState(() => {
     // Check if we're in layout edit mode
     const isLayoutEdit = localStorage.getItem('cvLayoutEditMode') === 'true';
-    return isLayoutEdit ? 5 : 1;
+    if (isLayoutEdit) return 5;
+    
+    // Check for initial data to determine starting step
+    const savedData = localStorage.getItem('cvFormData');
+    const quickSignupData = localStorage.getItem('quick_signup_data');
+    
+    let initialData: any = {};
+    if (savedData) {
+      try {
+        initialData = JSON.parse(savedData);
+      } catch (e) {
+        // ignore
+      }
+    }
+    
+    if (quickSignupData) {
+      try {
+        const parsedQuickSignup = JSON.parse(quickSignupData);
+        initialData = {
+          ...initialData,
+          vorname: parsedQuickSignup.vorname || initialData.vorname,
+          nachname: parsedQuickSignup.nachname || initialData.nachname,
+          plz: parsedQuickSignup.plz || initialData.plz,
+          ort: parsedQuickSignup.ort || initialData.ort,
+          email: parsedQuickSignup.email || initialData.email,
+          branche: parsedQuickSignup.branche || initialData.branche,
+          status: parsedQuickSignup.status || initialData.status,
+        };
+      } catch (e) {
+        // ignore
+      }
+    }
+    
+    // Find first incomplete step
+    return findFirstIncompleteStep(initialData);
   });
   
   const [isLayoutEditMode, setLayoutEditMode] = useState(() => {
@@ -219,6 +270,14 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
 
     if (Object.keys(initialData).length > 0) {
       setFormData(initialData);
+      // Update current step based on loaded data
+      const firstIncompleteStep = findFirstIncompleteStep(initialData);
+      if (firstIncompleteStep !== currentStep) {
+        const isLayoutEdit = localStorage.getItem('cvLayoutEditMode') === 'true';
+        if (!isLayoutEdit) {
+          setCurrentStep(firstIncompleteStep);
+        }
+      }
     }
   }, []);
 
@@ -246,8 +305,34 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
       console.log('Loading complete profile data to CV form:', profile);
       const profileData = loadProfileDataToCV(profile);
       setFormData(profileData);
+      // Update step to skip already completed steps (Step 1 and 2 are already done)
+      const firstIncompleteStep = findFirstIncompleteStep(profileData);
+      // Skip Step 0 (Welcome) and Step 1 (Branch & Status) and Step 2 (Personal Data) if already filled
+      // Start at Step 3 (Beruflicher Werdegang) or later
+      if (firstIncompleteStep <= 2) {
+        setCurrentStep(3); // Start at Beruflicher Werdegang
+      } else {
+        setCurrentStep(firstIncompleteStep);
+      }
     }
   };
+
+  // Auto-load profile data when profile is complete and form is empty
+  useEffect(() => {
+    if (profile && user && profile.profile_complete && Object.keys(formData).length === 0) {
+      console.log('Auto-loading profile data to CV form (profile is complete, form is empty)');
+      const profileData = loadProfileDataToCV(profile);
+      setFormData(profileData);
+      // Update step to skip already completed steps (Step 0, 1, 2 are already done)
+      const firstIncompleteStep = findFirstIncompleteStep(profileData);
+      // Skip Step 0 (Welcome), Step 1 (Branch & Status), and Step 2 (Personal Data) if already filled
+      if (firstIncompleteStep <= 2) {
+        setCurrentStep(3); // Start at Beruflicher Werdegang (Step 3)
+      } else {
+        setCurrentStep(firstIncompleteStep);
+      }
+    }
+  }, [profile?.profile_complete, profile?.id, user?.id, formData]);
 
   // Sync form data to profile (only when user is logged in)
   const syncToProfile = async () => {

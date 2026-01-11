@@ -251,7 +251,8 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
 
       await refetchProfile();
       onComplete?.();
-      onClose();
+      // Don't close immediately - let the parent component handle showing CV creation prompt
+      // onClose();
     } catch (error) {
       console.error('Error saving profile:', error);
       toast({

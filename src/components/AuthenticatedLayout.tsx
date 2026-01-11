@@ -43,15 +43,7 @@ export function AuthenticatedLayout() {
     return <Navigate to="/auth" replace />;
   }
 
-  // Check if user has complete CV profile for dashboard access
-  const isDashboardRoute = location.pathname === '/dashboard' || 
-                          location.pathname === '/startseite' ||
-                          location.pathname === '/mein-bereich';
-  
-  if (isDashboardRoute && (!profile || !profile.profile_complete)) {
-    // Redirect to CV generator if profile is incomplete
-    return <Navigate to="/cv-generator" replace />;
-  }
+  // Don't redirect - let Dashboard handle showing the modal for incomplete profiles
 
   return (
     <div className="min-h-screen flex w-full">

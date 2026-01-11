@@ -7,11 +7,15 @@ import { RightPanel } from '@/components/dashboard/RightPanel';
 import { WelcomePopup } from '@/components/welcome/WelcomePopup';
 import { ValuesReminderBanner } from '@/components/reminders/ValuesReminderBanner';
 import { ProfileCompletionModal } from '@/components/modals/ProfileCompletionModal';
+import { CVCreationPromptModal } from '@/components/modals/CVCreationPromptModal';
+import { CVGeneratorModal } from '@/components/modals/CVGeneratorModal';
 import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard = () => {
   const { profile, isLoading } = useAuth();
   const [showProfileCompletionModal, setShowProfileCompletionModal] = useState(false);
+  const [showCVCreationPrompt, setShowCVCreationPrompt] = useState(false);
+  const [showCVGeneratorModal, setShowCVGeneratorModal] = useState(false);
 
   // Show Profile Completion modal if profile is incomplete - always show until profile is complete
   useEffect(() => {
@@ -19,9 +23,14 @@ const Dashboard = () => {
       if (!profile.profile_complete) {
         // Always show modal if profile is incomplete
         setShowProfileCompletionModal(true);
+        setShowCVCreationPrompt(false);
       } else {
         // Close modal when profile is complete
         setShowProfileCompletionModal(false);
+        // Show CV creation prompt if profile is complete but CV doesn't exist
+        if (profile.profile_complete && !profile.cv_url) {
+          setShowCVCreationPrompt(true);
+        }
       }
     }
   }, [profile, isLoading]);
@@ -40,6 +49,39 @@ const Dashboard = () => {
           onComplete={() => {
             // Profile is complete, close modal
             setShowProfileCompletionModal(false);
+            // Show CV creation prompt after profile is complete
+            setTimeout(() => {
+              setShowCVCreationPrompt(true);
+            }, 500);
+          }}
+        />
+      )}
+
+      {/* CV Creation Prompt Modal - shows after profile is complete */}
+      {profile && profile.profile_complete && !profile.cv_url && (
+        <CVCreationPromptModal
+          open={showCVCreationPrompt}
+          onContinue={() => {
+            setShowCVCreationPrompt(false);
+            setTimeout(() => {
+              setShowCVGeneratorModal(true);
+            }, 300);
+          }}
+          onClose={() => {
+            setShowCVCreationPrompt(false);
+          }}
+        />
+      )}
+
+      {/* CV Generator Modal */}
+      {profile && profile.profile_complete && (
+        <CVGeneratorModal
+          open={showCVGeneratorModal}
+          onClose={() => {
+            setShowCVGeneratorModal(false);
+          }}
+          onComplete={() => {
+            setShowCVGeneratorModal(false);
           }}
         />
       )}

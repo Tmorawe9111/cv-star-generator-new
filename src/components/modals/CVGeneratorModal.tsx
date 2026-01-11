@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CVFormProvider } from '@/contexts/CVFormContext';
 import CVGenerator from '@/components/CVGenerator';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 interface CVGeneratorModalProps {
   open: boolean;
@@ -16,42 +17,73 @@ export const CVGeneratorModal: React.FC<CVGeneratorModalProps> = ({
   onComplete 
 }) => {
   const navigate = useNavigate();
+  const { profile, refetchProfile } = useAuth();
   const [isComplete, setIsComplete] = useState(false);
+
+  // Check if profile is complete and close modal automatically
+  useEffect(() => {
+    if (open && profile?.profile_complete) {
+      setIsComplete(true);
+      onComplete?.();
+      // Close modal and redirect to dashboard after short delay
+      setTimeout(() => {
+        onClose();
+        navigate('/mein-bereich');
+      }, 1500);
+    }
+  }, [open, profile?.profile_complete, onComplete, onClose, navigate]);
+
+  // Poll for profile updates while modal is open
+  useEffect(() => {
+    if (!open || isComplete) return;
+
+    const interval = setInterval(() => {
+      refetchProfile();
+    }, 2000); // Check every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [open, isComplete, refetchProfile]);
 
   const handleComplete = () => {
     setIsComplete(true);
     onComplete?.();
-    // Close modal and redirect to dashboard after short delay
-    setTimeout(() => {
-      onClose();
-      navigate('/mein-bereich');
-    }, 1500);
+    // Refetch profile to check if it's complete
+    refetchProfile().then(() => {
+      // Close modal and redirect to dashboard after short delay
+      setTimeout(() => {
+        onClose();
+        navigate('/mein-bereich');
+      }, 1500);
+    });
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen && !isComplete) {
-      // Warn user if they try to close before completing
-      if (window.confirm('Möchtest du wirklich abbrechen? Dein Profil ist noch nicht vollständig.')) {
-        onClose();
-      }
-    } else if (!newOpen && isComplete) {
+    // Never allow closing the modal until profile is complete
+    if (!newOpen && !isComplete && !profile?.profile_complete) {
+      // Modal cannot be closed - profile must be completed first
+      return;
+    } else if (!newOpen && (isComplete || profile?.profile_complete)) {
       onClose();
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
-          <DialogTitle className="text-2xl">Vervollständige dein Profil</DialogTitle>
-          <p className="text-sm text-muted-foreground mt-2">
-            Fülle die folgenden Felder aus, um dein Profil zu vervollständigen.
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={true}>
+      <DialogContent 
+        className="w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-4xl md:max-w-6xl lg:max-w-7xl max-h-[95vh] sm:max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b flex-shrink-0">
+          <DialogTitle className="text-lg sm:text-xl md:text-2xl">CV erstellen</DialogTitle>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
+            Erstelle deinen Lebenslauf Schritt für Schritt. Deine bereits ausgefüllten Profildaten werden automatisch übernommen.
           </p>
         </DialogHeader>
-        <div className="overflow-y-auto px-6 pb-6" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+        <div className="flex-1 min-h-0 overflow-hidden">
           <CVFormProvider>
-            {/* CVGenerator is used directly without CVGeneratorGate since user just signed up */}
-            <CVGenerator onComplete={handleComplete} />
+            {/* CVGenerator is used directly - profile data will be auto-loaded if profile is complete */}
+            <CVGenerator onComplete={handleComplete} skipWelcomeStep={true} />
           </CVFormProvider>
         </div>
       </DialogContent>
