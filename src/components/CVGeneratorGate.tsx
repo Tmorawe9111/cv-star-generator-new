@@ -61,7 +61,7 @@ export const CVGeneratorGate = ({ children }: { children: React.ReactNode }) => 
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-muted-foreground">
-              Um den Lebenslauf Generator zu nutzen, müssen Sie zunächst Ihr Profil vervollständigen.
+              Um BeVisiblle zu nutzen, müssen Sie zunächst Ihr Profil vervollständigen.
             </p>
             <div className="space-y-2">
               <Button 
