@@ -1358,30 +1358,36 @@ export default function MarketplaceMobile() {
         />
         <div
           data-hscroll="true"
-          className="overflow-x-auto scroll-smooth"
+          className="overflow-x-auto scroll-smooth snap-x snap-mandatory"
           style={{ 
             WebkitOverflowScrolling: 'touch',
-            touchAction: 'pan-x',
+            touchAction: 'pan-x pinch-zoom',
             overscrollBehaviorX: 'contain',
             scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
+            msOverflowStyle: 'none',
+            scrollSnapType: 'x mandatory'
           }}
         >
           <div className="flex gap-3 px-4 pb-2" style={{ width: 'max-content' }}>
             {forYouItems.length > 0 ? forYouItems.map(({ item, type }, index) => (
               <div 
                 key={item.id}
-                className="animate-in fade-in slide-in-from-right-4 duration-300"
-                style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' }}
+                className="snap-center"
+                style={{ scrollSnapAlign: 'center' }}
               >
-                <ForYouCard 
-                  item={item}
-                  type={type}
-                  index={index}
-                  onAction={() => type === 'person' ? onConnect(item.id) : {}}
-                  actionLabel={type === 'person' ? 'Vernetzen' : 'Folgen'}
-                  actionDone={type === 'person' && statusMap[item.id] === 'accepted'}
-                />
+                <div 
+                  className="animate-in fade-in slide-in-from-right-4 duration-300"
+                  style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' }}
+                >
+                  <ForYouCard 
+                    item={item}
+                    type={type}
+                    index={index}
+                    onAction={() => type === 'person' ? onConnect(item.id) : {}}
+                    actionLabel={type === 'person' ? 'Vernetzen' : 'Folgen'}
+                    actionDone={type === 'person' && statusMap[item.id] === 'accepted'}
+                  />
+                </div>
               </div>
             )) : (
               <p className="text-sm text-gray-400 px-2">Keine Vorschläge</p>
@@ -1400,21 +1406,26 @@ export default function MarketplaceMobile() {
           />
           <div
             data-hscroll="true"
-            className="overflow-x-auto scroll-smooth"
+            className="overflow-x-auto scroll-smooth snap-x snap-mandatory"
             style={{ 
               WebkitOverflowScrolling: 'touch',
-              touchAction: 'pan-x',
+              touchAction: 'pan-x pinch-zoom',
               overscrollBehaviorX: 'contain',
               scrollbarWidth: 'none',
-              msOverflowStyle: 'none'
+              msOverflowStyle: 'none',
+              scrollSnapType: 'x mandatory'
             }}
           >
             <div className="flex gap-3 px-4 pb-2" style={{ width: 'max-content' }}>
               {allCompanies.slice(0, 8).map((company, idx) => (
                 <div 
                   key={company.id}
-                  className="animate-in fade-in slide-in-from-right-4 duration-300"
-                  style={{ animationDelay: `${idx * 50}ms`, animationFillMode: 'backwards' }}
+                  className="snap-center animate-in fade-in slide-in-from-right-4 duration-300"
+                  style={{ 
+                    animationDelay: `${idx * 50}ms`, 
+                    animationFillMode: 'backwards',
+                    scrollSnapAlign: 'center'
+                  }}
                 >
                   <CompanyCard company={company} index={idx} />
                 </div>
@@ -1448,6 +1459,13 @@ export default function MarketplaceMobile() {
               <style>{`
                 [data-hscroll="true"]::-webkit-scrollbar {
                   display: none;
+                }
+                [data-hscroll="true"] {
+                  -webkit-overflow-scrolling: touch;
+                  scroll-behavior: smooth;
+                }
+                [data-hscroll="true"] > * {
+                  will-change: transform;
                 }
               `}</style>
               <div className="flex gap-3" style={{ width: `${posts.slice(0, 5).length * 296}px` }}>
@@ -1500,25 +1518,31 @@ export default function MarketplaceMobile() {
         />
         <div
           data-hscroll="true"
-          className="overflow-x-auto scroll-smooth"
+          className="overflow-x-auto scroll-smooth snap-x snap-mandatory"
           style={{ 
             WebkitOverflowScrolling: 'touch',
-            touchAction: 'pan-x',
+            touchAction: 'pan-x pinch-zoom',
             overscrollBehaviorX: 'contain',
             scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
+            msOverflowStyle: 'none',
+            scrollSnapType: 'x mandatory'
           }}
         >
           <div className="flex gap-3 px-4 pb-2" style={{ width: 'max-content' }}>
             {(jobs.length > 0 ? jobs : DUMMY_JOBS).slice(0, 6).map((job) => (
-              <JobCard 
-                key={job.id} 
-                job={job} 
-                companyName={companyMap[job.company_id]?.name || (job.id.startsWith('demo') ? 'Top Unternehmen' : undefined)}
-                companyLogo={companyMap[job.company_id]?.logo_url}
-                application={applicationsByJobId[job.id] ?? null}
-                onApply={(j) => setApplyJob(j)}
-              />
+              <div 
+                key={job.id}
+                className="snap-center"
+                style={{ scrollSnapAlign: 'center' }}
+              >
+                <JobCard 
+                  job={job} 
+                  companyName={companyMap[job.company_id]?.name || (job.id.startsWith('demo') ? 'Top Unternehmen' : undefined)}
+                  companyLogo={companyMap[job.company_id]?.logo_url}
+                  application={applicationsByJobId[job.id] ?? null}
+                  onApply={(j) => setApplyJob(j)}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -1533,19 +1557,24 @@ export default function MarketplaceMobile() {
         />
         <div
           data-hscroll="true"
-          className="overflow-x-auto scroll-smooth"
+          className="overflow-x-auto scroll-smooth snap-x snap-mandatory"
           style={{ 
             WebkitOverflowScrolling: 'touch',
-            touchAction: 'pan-x',
+            touchAction: 'pan-x pinch-zoom',
             overscrollBehaviorX: 'contain',
             scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
+            msOverflowStyle: 'none',
+            scrollSnapType: 'x mandatory'
           }}
         >
           <div className="flex gap-3 px-4 pb-2" style={{ width: 'max-content' }}>
             {peopleQuery.isLoading ? (
               [1,2,3,4].map(i => (
-                <div key={i} className="min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 animate-pulse">
+                <div 
+                  key={i} 
+                  className="snap-center min-w-[160px] w-[160px] h-[200px] bg-white rounded-2xl p-3 animate-pulse"
+                  style={{ scrollSnapAlign: 'center' }}
+                >
                   <div className="h-14 w-14 rounded-full bg-gray-200 mx-auto mb-2" />
                   <div className="h-4 w-20 bg-gray-200 rounded mx-auto mb-2" />
                   <div className="h-3 w-16 bg-gray-200 rounded mx-auto" />
@@ -1555,8 +1584,12 @@ export default function MarketplaceMobile() {
               allPeople.slice(0, 10).map((person, idx) => (
                 <div 
                   key={person.id}
-                  className="animate-in fade-in slide-in-from-right-4 duration-300"
-                  style={{ animationDelay: `${idx * 50}ms`, animationFillMode: 'backwards' }}
+                  className="snap-center animate-in fade-in slide-in-from-right-4 duration-300"
+                  style={{ 
+                    animationDelay: `${idx * 50}ms`, 
+                    animationFillMode: 'backwards',
+                    scrollSnapAlign: 'center'
+                  }}
                 >
                   <PersonCard 
                     person={person}
