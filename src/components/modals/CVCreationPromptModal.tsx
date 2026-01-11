@@ -21,7 +21,7 @@ export const CVCreationPromptModal: React.FC<CVCreationPromptModalProps> = ({
       }
     }} modal={true}>
       <DialogContent 
-        className="sm:max-w-md"
+        className="w-[95vw] max-w-[95vw] sm:max-w-md mx-auto"
         onInteractOutside={(e) => {
           // Allow closing by clicking outside
           if (onClose) {

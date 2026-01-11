@@ -60,10 +60,12 @@ const CVGeneratorContent = ({ onComplete, skipWelcomeStep = false }: CVGenerator
   }, [location.pathname, setLayoutEditMode]);
 
   // Skip welcome step if skipWelcomeStep is true and we're at step 0
+  // But let CVFormContext determine the correct starting step based on existing data
   useEffect(() => {
     if (skipWelcomeStep && currentStep === 0 && !isLayoutEditMode) {
-      // Skip to step 3 (Beruflicher Werdegang) since profile is already complete
-      setCurrentStep(3);
+      // Don't force step 3 - let CVFormContext determine the correct step
+      // It will automatically skip to the first incomplete step based on profile data
+      // This ensures all missing fields are asked
     }
   }, [skipWelcomeStep, currentStep, isLayoutEditMode, setCurrentStep]);
 

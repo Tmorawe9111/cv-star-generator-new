@@ -20,18 +20,17 @@ export const CVGeneratorModal: React.FC<CVGeneratorModalProps> = ({
   const { profile, refetchProfile } = useAuth();
   const [isComplete, setIsComplete] = useState(false);
 
-  // Check if profile is complete and close modal automatically
+  // Check if CV is created (cv_url exists) and close modal automatically
   useEffect(() => {
-    if (open && profile?.profile_complete) {
+    if (open && profile?.cv_url) {
       setIsComplete(true);
       onComplete?.();
-      // Close modal and redirect to dashboard after short delay
+      // Close modal after short delay when CV is created
       setTimeout(() => {
         onClose();
-        navigate('/mein-bereich');
       }, 1500);
     }
-  }, [open, profile?.profile_complete, onComplete, onClose, navigate]);
+  }, [open, profile?.cv_url, onComplete, onClose]);
 
   // Poll for profile updates while modal is open
   useEffect(() => {
@@ -58,11 +57,8 @@ export const CVGeneratorModal: React.FC<CVGeneratorModalProps> = ({
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    // Never allow closing the modal until profile is complete
-    if (!newOpen && !isComplete && !profile?.profile_complete) {
-      // Modal cannot be closed - profile must be completed first
-      return;
-    } else if (!newOpen && (isComplete || profile?.profile_complete)) {
+    // Allow closing the modal - user can close it manually
+    if (!newOpen) {
       onClose();
     }
   };
@@ -70,9 +66,15 @@ export const CVGeneratorModal: React.FC<CVGeneratorModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange} modal={true}>
       <DialogContent 
-        className="w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-4xl md:max-w-6xl lg:max-w-7xl max-h-[95vh] sm:max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col"
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        className="w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-4xl md:max-w-6xl lg:max-w-7xl max-h-[95vh] sm:max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col mx-auto"
+        onInteractOutside={(e) => {
+          // Allow closing by clicking outside
+          onClose();
+        }}
+        onEscapeKeyDown={(e) => {
+          // Allow closing with Escape key
+          onClose();
+        }}
       >
         <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b flex-shrink-0">
           <DialogTitle className="text-lg sm:text-xl md:text-2xl">CV erstellen</DialogTitle>

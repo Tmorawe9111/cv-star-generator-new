@@ -147,6 +147,7 @@ const CVFormContext = createContext<CVFormContextType | undefined>(undefined);
 
 // Helper function to find the first incomplete step
 const findFirstIncompleteStep = (data: CVFormData): number => {
+  // Step 0: Welcome (always skip if profile is complete)
   // Step 1: Branch & Status
   if (!data.branche || !data.status) return 1;
   
@@ -154,12 +155,18 @@ const findFirstIncompleteStep = (data: CVFormData): number => {
   // Skip step 2 check for profilbild and has_drivers_license as they might not be set yet from QuickSignup
   if (!data.vorname || !data.nachname || !data.plz || !data.ort || !data.email || !data.telefon) return 2;
   
-  // Step 3: Beruflicher Werdegang (Step 3 in render, but case 3 in validation)
-  // This step requires status-specific fields
-  // We'll let the user go to step 3 even if not all fields are filled
+  // Step 3: Beruflicher Werdegang (Schulbildung, Berufserfahrung)
+  // Check if we have at least some data, but still allow user to add more
+  // If we have data from profile, we can start here, but user can still add more entries
   
-  // Default to step 3 if steps 1 and 2 are complete
-  return 3;
+  // Step 4: Kenntnisse & Motivation (Fähigkeiten, Sprachen, Motivation)
+  // Check if we have at least some data
+  if (!data.faehigkeiten || data.faehigkeiten.length === 0) return 4;
+  if (!data.sprachen || data.sprachen.length === 0) return 4;
+  
+  // Step 5: Layout Selection
+  // If we reach here, steps 1-4 are complete, so start at layout selection
+  return 5;
 };
 
 export const CVFormProvider = ({ children }: { children: ReactNode }) => {
@@ -323,14 +330,10 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
       console.log('Auto-loading profile data to CV form (profile is complete, form is empty)');
       const profileData = loadProfileDataToCV(profile);
       setFormData(profileData);
-      // Update step to skip already completed steps (Step 0, 1, 2 are already done)
+      // Find the first incomplete step based on the loaded data
       const firstIncompleteStep = findFirstIncompleteStep(profileData);
-      // Skip Step 0 (Welcome), Step 1 (Branch & Status), and Step 2 (Personal Data) if already filled
-      if (firstIncompleteStep <= 2) {
-        setCurrentStep(3); // Start at Beruflicher Werdegang (Step 3)
-      } else {
-        setCurrentStep(firstIncompleteStep);
-      }
+      // Always start at the first incomplete step to ensure all missing fields are asked
+      setCurrentStep(firstIncompleteStep);
     }
   }, [profile?.profile_complete, profile?.id, user?.id, formData]);
 
