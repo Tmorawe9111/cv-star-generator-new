@@ -9,6 +9,7 @@ import { ValuesReminderBanner } from '@/components/reminders/ValuesReminderBanne
 import { ProfileCompletionModal } from '@/components/modals/ProfileCompletionModal';
 import { CVCreationPromptModal } from '@/components/modals/CVCreationPromptModal';
 import { CVGeneratorModal } from '@/components/modals/CVGeneratorModal';
+import { SuggestedConnectionsModal } from '@/components/modals/SuggestedConnectionsModal';
 import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard = () => {
@@ -16,6 +17,7 @@ const Dashboard = () => {
   const [showProfileCompletionModal, setShowProfileCompletionModal] = useState(false);
   const [showCVCreationPrompt, setShowCVCreationPrompt] = useState(false);
   const [showCVGeneratorModal, setShowCVGeneratorModal] = useState(false);
+  const [showSuggestedConnections, setShowSuggestedConnections] = useState(false);
 
   // Show Profile Completion modal if profile is incomplete - always show until profile is complete
   useEffect(() => {
@@ -24,6 +26,7 @@ const Dashboard = () => {
         // Always show modal if profile is incomplete
         setShowProfileCompletionModal(true);
         setShowCVCreationPrompt(false);
+        setShowSuggestedConnections(false);
       } else {
         // Close modal when profile is complete
         setShowProfileCompletionModal(false);
@@ -31,6 +34,25 @@ const Dashboard = () => {
         if (profile.profile_complete && !profile.cv_url) {
           setShowCVCreationPrompt(true);
         }
+      }
+    }
+  }, [profile, isLoading]);
+
+  // Show Suggested Connections Modal after profile is complete and on every login
+  useEffect(() => {
+    if (!isLoading && profile && profile.profile_complete) {
+      // Check if modal was already shown in this session
+      const sessionKey = `suggested_connections_shown_${profile.id}`;
+      const alreadyShown = sessionStorage.getItem(sessionKey);
+      
+      if (!alreadyShown) {
+        // Show modal after a short delay to avoid overlapping with other modals
+        const timer = setTimeout(() => {
+          setShowSuggestedConnections(true);
+          sessionStorage.setItem(sessionKey, 'true');
+        }, 1000);
+        
+        return () => clearTimeout(timer);
       }
     }
   }, [profile, isLoading]);
@@ -49,9 +71,10 @@ const Dashboard = () => {
           onComplete={() => {
             // Profile is complete, close modal
             setShowProfileCompletionModal(false);
-            // Show CV creation prompt after profile is complete
+            // Show suggested connections after profile is complete
             setTimeout(() => {
-              setShowCVCreationPrompt(true);
+              setShowSuggestedConnections(true);
+              // Show CV creation prompt after suggested connections (user can close suggested connections first)
             }, 500);
           }}
         />
@@ -82,6 +105,16 @@ const Dashboard = () => {
           }}
           onComplete={() => {
             setShowCVGeneratorModal(false);
+          }}
+        />
+      )}
+
+      {/* Suggested Connections Modal - shows after profile is complete and on every login */}
+      {profile && profile.profile_complete && (
+        <SuggestedConnectionsModal
+          open={showSuggestedConnections}
+          onClose={() => {
+            setShowSuggestedConnections(false);
           }}
         />
       )}
