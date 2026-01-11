@@ -225,12 +225,15 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
       }
 
       // Prepare update data - filter valid entries
+      // Profile is visible for other users but NOT for companies until CV is created
       const updateData: any = {
         avatar_url: avatarUrl,
         uebermich: bio.trim(),
         schulbildung: schulbildung.filter(entry => entry.schulform.trim() && entry.name.trim()),
         berufserfahrung: berufserfahrung.filter(entry => entry.titel.trim() && entry.unternehmen.trim()),
         profile_complete: true,
+        profile_published: false, // Not visible for companies until CV is created
+        visibility_mode: 'invisible', // Set to invisible until CV is created and user chooses visibility
         updated_at: new Date().toISOString()
       };
 
@@ -539,7 +542,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                   )}
 
                   {schulbildung.map((schule, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-4">
+                    <div key={index} className="border rounded-lg p-3 md:p-4 space-y-3 md:space-y-4">
                       <div className="flex justify-between items-center">
                         <h4 className="font-medium">Schulbildung {index + 1}</h4>
                         <Button
@@ -552,14 +555,14 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                         </Button>
                       </div>
 
-                      <div className="grid md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         <div>
-                          <Label htmlFor={`schulform-${index}`}>Schulform/Titel *</Label>
+                          <Label htmlFor={`schulform-${index}`} className="text-sm md:text-base">Schulform/Titel *</Label>
                           <Select
                             value={schule.schulform || ''}
                             onValueChange={(value) => updateSchulbildungEntry(index, 'schulform', value)}
                           >
-                            <SelectTrigger className={cn('bg-background', !schule.schulform ? 'border-destructive' : '')}>
+                            <SelectTrigger className={cn('bg-background h-10 md:h-11 text-sm md:text-base', !schule.schulform ? 'border-destructive' : '')}>
                               <SelectValue placeholder="Schulform wählen" />
                             </SelectTrigger>
                             <SelectContent className="bg-background border shadow-lg z-50">
@@ -572,16 +575,17 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                           </Select>
                         </div>
                         <div>
-                          <Label htmlFor={`schulname-${index}`}>Name der Schule *</Label>
+                          <Label htmlFor={`schulname-${index}`} className="text-sm md:text-base">Name der Schule *</Label>
                           <Input
                             id={`schulname-${index}`}
                             placeholder="z.B. Friedrich-Schiller-Gymnasium"
                             value={schule.name || ''}
                             onChange={(e) => updateSchulbildungEntry(index, 'name', e.target.value)}
+                            className="h-10 md:h-11 text-sm md:text-base"
                           />
                         </div>
                         <div>
-                          <Label htmlFor={`schulabschluss-${index}`}>Abschluss *</Label>
+                          <Label htmlFor={`schulabschluss-${index}`} className="text-sm md:text-base">Abschluss *</Label>
                           <Select
                             value={schule.abschluss || ''}
                             onValueChange={(value) => {
@@ -593,7 +597,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                               }
                             }}
                           >
-                            <SelectTrigger className="bg-background">
+                            <SelectTrigger className="bg-background h-10 md:h-11 text-sm md:text-base">
                               <SelectValue placeholder="Abschluss wählen" />
                             </SelectTrigger>
                             <SelectContent className="bg-background border shadow-lg z-50">
@@ -607,37 +611,39 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                           <div>
-                            <Label htmlFor={`schule-plz-${index}`}>PLZ</Label>
+                            <Label htmlFor={`schule-plz-${index}`} className="text-sm md:text-base">PLZ</Label>
                             <Input
                               id={`schule-plz-${index}`}
                               placeholder="12345"
                               value={schule.plz || ''}
                               onChange={(e) => updateSchulbildungEntry(index, 'plz', e.target.value)}
+                              className="h-10 md:h-11 text-sm md:text-base"
                             />
                           </div>
                           <div className="col-span-2">
-                            <Label htmlFor={`schule-ort-${index}`}>Ort *</Label>
+                            <Label htmlFor={`schule-ort-${index}`} className="text-sm md:text-base">Ort *</Label>
                             <Input
                               id={`schule-ort-${index}`}
                               placeholder="z.B. Berlin"
                               value={schule.ort || ''}
                               onChange={(e) => updateSchulbildungEntry(index, 'ort', e.target.value)}
+                              className="h-10 md:h-11 text-sm md:text-base"
                             />
                           </div>
                         </div>
                         {/* Zeitraum: Von Jahr bis Jahr */}
-                        <div className="space-y-3">
-                          <Label>Zeitraum *</Label>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium text-gray-700">Von</Label>
+                        <div className="space-y-2 md:space-y-3">
+                          <Label className="text-sm md:text-base">Zeitraum *</Label>
+                          <div className="grid grid-cols-2 gap-2 md:gap-4">
+                            <div className="space-y-1 md:space-y-2">
+                              <Label className="text-xs md:text-sm font-medium text-gray-700">Von</Label>
                               <Select
                                 value={schule.zeitraum_von ? (schule.zeitraum_von.split('-')[0] || schule.zeitraum_von) : ''}
                                 onValueChange={(year) => {
                                   updateSchulbildungDate(index, 'zeitraum_von', year);
                                 }}
                               >
-                                <SelectTrigger className="h-11 text-base">
+                                <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
                                   <SelectValue placeholder="Jahr wählen" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -649,15 +655,15 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium text-gray-700">Bis</Label>
+                            <div className="space-y-1 md:space-y-2">
+                              <Label className="text-xs md:text-sm font-medium text-gray-700">Bis</Label>
                               <Select
                                 value={schule.zeitraum_bis ? (schule.zeitraum_bis.split('-')[0] || schule.zeitraum_bis) : ''}
                                 onValueChange={(year) => {
                                   updateSchulbildungDate(index, 'zeitraum_bis', year);
                                 }}
                               >
-                                <SelectTrigger className="h-11 text-base">
+                                <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
                                   <SelectValue placeholder="Jahr wählen" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -674,13 +680,14 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                       </div>
 
                       <div>
-                        <Label htmlFor={`schulbeschreibung-${index}`}>Beschreibung (optional)</Label>
+                        <Label htmlFor={`schulbeschreibung-${index}`} className="text-sm md:text-base">Beschreibung (optional)</Label>
                         <Textarea
                           id={`schulbeschreibung-${index}`}
                           placeholder="z.B. Schwerpunkte, besondere Leistungen, Projekte..."
                           value={schule.beschreibung || ''}
                           onChange={(e) => updateSchulbildungEntry(index, 'beschreibung', e.target.value)}
                           rows={3}
+                          className="text-sm md:text-base"
                         />
                       </div>
                     </div>
@@ -711,7 +718,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                   )}
 
                   {berufserfahrung.map((arbeit, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-4">
+                    <div key={index} className="border rounded-lg p-3 md:p-4 space-y-3 md:space-y-4">
                       <div className="flex justify-between items-center">
                         <h4 className="font-medium">Erfahrung {index + 1}</h4>
                         <Button
@@ -724,23 +731,24 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                         </Button>
                       </div>
 
-                      <div className="grid md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         <div>
-                          <Label htmlFor={`titel-${index}`}>Titel *</Label>
+                          <Label htmlFor={`titel-${index}`} className="text-sm md:text-base">Titel *</Label>
                           <Input
                             id={`titel-${index}`}
                             placeholder="z.B. Softwareentwickler, Verkäufer"
                             value={arbeit.titel || ''}
                             onChange={(e) => updateBerufserfahrungEntry(index, 'titel', e.target.value)}
+                            className="h-10 md:h-11 text-sm md:text-base"
                           />
                         </div>
                         <div>
-                          <Label htmlFor={`art-${index}`}>Art *</Label>
+                          <Label htmlFor={`art-${index}`} className="text-sm md:text-base">Art *</Label>
                           <Select
                             value={arbeit.art || ''}
                             onValueChange={(value) => updateBerufserfahrungEntry(index, 'art', value)}
                           >
-                            <SelectTrigger className={cn('bg-background', !arbeit.art ? 'border-destructive' : '')}>
+                            <SelectTrigger className={cn('bg-background h-10 md:h-11 text-sm md:text-base', !arbeit.art ? 'border-destructive' : '')}>
                               <SelectValue placeholder="Art wählen" />
                             </SelectTrigger>
                             <SelectContent className="bg-background border shadow-lg z-50">
@@ -758,87 +766,93 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                           </Select>
                         </div>
                         <div>
-                          <Label htmlFor={`unternehmen-${index}`}>Unternehmen/Einrichtung *</Label>
+                          <Label htmlFor={`unternehmen-${index}`} className="text-sm md:text-base">Unternehmen/Einrichtung *</Label>
                           <Input
                             id={`unternehmen-${index}`}
                             placeholder="z.B. Müller GmbH"
                             value={arbeit.unternehmen || ''}
                             onChange={(e) => updateBerufserfahrungEntry(index, 'unternehmen', e.target.value)}
+                            className="h-10 md:h-11 text-sm md:text-base"
                           />
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                           <div>
-                            <Label htmlFor={`arbeit-plz-${index}`}>PLZ</Label>
+                            <Label htmlFor={`arbeit-plz-${index}`} className="text-sm md:text-base">PLZ</Label>
                             <Input
                               id={`arbeit-plz-${index}`}
                               placeholder="12345"
                               value={arbeit.plz || ''}
                               onChange={(e) => updateBerufserfahrungEntry(index, 'plz', e.target.value)}
+                              className="h-10 md:h-11 text-sm md:text-base"
                             />
                           </div>
                           <div className="col-span-2">
-                            <Label htmlFor={`arbeit-ort-${index}`}>Ort *</Label>
+                            <Label htmlFor={`arbeit-ort-${index}`} className="text-sm md:text-base">Ort *</Label>
                             <Input
                               id={`arbeit-ort-${index}`}
                               placeholder="z.B. München"
                               value={arbeit.ort || ''}
                               onChange={(e) => updateBerufserfahrungEntry(index, 'ort', e.target.value)}
+                              className="h-10 md:h-11 text-sm md:text-base"
                             />
                           </div>
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label>Von Monat *</Label>
-                            <Select
-                              value={arbeit.zeitraum_von ? (arbeit.zeitraum_von.split('-')[1] || '') : ''}
-                              onValueChange={(month) => {
-                                const currentValue = arbeit.zeitraum_von || '';
-                                const parts = currentValue.split('-');
-                                const currentYear = parts[0] === '0000' ? '' : (parts[0] || '');
-                                updateBerufserfahrungDate(index, 'zeitraum_von', month, currentYear);
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Monat" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {monthOptions.map((month) => (
-                                  <SelectItem key={month.value} value={month.value}>
-                                    {month.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>Von Jahr *</Label>
-                            <Select
-                              value={
-                                arbeit.zeitraum_von && arbeit.zeitraum_von.split('-')[0] !== '0000'
-                                  ? (arbeit.zeitraum_von.split('-')[0] || '')
-                                  : ''
-                              }
-                              onValueChange={(year) => {
-                                const currentValue = arbeit.zeitraum_von || '';
-                                const parts = currentValue.split('-');
-                                const currentMonth = parts[1] || '';
-                                updateBerufserfahrungDate(index, 'zeitraum_von', currentMonth, year);
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Jahr" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {yearOptions.map((year) => (
-                                  <SelectItem key={year} value={year.toString()}>
-                                    {year}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                      <div className="space-y-3 md:space-y-4">
+                        <div>
+                          <Label className="text-sm md:text-base mb-2 block">Von *</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs md:text-sm text-muted-foreground">Monat</Label>
+                              <Select
+                                value={arbeit.zeitraum_von ? (arbeit.zeitraum_von.split('-')[1] || '') : ''}
+                                onValueChange={(month) => {
+                                  const currentValue = arbeit.zeitraum_von || '';
+                                  const parts = currentValue.split('-');
+                                  const currentYear = parts[0] === '0000' ? '' : (parts[0] || '');
+                                  updateBerufserfahrungDate(index, 'zeitraum_von', month, currentYear);
+                                }}
+                              >
+                                <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
+                                  <SelectValue placeholder="Monat" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {monthOptions.map((month) => (
+                                    <SelectItem key={month.value} value={month.value}>
+                                      {month.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs md:text-sm text-muted-foreground">Jahr</Label>
+                              <Select
+                                value={
+                                  arbeit.zeitraum_von && arbeit.zeitraum_von.split('-')[0] !== '0000'
+                                    ? (arbeit.zeitraum_von.split('-')[0] || '')
+                                    : ''
+                                }
+                                onValueChange={(year) => {
+                                  const currentValue = arbeit.zeitraum_von || '';
+                                  const parts = currentValue.split('-');
+                                  const currentMonth = parts[1] || '';
+                                  updateBerufserfahrungDate(index, 'zeitraum_von', currentMonth, year);
+                                }}
+                              >
+                                <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
+                                  <SelectValue placeholder="Jahr" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {yearOptions.map((year) => (
+                                    <SelectItem key={year} value={year.toString()}>
+                                      {year}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
                         </div>
 
@@ -859,48 +873,51 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                           const bisMonth = bisParts[1] || '';
 
                           return (
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <Label>Bis Monat</Label>
-                                <Select
-                                  value={bisMonth}
-                                  onValueChange={(month) => {
-                                    updateBerufserfahrungDate(index, 'zeitraum_bis', month, bisYear);
-                                  }}
-                                  disabled={!arbeit.zeitraum_von || arbeit.zeitraum_von.split('-')[0] === '0000' || !arbeit.zeitraum_von.split('-')[1]}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Monat" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {bisOptions.availableMonths.map((month) => (
-                                      <SelectItem key={month.value} value={month.value}>
-                                        {month.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <Label>Bis Jahr</Label>
-                                <Select
-                                  value={bisYear}
-                                  onValueChange={(year) => {
-                                    updateBerufserfahrungDate(index, 'zeitraum_bis', bisMonth, year);
-                                  }}
-                                  disabled={!arbeit.zeitraum_von || arbeit.zeitraum_von.split('-')[0] === '0000' || !arbeit.zeitraum_von.split('-')[1]}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Jahr" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {bisOptions.availableYears.map((year) => (
-                                      <SelectItem key={year} value={year.toString()}>
-                                        {year}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                            <div>
+                              <Label className="text-sm md:text-base mb-2 block">Bis</Label>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <Label className="text-xs md:text-sm text-muted-foreground">Monat</Label>
+                                  <Select
+                                    value={bisMonth}
+                                    onValueChange={(month) => {
+                                      updateBerufserfahrungDate(index, 'zeitraum_bis', month, bisYear);
+                                    }}
+                                    disabled={!arbeit.zeitraum_von || arbeit.zeitraum_von.split('-')[0] === '0000' || !arbeit.zeitraum_von.split('-')[1]}
+                                  >
+                                    <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
+                                      <SelectValue placeholder="Monat" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {bisOptions.availableMonths.map((month) => (
+                                        <SelectItem key={month.value} value={month.value}>
+                                          {month.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label className="text-xs md:text-sm text-muted-foreground">Jahr</Label>
+                                  <Select
+                                    value={bisYear}
+                                    onValueChange={(year) => {
+                                      updateBerufserfahrungDate(index, 'zeitraum_bis', bisMonth, year);
+                                    }}
+                                    disabled={!arbeit.zeitraum_von || arbeit.zeitraum_von.split('-')[0] === '0000' || !arbeit.zeitraum_von.split('-')[1]}
+                                  >
+                                    <SelectTrigger className="h-10 md:h-11 text-sm md:text-base">
+                                      <SelectValue placeholder="Jahr" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {bisOptions.availableYears.map((year) => (
+                                        <SelectItem key={year} value={year.toString()}>
+                                          {year}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </div>
                             </div>
                           );
@@ -908,13 +925,14 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                       </div>
 
                       <div>
-                        <Label htmlFor={`arbeitbeschreibung-${index}`}>Beschreibung (optional)</Label>
+                        <Label htmlFor={`arbeitbeschreibung-${index}`} className="text-sm md:text-base">Beschreibung (optional)</Label>
                         <Textarea
                           id={`arbeitbeschreibung-${index}`}
                           placeholder="z.B. Tätigkeiten, erworbene Fähigkeiten..."
                           value={arbeit.beschreibung || ''}
                           onChange={(e) => updateBerufserfahrungEntry(index, 'beschreibung', e.target.value)}
-                          rows={5}
+                          rows={4}
+                          className="text-sm md:text-base min-h-[80px] md:min-h-[100px]"
                         />
                       </div>
                     </div>
