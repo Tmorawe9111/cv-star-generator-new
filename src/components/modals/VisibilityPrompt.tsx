@@ -52,6 +52,12 @@ export function VisibilityPrompt() {
 
   useEffect(() => {
     if (!isLoading && profile) {
+      // Don't show visibility prompt if profile is not complete or CV doesn't exist
+      // Users need to complete profile first, then create CV before they can be visible
+      if (!profile.profile_complete || !profile.cv_url) {
+        return;
+      }
+
       const existing = ((profile as any)?.job_search_preferences ?? []) as JobOption[];
       const filteredExisting = existing.filter(v => allowedOptions.includes(v));
       if (filteredExisting.length > 0) {

@@ -59,6 +59,12 @@ export function useEntryGates() {
   const checkVisibilityPrompt = useCallback(async () => {
     if (!user || !profile) return;
 
+    // Don't check visibility prompt if profile is not complete or CV doesn't exist
+    // Users need to complete profile first, then create CV before they can be visible
+    if (!profile.profile_complete || !profile.cv_url) {
+      return;
+    }
+
     const isFirstDashboard = !profile.first_dashboard_seen;
     const hasCompletedOnboarding = profile.onboarding_completed || profile.first_profile_saved;
     const isInvisible = profile.visibility_mode === 'invisible';
