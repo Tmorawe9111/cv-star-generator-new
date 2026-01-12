@@ -130,50 +130,9 @@ export const SuggestedConnectionsModal: React.FC<SuggestedConnectionsModalProps>
           }
         }
 
-        // If we still don't have 3, get any recent profiles
-        if (suggestions.length < 3) {
-          const currentIds = new Set(suggestions.map(p => p.id));
-          const { data: recentProfiles } = await supabase
-            .from('profiles')
-            .select('id, vorname, nachname, avatar_url, branche, ort, status, created_at')
-            .neq('id', user.id)
-            .not('id', 'in', `(${Array.from(currentIds).join(',')})`)
-            .order('created_at', { ascending: false })
-            .limit(10 - suggestions.length);
-
-          if (recentProfiles) {
-            const recentIds = recentProfiles.map(p => p.id);
-            if (recentIds.length > 0) {
-              // Check connections for each recent profile individually
-              const recentConnectionChecks = await Promise.all(
-                recentIds.map(async (profileId) => {
-                  const { data: connections } = await supabase
-                    .from('connections')
-                    .select('requester_id, addressee_id, status')
-                    .or(`and(requester_id.eq.${user.id},addressee_id.eq.${profileId}),and(requester_id.eq.${profileId},addressee_id.eq.${user.id})`)
-                    .maybeSingle();
-                  
-                  return {
-                    profileId,
-                    hasConnection: connections && (connections.status === 'accepted' || connections.status === 'pending')
-                  };
-                })
-              );
-
-              const recentConnectedIds = new Set(
-                recentConnectionChecks
-                  .filter(check => check.hasConnection)
-                  .map(check => check.profileId)
-              );
-
-              const additionalProfiles = recentProfiles
-                .filter(p => !recentConnectedIds.has(p.id))
-                .slice(0, 3 - suggestions.length);
-
-              suggestions.push(...additionalProfiles);
-            }
-          }
-        }
+        // Only show suggestions from the same branch
+        // If we don't have 3 from the same branch, show fewer (don't show other branches)
+        // Julia Förster can be from any branch (as per requirement), but others must be from same branch
 
         setSuggestedPeople(suggestions.slice(0, 3));
 
