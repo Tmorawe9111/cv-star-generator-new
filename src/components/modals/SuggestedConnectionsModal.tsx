@@ -42,7 +42,7 @@ export const SuggestedConnectionsModal: React.FC<SuggestedConnectionsModalProps>
       try {
         const suggestions: SuggestedPerson[] = [];
 
-        // 1. Try to find Julia Förster
+        // 1. Try to find Julia Förster (can be from any branch)
         const { data: juliaProfile } = await supabase
           .from('profiles')
           .select('id, vorname, nachname, avatar_url, branche, ort, status')
@@ -67,19 +67,27 @@ export const SuggestedConnectionsModal: React.FC<SuggestedConnectionsModalProps>
             (juliaConnection.status === 'accepted' || juliaConnection.status === 'pending');
 
           // Only add Julia if not connected and not pending
+          // Note: Julia can be from any branch (as per requirement)
           if (!hasConnection) {
             suggestions.push(juliaProfile);
           }
         }
 
-        // 2. Get other people from same branch (newest first)
+        // 2. Get other people from SAME branch only (newest first)
+        // Important: Only show people from the same branch, never from other branches
+        if (!profile.branche) {
+          // If user has no branch set, only show Julia (if available)
+          setSuggestedPeople(suggestions.slice(0, 1));
+          return;
+        }
+
         const { data: branchProfiles } = await supabase
           .from('profiles')
           .select('id, vorname, nachname, avatar_url, branche, ort, status, created_at')
-          .eq('branche', profile.branche || '')
+          .eq('branche', profile.branche)
           .neq('id', user.id)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(20); // Get more to account for filtering
 
         if (branchProfiles) {
           // Filter out already connected/pending and Julia (if already added)
