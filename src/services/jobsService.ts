@@ -109,8 +109,17 @@ export class JobsService {
       }
     }
 
-    // Only show all jobs if user is not logged in OR branch filter is explicitly skipped (e.g., admin/search)
-    // For logged-in users, always filter by branch unless explicitly skipped
+    // Only show all jobs if:
+    // 1. User is not logged in (no userId provided), OR
+    // 2. Branch filter is explicitly skipped (skipBranchFilter = true)
+    // For logged-in users with branch, always filter by branch
+    if (filters?.userId && !filters?.skipBranchFilter) {
+      // User is logged in but branch filter failed - return empty array instead of all jobs
+      console.warn('[JobsService] User logged in but branch filter not applied - returning empty array');
+      return [];
+    }
+
+    // Build base query (for non-logged-in users or when branch filter is explicitly skipped)
     const baseQuery = supabase
       .from('job_posts')
       .select(`
@@ -343,4 +352,5 @@ export const getCompanyJobs = JobsService.getCompanyJobs;
 export const createJob = JobsService.createJob;
 export const updateJob = JobsService.updateJob;
 export const deleteJob = JobsService.deleteJob;
+
 
