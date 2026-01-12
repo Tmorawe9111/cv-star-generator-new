@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Building2, FileText, User2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 
 function useDebouncedValue<T>(value: T, delay: number) {
   const [debounced, setDebounced] = React.useState(value);
@@ -49,6 +50,7 @@ const MAX_PER_GROUP = 5;
 
 export default function SearchAutosuggest({ query, onSelect, open, anchorRef, onClose }: SearchAutosuggestProps) {
   const { company } = useCompany();
+  const { user } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [people, setPeople] = React.useState<SuggestionPerson[]>([]);
   const [companies, setCompanies] = React.useState<SuggestionCompany[]>([]);
@@ -90,15 +92,21 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
           .select("id, vorname, nachname, avatar_url, profile_slug")
           .or(`vorname.ilike.%${q}%,nachname.ilike.%${q}%`);
         
+        // Exclude own profile from search results
+        if (user?.id) {
+          profileQuery = profileQuery.neq("id", user.id);
+        }
+        
         // Companies should only see published and visible profiles
         // Regular users should see ALL profiles when searching (including incomplete ones)
         // This allows users to find and connect with anyone, even if profile is not complete
+        // Note: We don't filter by connection status - users can search for anyone
         if (isCompanyUser) {
           profileQuery = profileQuery
             .eq("profile_published", true)
             .eq("visibility_mode", "visible");
         }
-        // For regular users: no additional filters - show all profiles
+        // For regular users: no additional filters - show all profiles (including not connected)
         
         const [peopleRes, companiesRes, postsRes] = await Promise.all([
           profileQuery.limit(MAX_PER_GROUP),
@@ -136,7 +144,7 @@ export default function SearchAutosuggest({ query, onSelect, open, anchorRef, on
     };
     run();
     return () => { active = false; };
-  }, [debouncedQ, open, isCompanyUser]);
+  }, [debouncedQ, open, isCompanyUser, user?.id]);
 
   if (!open) return null;
 
