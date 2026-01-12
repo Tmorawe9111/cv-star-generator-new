@@ -156,7 +156,7 @@ export default function CommunityJobs() {
     employment_type: selectedJobTypes[0],
     location: location || selectedCity,
     work_mode: selectedWorkMode || undefined,
-    skipBranchFilter: hasActiveSearch // If actively searching, show all jobs
+    skipBranchFilter: false // Always filter by branch - never show jobs from other branches
   });
 
   // Fetch applications

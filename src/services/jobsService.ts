@@ -55,8 +55,9 @@ export class JobsService {
           });
 
         if (error) {
-          console.warn('[JobsService] get_jobs_by_branch error, falling back to regular query:', error);
-          // Fall through to regular query
+          console.error('[JobsService] get_jobs_by_branch error:', error);
+          // Don't fall back to showing all jobs - return empty array instead
+          return [];
         } else if (data && data.length > 0) {
           // Transform the data to match expected format
           const transformedJobs = await Promise.all(
@@ -102,12 +103,14 @@ export class JobsService {
           return filtered;
         }
       } catch (error) {
-        console.warn('[JobsService] Error in get_jobs_by_branch, falling back:', error);
-        // Fall through to regular query
+        console.error('[JobsService] Error in get_jobs_by_branch:', error);
+        // Don't fall back to showing all jobs - return empty array instead
+        return [];
       }
     }
 
-    // Fallback: Build base query (for non-logged-in users or when branch filter is skipped)
+    // Only show all jobs if user is not logged in OR branch filter is explicitly skipped (e.g., admin/search)
+    // For logged-in users, always filter by branch unless explicitly skipped
     const baseQuery = supabase
       .from('job_posts')
       .select(`

@@ -1025,8 +1025,9 @@ export default function MarketplaceMobile() {
           });
         
         if (error) {
-          console.warn('[MarketplaceMobile] get_jobs_by_branch error, falling back:', error);
-          // Fall through to regular query
+          console.error('[MarketplaceMobile] get_jobs_by_branch error:', error);
+          // Don't fall back to showing all jobs - return empty array instead
+          return [];
         } else if (data && data.length > 0) {
           // Transform to match Job type
           const transformed = data.map((job: any) => ({
@@ -1042,7 +1043,15 @@ export default function MarketplaceMobile() {
         }
       }
       
-      // Fallback: Regular query for non-logged-in users
+      // Only show all jobs if user is not logged in
+      // For logged-in users, always filter by branch (no fallback)
+      if (user?.id) {
+        // User is logged in but branch filter failed - return empty array
+        console.warn('[MarketplaceMobile] User logged in but branch filter not applied - returning empty array');
+        return [];
+      }
+      
+      // Fallback: Regular query ONLY for non-logged-in users
       const { data, error } = await supabase
         .from('job_posts')
         .select('id, title, company_id, location, employment_type, salary_min, salary_max')
