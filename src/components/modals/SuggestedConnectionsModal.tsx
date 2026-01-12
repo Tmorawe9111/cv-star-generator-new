@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useConnections, type ConnectionState } from '@/hooks/useConnections';
 import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface SuggestedPerson {
   id: string;
@@ -28,6 +29,7 @@ export const SuggestedConnectionsModal: React.FC<SuggestedConnectionsModalProps>
   onClose
 }) => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const { requestConnection, acceptRequest, declineRequest } = useConnections();
   const [suggestedPeople, setSuggestedPeople] = useState<SuggestedPerson[]>([]);
   const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionState>>({});
@@ -246,6 +248,12 @@ export const SuggestedConnectionsModal: React.FC<SuggestedConnectionsModalProps>
     return 'none';
   };
 
+  const handleProfileClick = (personId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/profile/${personId}`);
+    onClose();
+  };
+
   if (!open || loading || suggestedPeople.length === 0) {
     return null;
   }
@@ -253,25 +261,25 @@ export const SuggestedConnectionsModal: React.FC<SuggestedConnectionsModalProps>
   return (
     <Dialog open={open} onOpenChange={onClose} modal={true}>
       <DialogContent 
-        className="w-[95vw] max-w-[95vw] sm:max-w-md mx-auto"
+        className="w-[95vw] max-w-[95vw] sm:max-w-md mx-auto max-h-[90vh] overflow-y-auto p-4 sm:p-6"
         onInteractOutside={(e) => {
           // Allow closing by clicking outside
           onClose();
         }}
       >
-        <DialogHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <Users className="w-10 h-10 text-primary" />
+        <DialogHeader className="text-center space-y-3 sm:space-y-4 px-0">
+          <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <Users className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
           </div>
-          <DialogTitle className="text-2xl font-bold">
+          <DialogTitle className="text-xl sm:text-2xl font-bold">
             Neue Kontakte finden
           </DialogTitle>
-          <DialogDescription className="text-base">
+          <DialogDescription className="text-sm sm:text-base">
             Vernetze dich mit interessanten Personen aus deiner Branche.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-3 pt-4">
+        <div className="space-y-2 sm:space-y-3 pt-3 sm:pt-4">
           {suggestedPeople.map((person) => {
             const name = getPersonName(person);
             const status = getPersonStatus(person);
@@ -279,34 +287,48 @@ export const SuggestedConnectionsModal: React.FC<SuggestedConnectionsModalProps>
             return (
               <div 
                 key={person.id} 
-                className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
               >
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={person.avatar_url ?? undefined} alt={name} />
-                  <AvatarFallback className="text-sm">
-                    {name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <button
+                  onClick={(e) => handleProfileClick(person.id, e)}
+                  className="flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full"
+                  aria-label={`Profil von ${name} ansehen`}
+                >
+                  <Avatar className="h-10 w-10 sm:h-12 sm:w-12 cursor-pointer hover:opacity-80 transition-opacity">
+                    <AvatarImage src={person.avatar_url ?? undefined} alt={name} />
+                    <AvatarFallback className="text-xs sm:text-sm">
+                      {name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
                 
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate">{name}</p>
+                <button
+                  onClick={(e) => handleProfileClick(person.id, e)}
+                  className="flex-1 min-w-0 text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded px-1 -ml-1"
+                  aria-label={`Profil von ${name} ansehen`}
+                >
+                  <p className="font-semibold text-xs sm:text-sm truncate hover:text-primary transition-colors">{name}</p>
                   {person.branche && (
                     <p className="text-xs text-muted-foreground truncate">{person.branche}</p>
                   )}
                   {person.ort && (
                     <p className="text-xs text-muted-foreground truncate">{person.ort}</p>
                   )}
-                </div>
+                </button>
 
                 <div className="flex-shrink-0">
                   {status === 'none' && (
                     <Button
                       size="sm"
-                      onClick={() => handleConnect(person.id)}
-                      className="h-9"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConnect(person.id);
+                      }}
+                      className="h-8 sm:h-9 text-xs sm:text-sm px-2 sm:px-3"
                     >
-                      <UserPlus className="h-4 w-4 mr-1" />
-                      Vernetzen
+                      <UserPlus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      <span className="hidden sm:inline">Vernetzen</span>
+                      <span className="sm:hidden">Vern.</span>
                     </Button>
                   )}
                   {status === 'pending' && (
@@ -314,28 +336,37 @@ export const SuggestedConnectionsModal: React.FC<SuggestedConnectionsModalProps>
                       size="sm"
                       variant="secondary"
                       disabled
-                      className="h-9"
+                      className="h-8 sm:h-9 text-xs sm:text-sm px-2 sm:px-3"
                     >
-                      <Check className="h-4 w-4 mr-1" />
-                      Anfrage gesendet
+                      <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      <span className="hidden sm:inline">Anfrage gesendet</span>
+                      <span className="sm:hidden">Gesendet</span>
                     </Button>
                   )}
                   {status === 'incoming' && (
                     <div className="flex gap-1">
                       <Button
                         size="sm"
-                        onClick={() => handleAccept(person.id)}
-                        className="h-9 px-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAccept(person.id);
+                        }}
+                        className="h-8 sm:h-9 px-2"
+                        aria-label="Anfrage annehmen"
                       >
-                        <Check className="h-4 w-4" />
+                        <Check className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDecline(person.id)}
-                        className="h-9 px-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDecline(person.id);
+                        }}
+                        className="h-8 sm:h-9 px-2"
+                        aria-label="Anfrage ablehnen"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                     </div>
                   )}
@@ -344,10 +375,11 @@ export const SuggestedConnectionsModal: React.FC<SuggestedConnectionsModalProps>
                       size="sm"
                       variant="secondary"
                       disabled
-                      className="h-9"
+                      className="h-8 sm:h-9 text-xs sm:text-sm px-2 sm:px-3"
                     >
-                      <Check className="h-4 w-4 mr-1" />
-                      Verbunden
+                      <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      <span className="hidden sm:inline">Verbunden</span>
+                      <span className="sm:hidden">✓</span>
                     </Button>
                   )}
                 </div>
@@ -356,10 +388,10 @@ export const SuggestedConnectionsModal: React.FC<SuggestedConnectionsModalProps>
           })}
         </div>
 
-        <div className="flex flex-col gap-3 pt-4">
+        <div className="flex flex-col gap-2 sm:gap-3 pt-3 sm:pt-4">
           <Button 
             onClick={onClose}
-            className="w-full h-12 text-base font-semibold"
+            className="w-full h-10 sm:h-12 text-sm sm:text-base font-semibold"
             size="lg"
             variant="outline"
           >
