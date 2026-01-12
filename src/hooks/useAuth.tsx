@@ -51,6 +51,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         setUser(session?.user ?? null);
         
+        // When user signs in, set login timestamp in sessionStorage
+        // This will be used to show SuggestedConnectionsModal on every login
+        if (event === 'SIGNED_IN' && session?.user) {
+          const loginTimestampKey = `login_timestamp_${session.user.id}`;
+          const loginTimestamp = Date.now().toString();
+          sessionStorage.setItem(loginTimestampKey, loginTimestamp);
+          // Clear the "shown" flag so modal appears again
+          const shownForLoginKey = `suggested_connections_shown_for_login_${session.user.id}`;
+          sessionStorage.removeItem(shownForLoginKey);
+        }
+        
         // Load profile when user is authenticated (no delay for faster loading)
         if (session?.user) {
           loadProfile(session.user.id);

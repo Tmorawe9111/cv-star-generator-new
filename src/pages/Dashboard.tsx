@@ -41,15 +41,28 @@ const Dashboard = () => {
   // Show Suggested Connections Modal after profile is complete and on every login
   useEffect(() => {
     if (!isLoading && profile && profile.profile_complete) {
-      // Check if modal was already shown in this session
-      const sessionKey = `suggested_connections_shown_${profile.id}`;
-      const alreadyShown = sessionStorage.getItem(sessionKey);
+      // Track login timestamp in sessionStorage (cleared on page close)
+      // This ensures the modal shows every time the user logs in
+      const loginTimestampKey = `login_timestamp_${profile.id}`;
+      const shownForLoginKey = `suggested_connections_shown_for_login_${profile.id}`;
       
-      if (!alreadyShown) {
+      // Get or set login timestamp (set when page loads if not exists)
+      let loginTimestamp = sessionStorage.getItem(loginTimestampKey);
+      if (!loginTimestamp) {
+        loginTimestamp = Date.now().toString();
+        sessionStorage.setItem(loginTimestampKey, loginTimestamp);
+      }
+      
+      // Check if modal was already shown for this login timestamp
+      const shownForLogin = sessionStorage.getItem(shownForLoginKey);
+      
+      // Show modal if it hasn't been shown for this login yet
+      if (shownForLogin !== loginTimestamp) {
         // Show modal after a short delay to avoid overlapping with other modals
         const timer = setTimeout(() => {
           setShowSuggestedConnections(true);
-          sessionStorage.setItem(sessionKey, 'true');
+          // Mark as shown for this login timestamp
+          sessionStorage.setItem(shownForLoginKey, loginTimestamp);
         }, 1000);
         
         return () => clearTimeout(timer);
