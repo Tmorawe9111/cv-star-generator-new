@@ -15,6 +15,30 @@ export default function Overview() {
         <p className="text-muted-foreground mt-1">KPIs und Metriken der letzten 30 Tage</p>
       </div>
 
+      {/* Quick totals (all time) */}
+      <section>
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <Users className="h-5 w-5" />
+          Schnellübersicht (gesamt)
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)
+          ) : (
+            <>
+              <KpiCard title="Gesamt angemeldet" value={data!.totalUsers} icon={Users} />
+              <KpiCard title="Profil vervollständigt" value={data!.completeProfiles} icon={CheckCircle2} />
+              <KpiCard
+                title="Completion Rate"
+                value={data!.totalUsers > 0 ? Math.round((data!.completeProfiles / data!.totalUsers) * 100) : 0}
+                icon={TrendingUp}
+                format="percent"
+              />
+            </>
+          )}
+        </div>
+      </section>
+
       {/* User Metrics */}
       <section>
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">

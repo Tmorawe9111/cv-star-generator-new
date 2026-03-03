@@ -1,137 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
 import { Plus, Trash2, Copy, ExternalLink, BarChart3 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-
-interface Creator {
-  id: string;
-  code: string;
-  name: string;
-  platform: 'instagram' | 'facebook' | 'both';
-  utm_campaign?: string;
-  redirectTo: 'gesundheitswesen' | 'cv-generator';
-  created_at?: string;
-}
+import { useCreators, type Creator, type CreatorInput } from '@/hooks/useCreators';
 
 export default function CreatorManagement() {
-  const [creators, setCreators] = useState<Creator[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: creators, isLoading: loading, createCreator, updateCreator, deleteCreator } = useCreators();
   const [showForm, setShowForm] = useState(false);
   const [editingCreator, setEditingCreator] = useState<Creator | null>(null);
   
-  const [formData, setFormData] = useState<Omit<Creator, 'id' | 'created_at'>>({
+  const [formData, setFormData] = useState<CreatorInput>({
     code: '',
     name: '',
     platform: 'instagram',
     utm_campaign: '',
     redirectTo: 'cv-generator',
   });
-
-  useEffect(() => {
-    loadCreators();
-  }, []);
-
-  const loadCreators = async () => {
-    try {
-      setLoading(true);
-      // Load from Supabase database
-      const { data, error } = await supabase
-        .from('creators')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Transform database data to Creator format
-      const transformedCreators: Creator[] = (data || []).map((c: any) => ({
-        id: c.id,
-        code: c.code,
-        name: c.name,
-        platform: c.platform as 'instagram' | 'facebook' | 'both',
-        utm_campaign: c.utm_campaign || undefined,
-        redirectTo: c.redirect_to as 'gesundheitswesen' | 'cv-generator',
-        created_at: c.created_at,
-      }));
-
-      setCreators(transformedCreators);
-    } catch (error) {
-      console.error('Error loading creators:', error);
-      toast({
-        title: 'Fehler',
-        description: 'Creators konnten nicht geladen werden',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveCreators = async (creator: Omit<Creator, 'id' | 'created_at'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('creators')
-        .insert({
-          code: creator.code,
-          name: creator.name,
-          platform: creator.platform,
-          utm_campaign: creator.utm_campaign || null,
-          redirect_to: creator.redirectTo,
-          is_active: true,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return data;
-    } catch (error: any) {
-      console.error('Error saving creator:', error);
-      throw error;
-    }
-  };
-
-  const updateCreator = async (id: string, creator: Omit<Creator, 'id' | 'created_at'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('creators')
-        .update({
-          code: creator.code,
-          name: creator.name,
-          platform: creator.platform,
-          utm_campaign: creator.utm_campaign || null,
-          redirect_to: creator.redirectTo,
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return data;
-    } catch (error: any) {
-      console.error('Error updating creator:', error);
-      throw error;
-    }
-  };
-
-  const deleteCreator = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('creators')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-    } catch (error: any) {
-      console.error('Error deleting creator:', error);
-      throw error;
-    }
-  };
 
   const handleSave = async () => {
     if (!formData.code || !formData.name) {
@@ -145,23 +33,18 @@ export default function CreatorManagement() {
 
     try {
       if (editingCreator) {
-        // Update existing
-        await updateCreator(editingCreator.id, formData);
+        await updateCreator({ id: editingCreator.id, input: formData });
         toast({
           title: 'Erfolg',
           description: 'Creator aktualisiert',
         });
       } else {
-        // Create new
-        await saveCreators(formData);
+        await createCreator(formData);
         toast({
           title: 'Erfolg',
           description: 'Creator erstellt',
         });
       }
-
-      // Reload creators
-      await loadCreators();
 
       setShowForm(false);
       setEditingCreator(null);
@@ -172,10 +55,10 @@ export default function CreatorManagement() {
         utm_campaign: '',
         redirectTo: 'cv-generator',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Fehler',
-        description: error.message || 'Fehler beim Speichern',
+        description: (error as Error)?.message ?? 'Fehler beim Speichern',
         variant: 'destructive',
       });
     }
@@ -185,15 +68,14 @@ export default function CreatorManagement() {
     if (confirm('Möchtest du diesen Creator wirklich löschen?')) {
       try {
         await deleteCreator(id);
-        await loadCreators();
         toast({
           title: 'Erfolg',
           description: 'Creator gelöscht',
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         toast({
           title: 'Fehler',
-          description: error.message || 'Fehler beim Löschen',
+          description: (error as Error)?.message ?? 'Fehler beim Löschen',
           variant: 'destructive',
         });
       }
@@ -294,7 +176,7 @@ export default function CreatorManagement() {
                 <Label htmlFor="platform">Platform</Label>
                 <Select
                   value={formData.platform}
-                  onValueChange={(v: any) => setFormData({ ...formData, platform: v })}
+                  onValueChange={(v: string) => setFormData({ ...formData, platform: v })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -310,7 +192,7 @@ export default function CreatorManagement() {
                 <Label htmlFor="redirectTo">Weiterleitung zu</Label>
                 <Select
                   value={formData.redirectTo}
-                  onValueChange={(v: any) => setFormData({ ...formData, redirectTo: v })}
+                  onValueChange={(v: string) => setFormData({ ...formData, redirectTo: v })}
                 >
                   <SelectTrigger>
                     <SelectValue />

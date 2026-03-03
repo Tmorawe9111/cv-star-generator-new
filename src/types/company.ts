@@ -27,7 +27,7 @@ export interface CompanyProfile extends CompanyBase {
   matching_must_text?: string | null;
   matching_nice_text?: string | null;
   mission_statement?: string | null;
-  additional_locations?: any;
+  additional_locations?: unknown;
   plan_type?: string | null;
   subscription_status?: string | null;
   account_status?: string | null;

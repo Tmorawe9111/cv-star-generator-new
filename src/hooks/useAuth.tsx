@@ -1,12 +1,14 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import type { ProfileRow } from '@/types/profile';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  profile: any | null;
+  profile: ProfileRow | null;
   refetchProfile: () => Promise<void>;
 }
 
@@ -34,7 +36,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
 
   useEffect(() => {
     let abortController = new AbortController();
@@ -87,6 +89,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }).catch((error) => {
       if (error?.name !== 'AbortError') {
         console.error('Session error:', error);
+        toast.error('Sitzung konnte nicht geladen werden. Bitte Seite neu laden.');
       }
       setIsLoading(false);
     });
@@ -227,9 +230,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setProfile(null);
         }
       }
-    } catch (error: any) {
-      // Silently ignore abort errors
-      if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+    } catch (error: unknown) {
+      const err = error as { name?: string; message?: string };
+      if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
         return;
       }
       console.error('Unexpected error loading profile:', error);

@@ -235,12 +235,16 @@ export default function CompanySettingsTeam() {
 
       const token = (data as any)?.invite_token as string | undefined;
       const link = token ? `${window.location.origin}/auth?company_invite=${encodeURIComponent(token)}` : null;
+      let copySuccess = true;
       if (link) {
-        await navigator.clipboard.writeText(link).catch(() => null);
+        copySuccess = await navigator.clipboard.writeText(link).then(() => true).catch(() => false);
       }
       toast({
         title: "Einladung erstellt",
-        description: link ? "Einladungslink wurde kopiert." : "Einladung wurde erstellt.",
+        description: link
+          ? (copySuccess ? "Einladungslink wurde kopiert." : "Link konnte nicht kopiert werden. Bitte kopieren Sie den Link manuell.")
+          : "Einladung wurde erstellt.",
+        variant: copySuccess ? "default" : "destructive",
       });
       setEmail("");
       await load();

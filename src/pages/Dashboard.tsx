@@ -11,13 +11,90 @@ import { CVCreationPromptModal } from '@/components/modals/CVCreationPromptModal
 import { CVGeneratorModal } from '@/components/modals/CVGeneratorModal';
 import { SuggestedConnectionsModal } from '@/components/modals/SuggestedConnectionsModal';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
-  const { profile, isLoading } = useAuth();
+  const { profile, isLoading, refetchProfile } = useAuth();
+  const { toast } = useToast();
   const [showProfileCompletionModal, setShowProfileCompletionModal] = useState(false);
   const [showCVCreationPrompt, setShowCVCreationPrompt] = useState(false);
   const [showCVGeneratorModal, setShowCVGeneratorModal] = useState(false);
   const [showSuggestedConnections, setShowSuggestedConnections] = useState(false);
+
+  const handleCVUploadComplete = async (uploadId: string, extractedData?: Record<string, any>) => {
+    try {
+      // Update profile to link uploaded CV
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          uploaded_cv_id: uploadId,
+          cv_source: 'uploaded',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', profile?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'CV hochgeladen',
+        description: 'Dein CV wurde erfolgreich hochgeladen.',
+      });
+
+      // Refetch profile to get updated data
+      await refetchProfile();
+
+      // If user wants to create new layout, open CV generator
+      if (extractedData) {
+        setTimeout(() => {
+          setShowCVGeneratorModal(true);
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Error handling CV upload:', error);
+      toast({
+        title: 'Fehler',
+        description: 'CV konnte nicht verarbeitet werden.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleUseOriginal = async (uploadId: string, storagePath: string) => {
+    try {
+      // Get public URL for the uploaded CV
+      const { data: urlData } = supabase.storage
+        .from('cv-uploads')
+        .getPublicUrl(storagePath);
+
+      // Update profile with CV URL
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          uploaded_cv_id: uploadId,
+          cv_url: urlData.publicUrl,
+          cv_source: 'uploaded',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', profile?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'CV gespeichert',
+        description: 'Dein Original-CV wurde gespeichert.',
+      });
+
+      await refetchProfile();
+    } catch (error) {
+      console.error('Error using original CV:', error);
+      toast({
+        title: 'Fehler',
+        description: 'CV konnte nicht gespeichert werden.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Show Profile Completion modal if profile is incomplete - always show until profile is complete
   useEffect(() => {
@@ -106,6 +183,8 @@ const Dashboard = () => {
           onClose={() => {
             setShowCVCreationPrompt(false);
           }}
+          onUploadComplete={handleCVUploadComplete}
+          onUseOriginal={handleUseOriginal}
         />
       )}
 

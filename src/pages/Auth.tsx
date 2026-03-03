@@ -11,6 +11,7 @@ import { Loader2, Eye, EyeOff, LogIn, UserPlus, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { isPrivateEmail } from "@/lib/email-policy";
+import { useReferralCode } from '@/hooks/useReferralCode';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -18,14 +19,40 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
   const companyInviteToken = searchParams.get('company_invite');
+  const referralCodeFromUrl = searchParams.get('ref');
+  const { validateCode } = useReferralCode();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [referralCode, setReferralCode] = useState(referralCodeFromUrl || '');
+  const [referralCodeError, setReferralCodeError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
   const [role, setRole] = useState<'applicant' | 'company'>('applicant');
+
+  // Load referral code from URL on mount
+  useEffect(() => {
+    if (referralCodeFromUrl) {
+      setReferralCode(referralCodeFromUrl.toUpperCase().trim());
+    }
+  }, [referralCodeFromUrl]);
+
+  // Validate referral code when it changes
+  useEffect(() => {
+    if (referralCode && referralCode.trim().length > 0) {
+      validateCode(referralCode).then((isValid) => {
+        if (!isValid && referralCode.trim().length >= 6) {
+          setReferralCodeError('Ungültiger Einladungscode');
+        } else {
+          setReferralCodeError('');
+        }
+      });
+    } else {
+      setReferralCodeError('');
+    }
+  }, [referralCode, validateCode]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -315,6 +342,25 @@ const Auth = () => {
     setIsAuthenticating(true);
 
     try {
+      // Validate referral code if provided
+      if (referralCode && referralCode.trim().length > 0) {
+        const isValid = await validateCode(referralCode.trim());
+        if (!isValid) {
+          setReferralCodeError('Ungültiger Einladungscode');
+          setIsAuthenticating(false);
+          toast({
+            title: "Ungültiger Einladungscode",
+            description: "Bitte überprüfen Sie den Code oder lassen Sie das Feld leer.",
+            variant: "destructive"
+          });
+          return;
+        }
+        // Store referral code in localStorage for ProfileCreationModal
+        localStorage.setItem('pending_referral_code', referralCode.trim().toUpperCase());
+      } else {
+        localStorage.removeItem('pending_referral_code');
+      }
+
       // Clean up auth state before signup
       cleanupAuthState();
       
@@ -588,6 +634,32 @@ const Auth = () => {
                     <p className="text-xs text-muted-foreground">
                       Passwort muss mindestens 8 Zeichen, einen Großbuchstaben und eine Zahl enthalten.
                     </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="referral-code">Einladungscode (optional)</Label>
+                    <Input
+                      id="referral-code"
+                      type="text"
+                      value={referralCode}
+                      onChange={(e) => {
+                        const value = e.target.value.toUpperCase().trim();
+                        setReferralCode(value);
+                        setReferralCodeError('');
+                      }}
+                      placeholder="ABC123"
+                      disabled={isAuthenticating}
+                      maxLength={6}
+                      className={referralCodeError ? 'border-destructive' : ''}
+                    />
+                    {referralCodeError && (
+                      <p className="text-xs text-destructive">{referralCodeError}</p>
+                    )}
+                    {referralCode && !referralCodeError && (
+                      <p className="text-xs text-muted-foreground">
+                        Mit diesem Code wirst du automatisch mit dem Einladenden vernetzt.
+                      </p>
+                    )}
                   </div>
                   
                   <Button 

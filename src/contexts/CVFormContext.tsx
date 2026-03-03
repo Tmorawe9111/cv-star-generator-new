@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useRe
 import { syncCVDataToProfile, loadProfileDataToCV } from '@/utils/profileSync';
 import { useAuthForCV } from '@/hooks/useAuthForCV';
 import { updateReferralWithCV } from '@/hooks/useReferralTracking';
+import { getExtractedData } from '@/services/cvUploadService';
 
 export interface SchulbildungEntry {
   schulform: string;
@@ -141,6 +142,8 @@ interface CVFormContextType {
   getStepErrors: (step: number) => Record<string, string>;
   validateStep: (step: number) => boolean;
   clearValidationErrors: () => void;
+  loadFromUploadedCV: (uploadedCvId: string) => Promise<void>;
+  goToFirstIncompleteStep: () => void;
 }
 
 const CVFormContext = createContext<CVFormContextType | undefined>(undefined);
@@ -607,6 +610,66 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
     setValidationErrors({});
   };
 
+  const goToFirstIncompleteStep = () => {
+    const nextStep = findFirstIncompleteStep(formData);
+    setCurrentStep(nextStep);
+  };
+
+  /**
+   * Load CV data from an uploaded CV
+   */
+  const loadFromUploadedCV = async (uploadedCvId: string) => {
+    try {
+      const extractedData = await getExtractedData(uploadedCvId);
+      
+      if (!extractedData) {
+        throw new Error('Keine extrahierten Daten gefunden');
+      }
+
+      // Map extracted data to CVFormData format
+      const cvFormData: Partial<CVFormData> = {
+        vorname: extractedData.vorname,
+        nachname: extractedData.nachname,
+        email: extractedData.email,
+        telefon: extractedData.telefon,
+        plz: extractedData.plz,
+        ort: extractedData.ort,
+        strasse: extractedData.strasse,
+        branche: extractedData.branche,
+        status: extractedData.status,
+        geburtsdatum: extractedData.geburtsdatum ? new Date(extractedData.geburtsdatum) : undefined,
+        schulbildung: extractedData.schulbildung || [],
+        berufserfahrung: extractedData.berufserfahrung || [],
+        sprachen: extractedData.sprachen || [],
+        faehigkeiten: extractedData.faehigkeiten || [],
+        ueberMich: extractedData.ueberMich || extractedData.bio,
+        bio: extractedData.bio,
+        headline: extractedData.headline,
+        // Map other fields as needed
+      };
+
+      // Merge with existing profile data if available
+      if (profile) {
+        const profileData = loadProfileDataToCV(profile);
+        const mergedData = { ...profileData, ...cvFormData };
+        setFormData(mergedData);
+        localStorage.setItem('cvFormData', JSON.stringify(mergedData));
+      } else {
+        setFormData(cvFormData);
+        localStorage.setItem('cvFormData', JSON.stringify(cvFormData));
+      }
+
+      // Determine starting step based on loaded data
+      const firstIncompleteStep = findFirstIncompleteStep(cvFormData as CVFormData);
+      setCurrentStep(firstIncompleteStep);
+
+      console.log('Loaded CV data from uploaded CV:', uploadedCvId, cvFormData);
+    } catch (error) {
+      console.error('Error loading CV data from uploaded CV:', error);
+      throw error;
+    }
+  };
+
   // Cleanup effect
   useEffect(() => {
     return () => {
@@ -632,7 +695,9 @@ export const CVFormProvider = ({ children }: { children: ReactNode }) => {
       validationErrors,
       getStepErrors,
       validateStep,
-      clearValidationErrors
+      clearValidationErrors,
+      loadFromUploadedCV,
+      goToFirstIncompleteStep
     }}>
       {children}
     </CVFormContext.Provider>

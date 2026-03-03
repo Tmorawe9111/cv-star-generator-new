@@ -28,6 +28,7 @@ interface ParseCVOutput {
     aboutMe?: string;
   };
   missingCritical: string[];
+  missingFields: string[]; // All missing important fields
   followUpChips?: {
     question: string;
     options: string[] | null;
@@ -36,6 +37,11 @@ interface ParseCVOutput {
 }
 
 const CRITICAL_FIELDS = ['vorname', 'nachname', 'branche', 'status'];
+const IMPORTANT_FIELDS = [
+  'vorname', 'nachname', 'email', 'telefon', 'plz', 'ort', 'strasse',
+  'branche', 'status', 'geburtsdatum',
+  'schulbildung', 'berufserfahrung', 'faehigkeiten', 'sprachen'
+];
 const BRANCHE_SKILLS_MAP: Record<string, string[]> = {
   handwerk: ['Handwerkliches Geschick', 'Teamfähigkeit', 'Körperliche Belastbarkeit', 'Zuverlässigkeit', 'Sorgfältiges Arbeiten'],
   it: ['Programmierung', 'Problemlösung', 'Logisches Denken', 'Teamarbeit', 'Lernbereitschaft'],
@@ -70,6 +76,27 @@ function calculateConfidence(extractedData: Record<string, any>, userInput: stri
 
 function findMissingCritical(extractedData: Record<string, any>): string[] {
   return CRITICAL_FIELDS.filter(field => !extractedData[field] || extractedData[field] === '');
+}
+
+function findMissingFields(extractedData: Record<string, any>): string[] {
+  const missing: string[] = [];
+  
+  for (const field of IMPORTANT_FIELDS) {
+    const value = extractedData[field];
+    
+    // Check if field is missing or empty
+    if (!value || value === '') {
+      missing.push(field);
+    } else if (Array.isArray(value) && value.length === 0) {
+      // For array fields, check if array is empty
+      missing.push(field);
+    } else if (typeof value === 'object' && Object.keys(value).length === 0) {
+      // For object fields, check if object is empty
+      missing.push(field);
+    }
+  }
+  
+  return missing;
 }
 
 function generateChips(missingFields: string[]): ParseCVOutput['followUpChips'] {
@@ -266,6 +293,7 @@ Bereits vorhandene Daten: ${JSON.stringify(currentData)}`
     const mergedData = { ...currentData, ...extractedData };
     const confidence = calculateConfidence(mergedData, userInput);
     const missingCritical = findMissingCritical(mergedData);
+    const missingFields = findMissingFields(mergedData);
     const followUpChips = missingCritical.length > 0 ? generateChips(missingCritical) : undefined;
 
     const branche = (mergedData.branche || '').toLowerCase();
@@ -297,6 +325,7 @@ Bereits vorhandene Daten: ${JSON.stringify(currentData)}`
         aboutMe: undefined
       },
       missingCritical,
+      missingFields,
       followUpChips
     };
 

@@ -25,3 +25,6 @@ dist-ssr
 
 # Supabase local CLI state (should never be committed)
 supabase/.temp/
+
+# Environment files (local secrets)
+.env

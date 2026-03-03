@@ -1,8 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -20,35 +18,12 @@ import {
 } from "@/components/ui/select";
 import { Briefcase, Search } from "lucide-react";
 import { JobStatusBadge } from "@/components/jobs/JobStatusBadge";
+import { useAdminJobs } from "@/hooks/useAdminJobs";
 
 export default function JobsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-
-  const { data: jobs, isLoading } = useQuery({
-    queryKey: ["admin-jobs", search, statusFilter],
-    queryFn: async () => {
-      let query = supabase
-        .from("job_posts")
-        .select(`
-          *,
-          company:companies!job_posts_company_id_fkey(name, logo_url)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (search) {
-        query = query.ilike("title", `%${search}%`);
-      }
-
-      if (statusFilter !== "all") {
-        query = query.eq("is_active", statusFilter === "active");
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { data: jobs, isLoading } = useAdminJobs(search, statusFilter);
 
   return (
     <div className="px-3 sm:px-6 py-6 max-w-[1400px] mx-auto">
@@ -111,21 +86,21 @@ export default function JobsPage() {
                   <TableRow key={job.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {(job.company as any)?.logo_url && (
+                        {job.company?.logo_url && (
                           <img
-                            src={(job.company as any).logo_url}
+                            src={job.company.logo_url}
                             alt=""
                             className="h-8 w-8 rounded object-cover"
                           />
                         )}
                         <span className="font-medium">
-                          {(job.company as any)?.name || "Unbekannt"}
+                          {job.company?.name ?? "Unbekannt"}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{job.title}</TableCell>
                     <TableCell>
-                      <JobStatusBadge status={job.status as any} />
+                      <JobStatusBadge status={job.status} />
                     </TableCell>
                     <TableCell>
                       {new Date(job.created_at).toLocaleDateString("de-DE")}

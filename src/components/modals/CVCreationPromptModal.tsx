@@ -1,19 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FileText, Sparkles } from 'lucide-react';
+import { FileText, Sparkles, Upload } from 'lucide-react';
+import { CVUploadModal } from '@/components/cv-upload/CVUploadModal';
 
 interface CVCreationPromptModalProps {
   open: boolean;
   onContinue: () => void;
   onClose?: () => void;
+  onUploadComplete?: (uploadId: string, extractedData?: Record<string, any>) => void;
+  onUseOriginal?: (uploadId: string, storagePath: string) => void;
 }
 
 export const CVCreationPromptModal: React.FC<CVCreationPromptModalProps> = ({
   open,
   onContinue,
-  onClose
+  onClose,
+  onUploadComplete,
+  onUseOriginal
 }) => {
+  const [showUploadModal, setShowUploadModal] = useState(false);
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
       if (!newOpen && onClose) {
@@ -56,16 +62,45 @@ export const CVCreationPromptModal: React.FC<CVCreationPromptModalProps> = ({
           >
             CV erstellen
           </Button>
+          {onUploadComplete && (
+            <Button 
+              onClick={() => setShowUploadModal(true)}
+              variant="outline"
+              className="w-full h-12 text-base font-semibold"
+              size="lg"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              CV hochladen
+            </Button>
+          )}
           {onClose && (
             <Button 
               onClick={onClose}
-              variant="outline"
+              variant="ghost"
               className="w-full"
             >
               Später
             </Button>
           )}
         </div>
+
+        {onUploadComplete && (
+          <CVUploadModal
+            open={showUploadModal}
+            onClose={() => setShowUploadModal(false)}
+            onUploadComplete={(uploadId, extractedData) => {
+              setShowUploadModal(false);
+              onUploadComplete(uploadId, extractedData);
+              onClose?.();
+            }}
+            onUseOriginal={onUseOriginal}
+            onCreateNewLayout={(uploadId, extractedData) => {
+              setShowUploadModal(false);
+              onUploadComplete(uploadId, extractedData);
+              onClose?.();
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

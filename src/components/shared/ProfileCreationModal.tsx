@@ -637,6 +637,9 @@ export const ProfileCreationModal = ({
           return;
         }
         
+        // Get referral code from localStorage (set by Auth.tsx)
+        const pendingReferralCode = localStorage.getItem('pending_referral_code');
+        
         // Prepare profile update data
         // CRITICAL: Only update fields that have actual values
         // Don't overwrite existing data with null/undefined/empty strings
@@ -646,6 +649,13 @@ export const ProfileCreationModal = ({
           nachname: nachname,
           updated_at: new Date().toISOString()
         };
+        
+        // Add referral code if present (will trigger automatic connection via trigger)
+        if (pendingReferralCode && pendingReferralCode.trim().length > 0) {
+          profileData.referral_code_used = pendingReferralCode.trim().toUpperCase();
+          // Clear from localStorage after use
+          localStorage.removeItem('pending_referral_code');
+        }
         
         // Only set fields that have actual values (prevent overwriting with null)
         if (effectiveFormData.geburtsdatum) {

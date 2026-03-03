@@ -1,14 +1,19 @@
 import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import type {
+  JobPostRow,
+  JobCreateInput,
+  JobSkillInput,
+  JobDocumentInput,
+} from "@/types/job";
 
-type JobPost = any; // Simplified to avoid deep type instantiation
-type JobInsert = any;
-type JobUpdate = any;
-type JobStatus = "draft" | "published" | "paused" | "inactive";
+export interface JobWithCompany extends JobPostRow {
+  company?: { id: string; name: string; logo_url: string | null } | null;
+}
 
 export class JobsService {
   // Fetch jobs for a company
-  static async getCompanyJobs(companyId: string): Promise<any[]> {
+  static async getCompanyJobs(companyId: string): Promise<JobPostRow[]> {
     const { data, error } = await supabase
       .from('job_posts')
       .select('*')
@@ -20,7 +25,7 @@ export class JobsService {
   }
 
   // Fetch a single job by ID
-  static async getJobById(jobId: string): Promise<any> {
+  static async getJobById(jobId: string): Promise<JobWithCompany | null> {
     const { data, error } = await supabase
       .from('job_posts')
       .select(`
@@ -43,7 +48,7 @@ export class JobsService {
     work_mode?: string;
     userId?: string; // Optional: if provided, will filter by branch
     skipBranchFilter?: boolean; // Optional: if true, shows all jobs (for search)
-  }): Promise<any[]> {
+  }): Promise<JobWithCompany[]> {
     // If user is logged in and branch filtering is not skipped, use branch-filtered function
     if (filters?.userId && !filters?.skipBranchFilter) {
       try {
@@ -61,7 +66,7 @@ export class JobsService {
         } else if (data && data.length > 0) {
           // Transform the data to match expected format
           const transformedJobs = await Promise.all(
-            (data || []).map(async (job: any) => {
+            (data || []).map(async (job: Record<string, unknown>) => {
               // Fetch company info if not included
               let company = null;
               if (job.company_id) {
@@ -73,10 +78,16 @@ export class JobsService {
                 company = companyData;
               }
 
+              const companyId = job.company_id as string;
+              const companyName = job.company_name as string | undefined;
               return {
                 ...job,
-                company: company || { id: job.company_id, name: job.company_name, logo_url: null }
-              };
+                company: company || {
+                  id: companyId,
+                  name: companyName ?? "Unknown",
+                  logo_url: null,
+                },
+              } as JobWithCompany;
             })
           );
 
@@ -153,21 +164,31 @@ export class JobsService {
   }
 
   // Create a new job (draft)
-  static async createJob(companyId: string, jobData: any): Promise<any> {
-    // Transform skills array to must_have/nice_to_have arrays
-    const mustHave = jobData.skills?.filter((s: any) => s.level === 'must_have').map((s: any) => s.name) || [];
-    const niceToHave = jobData.skills?.filter((s: any) => s.level === 'nice_to_have').map((s: any) => s.name) || [];
-    
-    // Transform document requirements to JSONB format expected by database
-    const requiredDocs = jobData.required_documents?.map((doc: any) => ({
-      type: doc.type,
-      label: doc.label
-    })) || [];
-    
-    const optionalDocs = jobData.optional_documents?.map((doc: any) => ({
-      type: doc.type,
-      label: doc.label
-    })) || [];
+  static async createJob(
+    companyId: string,
+    jobData: JobCreateInput
+  ): Promise<JobPostRow> {
+    const skills = jobData.skills ?? [];
+    const mustHave =
+      skills
+        .filter((s: JobSkillInput) => s.level === "must_have")
+        .map((s) => s.name) ?? [];
+    const niceToHave =
+      skills
+        .filter((s: JobSkillInput) => s.level === "nice_to_have")
+        .map((s) => s.name) ?? [];
+
+    const requiredDocs =
+      jobData.required_documents?.map((doc: JobDocumentInput) => ({
+        type: doc.type,
+        label: doc.label,
+      })) ?? [];
+
+    const optionalDocs =
+      jobData.optional_documents?.map((doc: JobDocumentInput) => ({
+        type: doc.type,
+        label: doc.label,
+      })) ?? [];
 
     // Map employment_type values to database-compatible values
     // Handles both English and German values
@@ -198,7 +219,7 @@ export class JobsService {
       return mapping[normalizedType] || 'full-time'; // Default fallback
     };
 
-    const insertData: any = {
+    const insertData: Record<string, unknown> = {
       company_id: companyId,
       status: 'published',
       title: jobData.title || 'Neue Stelle',
@@ -240,7 +261,10 @@ export class JobsService {
   }
 
   // Update a job
-  static async updateJob(jobId: string, updates: any): Promise<any> {
+  static async updateJob(
+    jobId: string,
+    updates: Partial<JobPostRow>
+  ): Promise<JobPostRow> {
     const { data, error } = await supabase
       .from('job_posts')
       .update(updates)
@@ -263,7 +287,10 @@ export class JobsService {
   }
 
   // Publish a job (uses RPC to deduct token)
-  static async publishJob(jobId: string, userId: string): Promise<any> {
+  static async publishJob(
+    jobId: string,
+    userId: string
+  ): Promise<unknown> {
     const { data, error } = await supabase.rpc('publish_job', {
       job_uuid: jobId,
       actor: userId,
@@ -274,7 +301,7 @@ export class JobsService {
   }
 
   // Pause a job
-  static async pauseJob(jobId: string, userId: string): Promise<any> {
+  static async pauseJob(jobId: string, userId: string): Promise<unknown> {
     const { data, error } = await supabase.rpc('pause_job', {
       job_uuid: jobId,
       actor: userId,
@@ -285,7 +312,7 @@ export class JobsService {
   }
 
   // Resume a job
-  static async resumeJob(jobId: string, userId: string): Promise<any> {
+  static async resumeJob(jobId: string, userId: string): Promise<unknown> {
     const { data, error } = await supabase.rpc('resume_job', {
       job_uuid: jobId,
       actor: userId,
@@ -296,7 +323,10 @@ export class JobsService {
   }
 
   // Inactivate a job
-  static async inactivateJob(jobId: string, userId: string): Promise<any> {
+  static async inactivateJob(
+    jobId: string,
+    userId: string
+  ): Promise<unknown> {
     const { data, error } = await supabase.rpc('inactivate_job', {
       job_uuid: jobId,
       actor: userId,
@@ -307,19 +337,24 @@ export class JobsService {
   }
 
   // Get job status history
-  static async getJobHistory(jobId: string): Promise<any[]> {
+  static async getJobHistory(
+    jobId: string
+  ): Promise<Database["public"]["Tables"]["job_status_history"]["Row"][]> {
     const { data, error } = await supabase
       .from('job_status_history')
       .select('*')
       .eq('job_id', jobId)
-      .order('created_at', { ascending: false });
+      .order('changed_at', { ascending: false });
 
     if (error) throw error;
     return data || [];
   }
 
   // Check missing documents for a user/job
-  static async getMissingDocuments(userId: string, jobId: string): Promise<any> {
+  static async getMissingDocuments(
+    userId: string,
+    jobId: string
+  ): Promise<unknown> {
     const { data, error } = await supabase.rpc('missing_required_documents', {
       p_user: userId,
       p_job: jobId,
@@ -330,7 +365,10 @@ export class JobsService {
   }
 
   // Compute match score
-  static async computeMatch(userId: string, jobId: string): Promise<any> {
+  static async computeMatch(
+    userId: string,
+    jobId: string
+  ): Promise<unknown> {
     const { data, error } = await supabase.rpc('compute_match', {
       p_user: userId,
       p_job: jobId,
@@ -342,7 +380,7 @@ export class JobsService {
 }
 
 // Export types for backward compatibility
-export type JobPosting = JobPost;
+export type JobPosting = JobPostRow;
 
 // Exported functions for backward compatibility
 export const getJobs = JobsService.getCompanyJobs;

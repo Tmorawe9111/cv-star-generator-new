@@ -1,7 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useJobSave } from "@/hooks/useJobSave";
 import { useQuickApply } from "@/hooks/useQuickApply";
@@ -31,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { JobApplicationInterviewQuestions } from "@/components/jobs/JobApplicationInterviewQuestions";
 import { ScheduleInterviewAfterQuestions } from "@/components/jobs/ScheduleInterviewAfterQuestions";
 import { toast } from "@/hooks/use-toast";
+import { usePublicJobDetail } from "@/hooks/usePublicJobDetail";
 
 export default function PublicJobDetailPage() {
   const params = useParams<{ id?: string; slug?: string }>();
@@ -51,28 +50,11 @@ export default function PublicJobDetailPage() {
   const [withdrawReason, setWithdrawReason] = useState("");
   const [withdrawSetInvisible, setWithdrawSetInvisible] = useState(true);
   
+  const { job, applicationsCount, isLoading } = usePublicJobDetail(jobId);
   const { isSaved, toggleSave, isToggling } = useJobSave(jobId || "");
   const { hasApplied, myApplication, applyToJob, isApplying, isLoading: isCheckingApply, canApply, profileStatus, companyHistory, clearCompanyHistory } =
     useQuickApply(jobId || "");
   const withdrawApplication = useCandidateWithdrawApplication();
-
-  const { data: job, isLoading } = useQuery({
-    queryKey: ["public-job-detail", jobId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("job_posts")
-        .select(`
-          *,
-          company:companies!job_posts_company_id_fkey(*)
-        `)
-        .eq("id", jobId)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!jobId,
-  });
 
   // Check if we should show interview questions modal
   useEffect(() => {
@@ -82,24 +64,9 @@ export default function PublicJobDetailPage() {
     if (showQuestions && appId && user && job) {
       setApplicationId(appId);
       setInterviewQuestionsOpen(true);
-      // Remove query params from URL
       navigate(`/stelle/${jobId}`, { replace: true });
     }
   }, [searchParams, user, job, jobId, navigate]);
-
-  const { data: applicationsCount } = useQuery<number>({
-    queryKey: ["applications-count", jobId],
-    queryFn: async (): Promise<number> => {
-      const { count, error } = await supabase
-        .from("applications")
-        .select("*", { count: "exact", head: true })
-        .eq("job_id", jobId);
-      
-      if (error) throw error;
-      return count || 0;
-    },
-    enabled: !!jobId,
-  });
 
   const getEmploymentTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
@@ -306,7 +273,7 @@ export default function PublicJobDetailPage() {
                 <h2 className="text-xl font-bold mb-4">Über das Unternehmen</h2>
                 <div 
                   className="flex items-start gap-4 p-4 border rounded-lg cursor-pointer hover:border-primary transition-colors"
-                  onClick={() => navigate(`/companies/${job.company.id}?fromJob=${id}`)}
+                  onClick={() => navigate(`/companies/${job.company.id}?fromJob=${jobId}`)}
                 >
                   {job.company.logo_url ? (
                     <img
@@ -451,34 +418,34 @@ export default function PublicJobDetailPage() {
                       </div>
                       <div className="flex-1">
                         <div className="font-semibold text-green-900">
-                          {String((myApplication as any)?.status) === "archived"
+                          {String(myApplication?.status) === "archived"
                             ? "Bewerbung abgesagt"
-                            : String((myApplication as any)?.status) === "rejected"
+                            : String(myApplication?.status) === "rejected"
                               ? "Bewerbung abgelehnt"
                               : "Du hast dich beworben"}
                         </div>
                         <div className="mt-1 text-sm text-green-900/80">
                           Beworben am{" "}
                           <span className="font-medium text-green-900">
-                            {formatDateTime((myApplication as any)?.created_at)}
+                            {formatDateTime(myApplication?.created_at)}
                           </span>
                         </div>
-                        {(myApplication as any)?.unlocked_at ? (
+                        {myApplication?.unlocked_at ? (
                           <div className="mt-1 text-sm text-green-900/80">
                             Freigeschaltet am{" "}
                             <span className="font-medium text-green-900">
-                              {formatDateTime((myApplication as any)?.unlocked_at)}
+                              {formatDateTime(myApplication.unlocked_at)}
                             </span>
                           </div>
                         ) : null}
-                        {(myApplication as any)?.updated_at ? (
+                        {myApplication?.updated_at ? (
                           <div className="mt-1 text-xs text-green-900/60">
-                            Zuletzt aktualisiert: {formatDateTime((myApplication as any)?.updated_at)}
+                            Zuletzt aktualisiert: {formatDateTime(myApplication.updated_at)}
                           </div>
                         ) : null}
                       </div>
                       <Badge className="bg-green-600 text-white hover:bg-green-600">
-                        {statusLabel((myApplication as any)?.status)}
+                        {statusLabel(myApplication?.status)}
                       </Badge>
                     </div>
                     <div className="mt-4 flex items-center justify-between rounded-xl border border-green-100 bg-white/70 px-3 py-2">
@@ -600,7 +567,7 @@ export default function PublicJobDetailPage() {
                   <h3 className="font-semibold">Fähigkeiten</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {job.skills.map((skill: any, index: number) => (
+                  {job.skills?.map((skill: string | { name?: string }, index: number) => (
                     <Badge key={index} variant="secondary">
                       {typeof skill === 'string' ? skill : skill.name || ''}
                     </Badge>
@@ -617,10 +584,10 @@ export default function PublicJobDetailPage() {
                   <h3 className="font-semibold">Sprachen</h3>
                 </div>
                 <div className="space-y-2">
-                  {job.required_languages.map((lang: any, index: number) => (
+                  {job.required_languages?.map((lang: string | { language?: string; level?: string }, index: number) => (
                     <div key={index} className="text-sm">
-                      <span className="font-medium">{lang.language}</span>
-                      {lang.level && <span className="text-muted-foreground"> - {lang.level}</span>}
+                      <span className="font-medium">{typeof lang === "string" ? lang : lang.language}</span>
+                      {typeof lang === "object" && lang?.level && <span className="text-muted-foreground"> - {lang.level}</span>}
                     </div>
                   ))}
                 </div>
@@ -640,7 +607,7 @@ export default function PublicJobDetailPage() {
                   <div className="mb-3">
                     <p className="text-xs font-medium text-red-600 mb-2">Pflicht:</p>
                     <ul className="space-y-2">
-                      {job.required_documents.map((doc: any, index: number) => {
+                      {job.required_documents?.map((doc: string | { type?: string; label?: string }, index: number) => {
                         const docLabel = typeof doc === 'string' 
                           ? DOCUMENT_TYPE_LABELS[doc as DocType] || doc
                           : doc.label || DOCUMENT_TYPE_LABELS[doc.type as DocType] || doc.type;
@@ -659,7 +626,7 @@ export default function PublicJobDetailPage() {
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Optional:</p>
                     <ul className="space-y-2">
-                      {job.optional_documents.map((doc: any, index: number) => {
+                      {job.optional_documents?.map((doc: string | { type?: string; label?: string }, index: number) => {
                         const docLabel = typeof doc === 'string' 
                           ? DOCUMENT_TYPE_LABELS[doc as DocType] || doc
                           : doc.label || DOCUMENT_TYPE_LABELS[doc.type as DocType] || doc.type;
@@ -838,7 +805,7 @@ export default function PublicJobDetailPage() {
                 <AlertDialogAction
                   onClick={() => {
                     clearCompanyHistory();
-                    applyToJob({ ignoreCompanyHistory: true } as any);
+                    applyToJob({ ignoreCompanyHistory: true });
                   }}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
@@ -943,42 +910,42 @@ export default function PublicJobDetailPage() {
             <div className="rounded-xl border p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">Aktueller Status</div>
-                <Badge>{statusLabel((myApplication as any)?.status)}</Badge>
+                <Badge>{statusLabel(myApplication?.status)}</Badge>
               </div>
 
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Beworben am</span>
-                  <span className="font-medium">{formatDateTime((myApplication as any)?.created_at)}</span>
+                  <span className="font-medium">{formatDateTime(myApplication?.created_at)}</span>
                 </div>
-                {(myApplication as any)?.unlocked_at && (
+                {myApplication?.unlocked_at && (
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-muted-foreground">Freigeschaltet am</span>
-                    <span className="font-medium">{formatDateTime((myApplication as any)?.unlocked_at)}</span>
+                    <span className="font-medium">{formatDateTime(myApplication?.unlocked_at)}</span>
                   </div>
                 )}
-                {(myApplication as any)?.updated_at && (
+                {myApplication?.updated_at && (
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-muted-foreground">Zuletzt aktualisiert</span>
-                    <span className="font-medium">{formatDateTime((myApplication as any)?.updated_at)}</span>
+                    <span className="font-medium">{formatDateTime(myApplication?.updated_at)}</span>
                   </div>
                 )}
               </div>
 
-              {((myApplication as any)?.reason_custom ||
-                (myApplication as any)?.reason_short) && (
+              {(myApplication?.reason_custom ||
+                myApplication?.reason_short) && (
                 <div className="rounded-lg bg-muted/30 p-3 text-sm">
                   <div className="text-muted-foreground mb-1">Grund</div>
                   <div className="font-medium break-words">
-                    {(myApplication as any)?.reason_custom ||
-                      (myApplication as any)?.reason_short}
+                    {myApplication?.reason_custom ||
+                      myApplication?.reason_short}
                   </div>
                 </div>
               )}
             </div>
 
             {myApplication &&
-              !["archived", "rejected", "hired"].includes(String((myApplication as any)?.status)) && (
+              !["archived", "rejected", "hired"].includes(String(myApplication?.status)) && (
                 <div className="rounded-xl border p-4 space-y-3">
                   <div className="font-semibold">Bewerbung absagen</div>
                   <div className="text-sm text-muted-foreground">
@@ -1008,10 +975,10 @@ export default function PublicJobDetailPage() {
                       className="bg-red-600 hover:bg-red-700 text-white"
                       disabled={withdrawApplication.isPending}
                       onClick={() => {
-                        if (!(myApplication as any)?.id) return;
+                        if (!myApplication?.id) return;
                         withdrawApplication.mutate(
                           {
-                            applicationId: (myApplication as any).id,
+                            applicationId: myApplication.id,
                             reason: withdrawReason || undefined,
                             setInvisible: withdrawSetInvisible,
                           },

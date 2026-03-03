@@ -1,79 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
-import { TrendingUp, Users, UserCheck, FileText, MousePointerClick, BarChart3 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Users, UserCheck, FileText, MousePointerClick } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-interface ReferralAnalytic {
-  referral_source: string | null;
-  referral_name: string | null;
-  referral_code: string | null;
-  utm_source: string | null;
-  utm_medium: string | null;
-  utm_campaign: string | null;
-  total_clicks: number;
-  unique_sessions: number;
-  registrations: number;
-  completed_profiles: number;
-  cv_creations: number;
-  click_to_registration_rate: number;
-  registration_to_profile_rate: number;
-  click_to_profile_rate: number;
-  first_click: string;
-  last_click: string;
-  click_date: string;
-}
+import { useReferralAnalytics, type ReferralAnalyticsRow } from '@/hooks/useReferralAnalytics';
 
 export default function ReferralAnalytics() {
-  const [analytics, setAnalytics] = useState<ReferralAnalytic[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
   const [groupBy, setGroupBy] = useState<'referral_code' | 'referral_name' | 'utm_campaign'>('referral_code');
+  const { data: rawData, isLoading: loading } = useReferralAnalytics(dateRange);
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [dateRange]);
-
-  const loadAnalytics = async () => {
-    try {
-      setLoading(true);
-      
-      // Calculate date filter
-      let dateFilter = '';
-      if (dateRange !== 'all') {
-        const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
-        dateFilter = `click_date >= CURRENT_DATE - INTERVAL '${days} days'`;
-      }
-      
-      let query = supabase
-        .from('referral_analytics')
-        .select('*')
-        .order('total_clicks', { ascending: false });
-      
-      if (dateFilter) {
-        query = query.filter('click_date', 'gte', new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 24 * 60 * 60 * 1000).toISOString());
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      // Group by selected field
-      const grouped = groupAnalytics(data || [], groupBy);
-      setAnalytics(grouped);
-    } catch (error) {
-      console.error('Error loading analytics:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const groupAnalytics = (data: ReferralAnalytic[], groupBy: string): ReferralAnalytic[] => {
-    const grouped = new Map<string, ReferralAnalytic>();
+  const groupAnalytics = (data: ReferralAnalyticsRow[], by: string): ReferralAnalyticsRow[] => {
+    const grouped = new Map<string, ReferralAnalyticsRow>();
     
     data.forEach((item) => {
-      const key = item[groupBy as keyof ReferralAnalytic] || 'Unknown';
+      const key = (item[by as keyof ReferralAnalyticsRow] as string) || 'Unknown';
       
       if (grouped.has(key)) {
         const existing = grouped.get(key)!;
@@ -82,16 +22,11 @@ export default function ReferralAnalytics() {
         existing.registrations += item.registrations;
         existing.completed_profiles += item.completed_profiles;
         existing.cv_creations += item.cv_creations;
-        
-        // Recalculate rates
-        existing.click_to_registration_rate = 
-          (existing.registrations / existing.total_clicks) * 100;
-        existing.registration_to_profile_rate = 
-          existing.registrations > 0 
-            ? (existing.completed_profiles / existing.registrations) * 100 
-            : 0;
-        existing.click_to_profile_rate = 
-          (existing.completed_profiles / existing.total_clicks) * 100;
+        existing.click_to_registration_rate = (existing.registrations / existing.total_clicks) * 100;
+        existing.registration_to_profile_rate = existing.registrations > 0
+          ? (existing.completed_profiles / existing.registrations) * 100
+          : 0;
+        existing.click_to_profile_rate = (existing.completed_profiles / existing.total_clicks) * 100;
       } else {
         grouped.set(key, { ...item });
       }
@@ -99,6 +34,8 @@ export default function ReferralAnalytics() {
     
     return Array.from(grouped.values()).sort((a, b) => b.total_clicks - a.total_clicks);
   };
+
+  const analytics = useMemo(() => groupAnalytics(rawData, groupBy), [rawData, groupBy]);
 
   const totalClicks = analytics.reduce((sum, a) => sum + a.total_clicks, 0);
   const totalRegistrations = analytics.reduce((sum, a) => sum + a.registrations, 0);
@@ -117,7 +54,7 @@ export default function ReferralAnalytics() {
         </div>
         
         <div className="flex gap-4">
-          <Select value={dateRange} onValueChange={(v: any) => setDateRange(v)}>
+          <Select value={dateRange} onValueChange={(v: "7d" | "30d" | "90d" | "all") => setDateRange(v)}>
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
@@ -129,7 +66,7 @@ export default function ReferralAnalytics() {
             </SelectContent>
           </Select>
           
-          <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
+          <Select value={groupBy} onValueChange={(v: "link" | "date" | "creator") => setGroupBy(v)}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>

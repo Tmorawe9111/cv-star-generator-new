@@ -27,7 +27,8 @@ const CVGeneratorContent = ({ onComplete, skipWelcomeStep = false }: CVGenerator
     setLayoutEditMode,
     validateStep,
     validationErrors,
-    getStepErrors
+    getStepErrors,
+    loadFromUploadedCV
   } = useCVForm();
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,6 +39,16 @@ const CVGeneratorContent = ({ onComplete, skipWelcomeStep = false }: CVGenerator
   
   // Check if we're inside a modal (not on /cv-generator route)
   const isInModal = location.pathname !== '/cv-generator';
+
+  // CV upload completion: Step 0 loads uploaded data into context.
+  const handleCVUploadComplete = async (uploadId?: string, extractedData?: Record<string, any>) => {
+    if (!uploadId || !extractedData) return;
+    try {
+      await loadFromUploadedCV(uploadId);
+    } catch (error) {
+      console.error('Error loading uploaded CV data:', error);
+    }
+  };
   const stepNames: Record<number, string> = {
     0: 'Willkommen',
     1: 'Persönliche Daten',
@@ -94,7 +105,7 @@ const CVGeneratorContent = ({ onComplete, skipWelcomeStep = false }: CVGenerator
     // Normal mode - show all steps
     switch (currentStep) {
       case 0:
-        return <CVStep0 />;
+        return <CVStep0 onUploadComplete={handleCVUploadComplete} />;
       case 1:
         return <CVStep1 />;
       case 2:

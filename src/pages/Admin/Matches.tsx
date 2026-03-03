@@ -1,5 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,24 +10,10 @@ import {
 } from "@/components/ui/table";
 import { Target } from "lucide-react";
 
-export default function MatchesPage() {
-  const { data: matches, isLoading } = useQuery({
-    queryKey: ["admin-matches"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("candidate_match_cache")
-        .select(`
-          *,
-          candidate:candidates(id, full_name, email),
-          job:job_id(title, company:companies!job_posts_company_id_fkey(name))
-        `)
-        .order("score", { ascending: false })
-        .limit(50);
+import { useAdminMatches } from "@/hooks/useAdminMatches";
 
-      if (error) throw error;
-      return data;
-    },
-  });
+export default function MatchesPage() {
+  const { data: matches, isLoading } = useAdminMatches();
 
   return (
     <div className="px-3 sm:px-6 py-6 max-w-[1400px] mx-auto">
@@ -69,10 +53,10 @@ export default function MatchesPage() {
                 matches.map((match) => (
                   <TableRow key={match.id}>
                     <TableCell>
-                      {(match.candidate as any)?.full_name || "Unbekannt"}
+                      {match.candidate?.full_name ?? "Unbekannt"}
                     </TableCell>
                     <TableCell>
-                      {(match.job as any)?.title || "Unbekannt"}
+                      {match.job?.title ?? "Unbekannt"}
                     </TableCell>
                     <TableCell>
                       <Badge

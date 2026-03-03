@@ -32,7 +32,7 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
         .eq("candidate_id", user!.id)
         .maybeSingle();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 
@@ -98,8 +98,13 @@ export function useQuickApply(jobId: string, jobMetadata?: { branche?: string; b
 
         // Prüfe welche erforderlichen Dokumente fehlen
         for (const reqDoc of job.required_documents) {
-          const docType = typeof reqDoc === 'string' ? reqDoc : (reqDoc as any).type;
-          const docLabel = typeof reqDoc === 'string' ? reqDoc : ((reqDoc as any).label || (reqDoc as any).type);
+          const docObj =
+            typeof reqDoc === "object" && reqDoc !== null && "type" in reqDoc
+              ? (reqDoc as { type: string; label?: string })
+              : null;
+          const docType = typeof reqDoc === "string" ? reqDoc : docObj?.type ?? "";
+          const docLabel =
+            typeof reqDoc === "string" ? reqDoc : docObj?.label ?? docObj?.type ?? "";
           
           if (!uploadedDocTypes.includes(docType)) {
             missingDocuments.push(docLabel);

@@ -1,12 +1,15 @@
 import React from "react";
+import type { ProfileRow } from "@/types/profile";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { MapPin } from "lucide-react";
+import { MapPin, Users, Trophy } from "lucide-react";
 import { TopMatchedCandidates } from "./TopMatchedCandidates";
 import { useCompany } from "@/hooks/useCompany";
+import { useReferralCode } from "@/hooks/useReferralCode";
 function firstWords(text?: string | null, n: number = 40) {
   if (!text) return null;
   const words = text.trim().split(/\s+/);
@@ -18,12 +21,14 @@ function firstChars(text?: string | null, n: number = 40) {
   const trimmed = text.trim();
   return trimmed.length > n ? `${trimmed.slice(0, n)}…` : trimmed.slice(0, n);
 }
-function getAbout(profile: any): string | null {
+function getAbout(profile: ProfileRow | null | undefined): string | null {
   if (!profile) return null;
-  return profile.ueber_mich || profile.ueberMich || profile.uebermich || profile.about || profile.bio || profile.beschreibung || profile.motivation || null;
+  const p = profile as Record<string, unknown>;
+  const val = p.ueber_mich ?? p.ueberMich ?? profile.uebermich ?? p.about ?? profile.bio ?? p.beschreibung ?? profile.motivation;
+  return val != null && val !== "" ? String(val) : null;
 }
 
-function getDisplayName(profile: any): string {
+function getDisplayName(profile: ProfileRow | null | undefined): string {
   if (!profile) return "Unbekannter Nutzer";
   if (profile.vorname && profile.nachname) {
     return `${profile.vorname} ${profile.nachname}`;
@@ -33,7 +38,7 @@ function getDisplayName(profile: any): string {
   return "Unbekannter Nutzer";
 }
 
-function getDescription(profile: any): string | null {
+function getDescription(profile: ProfileRow | null | undefined): string | null {
   if (!profile) return null;
   
   // Für Schüler: "Schüler [Branche] [Ort]"
@@ -64,14 +69,15 @@ function getDescription(profile: any): string | null {
   // Fallback: Über mich Text
   return getAbout(profile);
 }
-function getEmployerOrSchool(p: any): string | null {
+function getEmployerOrSchool(p: ProfileRow | null | undefined): string | null {
   if (!p) return null;
   if (p.status === 'schueler') {
     return p.schule || p.schulbildung?.[0]?.institution || null;
   }
   if (p.status === 'azubi' || p.status === 'ausgelernt') {
-    const current = p.berufserfahrung?.find((job: any) => !job.bis || new Date(job.bis) > new Date());
-    return current?.unternehmen || p.ausbildungsbetrieb || null;
+    const exp = (p.berufserfahrung as Array<{ bis?: string; unternehmen?: string }>) ?? [];
+    const current = exp.find((job) => !job.bis || new Date(job.bis) > new Date());
+    return current?.unternehmen ?? p.ausbildungsbetrieb ?? null;
   }
   return null;
 }
@@ -81,6 +87,7 @@ export const LeftPanel: React.FC = () => {
   } = useAuth();
   const navigate = useNavigate();
   const { company } = useCompany();
+  const { stats, isLoading: isLoadingReferrals } = useReferralCode();
   
   const displayName = getDisplayName(profile);
   const description = getDescription(profile);
@@ -145,6 +152,43 @@ export const LeftPanel: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      {/* Referral Widget */}
+      {profile && !company && (
+        <Card className="p-5 border-primary/20">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Einladungen</span>
+              </div>
+              {!isLoadingReferrals && stats && (
+                <div className="flex items-center gap-2">
+                  {stats.is_contest_eligible && (
+                    <Trophy className="h-4 w-4 text-primary" />
+                  )}
+                  <span className="text-sm font-semibold text-primary">
+                    {stats.successful_referrals}
+                  </span>
+                </div>
+              )}
+            </div>
+            {!isLoadingReferrals && stats && stats.is_contest_eligible && (
+              <Badge className="w-full justify-center bg-primary text-primary-foreground">
+                Teilnahmeberechtigt für Gewinnspiel!
+              </Badge>
+            )}
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              size="sm"
+              onClick={() => navigate('/referrals')}
+            >
+              Code teilen & gewinnen
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Schnellaktionen: Jobvorschläge */}
       <Card className="p-5">

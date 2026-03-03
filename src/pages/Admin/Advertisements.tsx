@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,32 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit2, Trash2, ExternalLink, Save, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-
-interface Advertisement {
-  id: string;
-  title: string;
-  url: string;
-  description?: string;
-  image_url?: string;
-  badge?: string;
-  category?: string;
-  position: 'left' | 'right' | 'both';
-  priority: number;
-  active: boolean;
-  start_date?: string;
-  end_date?: string;
-  // Targeting fields
-  target_branche?: string[]; // Array of branches
-  target_status?: string[]; // Array of statuses (schueler, azubi, fachkraft)
-  target_regions?: string[]; // Array of regions
-  click_count: number;
-  created_at: string;
-  updated_at: string;
-}
+import { useAdminAdvertisements, type Advertisement, type AdvertisementInput } from '@/hooks/useAdminAdvertisements';
 
 export default function AdvertisementsAdmin() {
-  const [ads, setAds] = useState<Advertisement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: ads, isLoading: loading, createAd, updateAd, deleteAd } = useAdminAdvertisements();
   const [editingAd, setEditingAd] = useState<Advertisement | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -55,66 +32,22 @@ export default function AdvertisementsAdmin() {
     target_regions: []
   });
 
-  useEffect(() => {
-    loadAds();
-  }, []);
-
-  const loadAds = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('advertisements')
-        .select('*')
-        .order('priority', { ascending: true })
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setAds(data || []);
-    } catch (error: any) {
-      toast({
-        title: 'Fehler',
-        description: error.message || 'Fehler beim Laden der Werbung',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSave = async () => {
     try {
       if (editingAd) {
-        // Update
-        const { error } = await supabase
-          .from('advertisements')
-          .update({
-            ...formData,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', editingAd.id);
-
-        if (error) throw error;
+        await updateAd({ id: editingAd.id, input: formData as AdvertisementInput });
         toast({ title: 'Erfolg', description: 'Werbung aktualisiert' });
       } else {
-        // Create
-        const { error } = await supabase
-          .from('advertisements')
-          .insert([{
-            ...formData,
-            click_count: 0
-          }]);
-
-        if (error) throw error;
+        await createAd(formData as AdvertisementInput);
         toast({ title: 'Erfolg', description: 'Werbung erstellt' });
       }
-
       setIsDialogOpen(false);
       setEditingAd(null);
       resetForm();
-      loadAds();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Fehler',
-        description: error.message || 'Fehler beim Speichern',
+        description: (error as Error).message || 'Fehler beim Speichern',
         variant: 'destructive'
       });
     }
@@ -122,20 +55,13 @@ export default function AdvertisementsAdmin() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Werbung wirklich löschen?')) return;
-
     try {
-      const { error } = await supabase
-        .from('advertisements')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await deleteAd(id);
       toast({ title: 'Erfolg', description: 'Werbung gelöscht' });
-      loadAds();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Fehler',
-        description: error.message || 'Fehler beim Löschen',
+        description: (error as Error).message || 'Fehler beim Löschen',
         variant: 'destructive'
       });
     }

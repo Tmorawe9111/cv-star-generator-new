@@ -3,6 +3,9 @@ import { JobsService } from "@/services/jobsService";
 import { toast } from "sonner";
 import { useAuth } from "./useAuth";
 import { useCompany } from "./useCompany";
+import type { JobCreateInput } from "@/types/job";
+import type { JobPostRow } from "@/types/job";
+import { getErrorMessage } from "@/types/common";
 
 export function useCompanyJobs(companyId?: string) {
   return useQuery({
@@ -43,7 +46,8 @@ export function useCreateJob(companyId: string) {
   const { company } = useCompany();
 
   return useMutation({
-    mutationFn: (jobData: any) => JobsService.createJob(companyId, jobData),
+    mutationFn: (jobData: JobCreateInput) =>
+      JobsService.createJob(companyId, jobData),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["company-jobs", companyId] });
       toast.success("Stellenanzeige erstellt");
@@ -62,8 +66,8 @@ export function useCreateJob(companyId: string) {
         }
       }
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Fehler beim Erstellen");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
     },
   });
 }
@@ -72,15 +76,20 @@ export function useUpdateJob() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ jobId, updates }: { jobId: string; updates: any }) =>
-      JobsService.updateJob(jobId, updates),
-    onSuccess: (data) => {
+    mutationFn: ({
+      jobId,
+      updates,
+    }: {
+      jobId: string;
+      updates: Partial<JobPostRow>;
+    }) => JobsService.updateJob(jobId, updates),
+    onSuccess: (data: JobPostRow) => {
       queryClient.invalidateQueries({ queryKey: ["job", data.id] });
       queryClient.invalidateQueries({ queryKey: ["company-jobs"] });
       toast.success("Änderungen gespeichert");
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Fehler beim Speichern");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
     },
   });
 }
@@ -94,8 +103,8 @@ export function useDeleteJob() {
       queryClient.invalidateQueries({ queryKey: ["company-jobs"] });
       toast.success("Stellenanzeige gelöscht");
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Fehler beim Löschen");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
     },
   });
 }
@@ -110,8 +119,8 @@ export function usePublishJob() {
       queryClient.invalidateQueries({ queryKey: ["company-jobs"] });
       toast.success("Stellenanzeige veröffentlicht");
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Fehler beim Veröffentlichen");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
     },
   });
 }
@@ -126,8 +135,8 @@ export function usePauseJob() {
       queryClient.invalidateQueries({ queryKey: ["company-jobs"] });
       toast.success("Stellenanzeige pausiert");
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Fehler beim Pausieren");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
     },
   });
 }
@@ -142,8 +151,8 @@ export function useResumeJob() {
       queryClient.invalidateQueries({ queryKey: ["company-jobs"] });
       toast.success("Stellenanzeige fortgesetzt");
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Fehler beim Fortsetzen");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
     },
   });
 }
@@ -158,8 +167,8 @@ export function useInactivateJob() {
       queryClient.invalidateQueries({ queryKey: ["company-jobs"] });
       toast.success("Stellenanzeige archiviert");
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Fehler beim Archivieren");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error));
     },
   });
 }

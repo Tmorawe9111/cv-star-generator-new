@@ -253,7 +253,11 @@ export function JobApplicationInterviewQuestions({
                 }
               }).catch(error => {
                 console.error('Error triggering matching:', error);
-                // Don't fail the save if matching fails
+                toast({
+                  title: "Hinweis",
+                  description: "Antworten gespeichert. Das Matching konnte nicht ausgeführt werden – bitte später erneut versuchen.",
+                  variant: "destructive",
+                });
               });
             }
           }

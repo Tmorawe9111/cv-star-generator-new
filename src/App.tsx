@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -10,9 +10,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { useSupabaseInit } from "@/hooks/useSupabaseInit";
+import { toast } from "sonner";
 import TopNavBar from "@/components/navigation/TopNavBar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ReferralTracker } from "@/components/ReferralTracker";
+import { RedirectWithQuery } from "@/components/RedirectWithQuery";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Critical pages - loaded immediately for landing page
 import Index from "./pages/Index";
@@ -153,8 +156,15 @@ const ReferralAnalytics = lazy(() => import("./pages/Admin/ReferralAnalytics"));
 const CreatorManagement = lazy(() => import("./pages/Admin/CreatorManagement"));
 const ReferralRedirect = lazy(() => import("./pages/ReferralRedirect"));
 const SocialRedirect = lazy(() => import("./pages/SocialRedirect"));
+const Referrals = lazy(() => import("./pages/Referrals"));
+const ContestEligibleUsers = lazy(() => import("./pages/Admin/ContestEligibleUsers"));
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      toast.error(error?.message ?? "Daten konnten nicht geladen werden.");
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 2 * 60 * 1000, // 2 Minuten - Daten sind 2 Min "frisch"
@@ -162,6 +172,11 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false, // Kein Refetch beim Tab-Wechsel
       refetchOnMount: false, // Kein Refetch beim Remount wenn Daten noch fresh sind
       retry: 1, // Nur 1 Retry bei Fehlern
+    },
+    mutations: {
+      onError: (error: Error) => {
+        toast.error(error?.message ?? "Ein Fehler ist aufgetreten.");
+      },
     },
   },
 });
@@ -393,8 +408,9 @@ const App = () => {
           <Toaster />
           <Sonner />
         <BrowserRouter>
-          <UniversalLayout>
-            <Routes>
+          <ErrorBoundary>
+            <UniversalLayout>
+              <Routes>
               {/* Landing Page */}
               <Route path="/" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><BeVisiblleLandingPage /></Suspense>} />
               
@@ -680,6 +696,10 @@ const App = () => {
                 <Route path="/einstellungen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Settings /></Suspense>} />
                 <Route path="/settings" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Settings /></Suspense>} />
                 
+                {/* Referrals */}
+                <Route path="/referrals" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Referrals /></Suspense>} />
+                <Route path="/einladungen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Referrals /></Suspense>} />
+                
                 <Route path="/entdecken/azubis" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><DiscoverAzubis /></Suspense>} />
                 <Route path="/entdecken/unternehmen" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><DiscoverCompaniesPage /></Suspense>} />
               </Route>
@@ -716,12 +736,13 @@ const App = () => {
                 <Route path="pending-verifications" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><PendingVerifications /></Suspense>} />
                 <Route path="advertisements" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><Advertisements /></Suspense>} />
                 <Route path="referral-analytics" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><ReferralAnalytics /></Suspense>} />
+                <Route path="contest-eligible" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><ContestEligibleUsers /></Suspense>} />
                 <Route path="creators" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}><CreatorManagement /></Suspense>} />
               </Route>
                 
               {/* Legacy redirects - English to German */}
               <Route path="/company-dashboard" element={<Navigate to="/unternehmen/startseite" replace />} />
-              <Route path="/signup" element={<Navigate to="/registrieren" replace />} />
+              <Route path="/signup" element={<RedirectWithQuery to="/auth" />} />
               <Route path="/login" element={<Navigate to="/anmelden" replace />} />
               
               {/* Marketing page redirects */}
@@ -740,8 +761,9 @@ const App = () => {
               
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </UniversalLayout>
+              </Routes>
+            </UniversalLayout>
+          </ErrorBoundary>
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>

@@ -2,6 +2,7 @@
  * Utility functions for generating profile status lines and subtitles
  * Based on LinkedInProfileHeader logic
  */
+import type { ProfileRow } from "@/types/profile";
 
 // Parse date string (format: "YYYY-MM" or "YYYY" or empty)
 const parseDate = (dateStr: string): { year: number; month: number } | null => {
@@ -69,8 +70,19 @@ const getSortValue = (item: {
   return { isCurrent: false, value: 0 };
 };
 
+interface ExperienceItem {
+  zeitraum_von?: string;
+  zeitraum_bis?: string;
+  position?: string;
+  titel?: string;
+  unternehmen?: string;
+  name?: string;
+  schule?: string;
+  [key: string]: unknown;
+}
+
 // Get the latest experience
-const getLatestExperience = (experiences: any[]) => {
+const getLatestExperience = (experiences: ExperienceItem[]): ExperienceItem | null => {
   if (!experiences || experiences.length === 0) return null;
   
   const sorted = [...experiences]
@@ -90,7 +102,7 @@ const getLatestExperience = (experiences: any[]) => {
 };
 
 // Get the latest education
-const getLatestEducation = (education: any[]) => {
+const getLatestEducation = (education: ExperienceItem[]): ExperienceItem | null => {
   if (!education || education.length === 0) return null;
   
   const sorted = [...education]
@@ -129,14 +141,15 @@ const formatBranche = (branche: string): string => {
  * Based on LinkedInProfileHeader logic
  * Always includes branche if available
  */
-export const getProfileStatusLine = (profile: any): string => {
+export const getProfileStatusLine = (profile: ProfileRow | null | undefined): string => {
   if (!profile) return '';
   
   const branche = profile.branche || '';
   const formattedBranche = formatBranche(branche);
-  const latestExperience = getLatestExperience(profile.berufserfahrung || []);
-  const latestEducation = getLatestEducation(profile.schulbildung || []);
-  const currentJob = latestExperience || profile.berufserfahrung?.[0];
+  const latestExperience = getLatestExperience((profile.berufserfahrung as ExperienceItem[]) || []);
+  const latestEducation = getLatestEducation((profile.schulbildung as ExperienceItem[]) || []);
+  const berufserfahrung = profile.berufserfahrung as ExperienceItem[] | null | undefined;
+  const currentJob = latestExperience || berufserfahrung?.[0];
   
   switch (profile.status) {
     case 'schueler':
@@ -166,7 +179,7 @@ export const getProfileStatusLine = (profile: any): string => {
       const azubiParts: string[] = [];
       
       if (latestEducation) {
-        const schoolName = latestEducation.name || latestEducation.schule || '';
+        const schoolName = (latestEducation.name as string) || (latestEducation.schule as string) || '';
         if (schoolName) {
           azubiParts.push(`Azubi (an ${schoolName})`);
         } else {
@@ -221,7 +234,7 @@ export const getProfileStatusLine = (profile: any): string => {
  * Generate subtitle for feed posts
  * Combines status line with linked company if available
  */
-export const getFeedSubtitle = (profile: any, linkedCompanyName?: string | null): string => {
+export const getFeedSubtitle = (profile: ProfileRow | null | undefined, linkedCompanyName?: string | null): string => {
   const statusLine = getProfileStatusLine(profile);
   
   // If company is linked, append "@ Company"
