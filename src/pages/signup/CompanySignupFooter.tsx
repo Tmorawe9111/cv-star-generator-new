@@ -8,7 +8,7 @@ export default function CompanySignupFooter() {
           <div className="grid gap-10 md:grid-cols-4">
             <div>
               <div className="flex items-center gap-2">
-                <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle" className="h-8 w-8" />
+                <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle" className="h-8 w-8 object-contain" />
                 <span className="font-semibold">
                   BeVisib<span className="text-primary">ll</span>e
                 </span>

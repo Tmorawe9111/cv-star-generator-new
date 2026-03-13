@@ -2,6 +2,288 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Geist font for DarkLandingPage - fallback to Inter if not loaded */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/geist@5.0.8/index.min.css');
+
+/* BeVisiblle Landing – Dark theme */
+.dark-landing {
+  font-family: 'Geist', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  background: #08080a;
+  color: #ffffff;
+  overflow-x: hidden;
+}
+.dark-landing html { scroll-behavior: smooth; }
+.dark-landing ::-webkit-scrollbar { width: 5px; }
+.dark-landing ::-webkit-scrollbar-track { background: #08080a; }
+.dark-landing ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 99px; }
+
+/* Dark theme tokens */
+.dark-landing {
+  --bv-bg-base: #08080a;
+  --bv-bg-card: #08080a;
+  --bv-bg-muted: #18181b;
+  --bv-text: #ffffff;
+  --bv-text-muted: rgba(255,255,255,.7);
+  --bv-text-subtle: rgba(255,255,255,.5);
+  --bv-border: rgba(255,255,255,.06);
+  --bv-accent: #5170ff;
+  --bv-accent-green: #4ade80;
+}
+
+/* Root container positioning for local section backgrounds */
+.dark-landing {
+  position: relative;
+}
+
+@keyframes dark-ticker { 0%{ transform:translateX(0) } 100%{ transform:translateX(-50%) } }
+.dark-landing .ticker { animation: dark-ticker 35s linear infinite; display:flex; width:max-content; }
+.dark-landing .ticker:hover { animation-play-state:paused; }
+@keyframes dark-tickerR { 0%{ transform:translateX(-50%) } 100%{ transform:translateX(0) } }
+.dark-landing .tickerR { animation: dark-tickerR 40s linear infinite; display:flex; width:max-content; }
+
+@keyframes dark-fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.dark-landing .fu { animation:dark-fadeUp .65s both; }
+.dark-landing .fu1 { animation:dark-fadeUp .65s .1s both; }
+.dark-landing .fu2 { animation:dark-fadeUp .65s .2s both; }
+.dark-landing .fu3 { animation:dark-fadeUp .65s .3s both; }
+
+@keyframes dark-floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+@keyframes dark-floatYd { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+.dark-landing .float { animation:dark-floatY 4s ease-in-out infinite; }
+.dark-landing .floatd { animation:dark-floatYd 5.5s ease-in-out infinite 1.2s; }
+
+@keyframes dark-glowPulse {
+  0%,100%{ box-shadow:0 0 0 0 rgba(81,112,255,.5); }
+  60%{ box-shadow:0 0 28px 6px rgba(81,112,255,.2); }
+}
+.dark-landing .glow { animation:dark-glowPulse 3s ease-in-out infinite; }
+@keyframes dark-glowPulseGreen {
+  0%,100%{ box-shadow:0 0 0 0 rgba(74,222,128,.4); }
+  60%{ box-shadow:0 0 28px 6px rgba(74,222,128,.15); }
+}
+.dark-landing .glow-green { animation:dark-glowPulseGreen 3s ease-in-out infinite; }
+
+@keyframes dark-blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+.dark-landing .b1{animation:dark-blink 1.3s 0s infinite}
+.dark-landing .b2{animation:dark-blink 1.3s .2s infinite}
+.dark-landing .b3{animation:dark-blink 1.3s .4s infinite}
+
+@keyframes dark-ping { 0%{transform:scale(1);opacity:.8} 100%{transform:scale(2.2);opacity:0} }
+.dark-landing .ping { animation:dark-ping 1.8s ease-out infinite; }
+
+@keyframes dark-slideMsg { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:translateX(0)} }
+.dark-landing .msg1{animation:dark-slideMsg .4s .3s both}
+.dark-landing .msg2{animation:dark-slideMsg .4s .9s both}
+.dark-landing .msg3{animation:dark-slideMsg .4s 1.5s both}
+.dark-landing .msg4{animation:dark-slideMsg .4s 2.1s both}
+
+@keyframes dark-scaleIn { from{opacity:0;transform:scale(.6)} to{opacity:1;transform:scale(1)} }
+.dark-landing .si1{animation:dark-scaleIn .35s .4s both}
+.dark-landing .si2{animation:dark-scaleIn .35s .8s both}
+.dark-landing .si3{animation:dark-scaleIn .35s 1.2s both}
+
+@keyframes dark-gradShift {
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+.dark-landing .grad-text {
+  background: linear-gradient(270deg,#5170ff,#a78bfa,#38bdf8,#5170ff);
+  background-size: 300% 300%;
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip: text;
+  animation:dark-gradShift 6s ease infinite;
+}
+
+.dark-landing .nav-a { color:rgba(255,255,255,.5); text-decoration:none; font-size:14px; font-weight:500; transition:color .15s; }
+.dark-landing .nav-a:hover { color:#ffffff; }
+.dark-landing .nav-a.active { color:#ffffff; font-weight:600; }
+.dark-landing .team-card:hover { transform:translateY(-6px); }
+.dark-landing .pricing-card:hover { transform:translateY(-8px); }
+
+.dark-landing .tab-pill {
+  background:none; border:none; font-family:inherit; font-size:13px; font-weight:600;
+  color:rgba(255,255,255,.5); padding:8px 18px; border-radius:99px; cursor:pointer; transition:all .2s; white-space:nowrap;
+}
+.dark-landing .tab-pill:hover { color:#ffffff; background:rgba(255,255,255,.06); }
+.dark-landing .tab-pill.on { color:#5170ff; background:linear-gradient(135deg,rgba(81,112,255,.2),rgba(124,58,237,.12)); border:1px solid rgba(81,112,255,.35); box-shadow:0 0 12px rgba(81,112,255,.15); }
+
+.dark-landing .career-card {
+  transition: transform .4s cubic-bezier(.22,1,.36,1), box-shadow .4s, opacity .4s, filter .4s;
+}
+.dark-landing .career-card:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: 0 20px 50px rgba(0,0,0,.6), 0 0 0 1px rgba(81,112,255,.2);
+  z-index: 2;
+}
+.dark-landing .career-card:hover .career-card-img {
+  transform: scale(1.04);
+  transition: transform .5s cubic-bezier(.22,1,.36,1);
+}
+.dark-landing .career-card .career-card-img {
+  transition: transform .4s cubic-bezier(.22,1,.36,1);
+}
+.dark-landing .career-3:hover .career-card:not(:hover) {
+  opacity: .55;
+  filter: blur(1.5px);
+}
+
+@media(max-width:900px) {
+  .dark-landing .finder-landing-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+}
+
+.finder-layout {
+  width: 100%;
+}
+
+@media(max-width:768px) {
+  .finder-layout {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}
+
+@media(max-width:560px) {
+  .finder-layout {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+}
+
+.dark-landing .cta-sec-btn { transition:background .2s, color .2s, box-shadow .2s; }
+.dark-landing .cta-sec-btn:hover { background:rgba(255,255,255,.08) !important; box-shadow:0 4px 12px rgba(0,0,0,.3) !important; }
+
+@media(max-width:900px) {
+  .dark-landing .hero-grid { grid-template-columns:1fr !important; }
+  .dark-landing .career-feat-grid { grid-template-columns:1fr !important; }
+  .dark-landing .career-employer-grid { grid-template-columns:repeat(2,1fr) !important; }
+  .dark-landing .career-jobs-grid { grid-template-columns:1fr !important; }
+  .dark-landing .career-testimonials-grid { grid-template-columns:1fr !important; }
+  .dark-landing .hero-about-grid { grid-template-columns:1fr !important; }
+  .dark-landing .feat-grid { grid-template-columns:1fr !important; gap:40px !important; }
+  .dark-landing .career-3 { grid-template-columns:repeat(2,1fr) !important; }
+  .dark-landing .advo-grid { grid-template-columns:1fr !important; }
+  .dark-landing .stats-row { grid-template-columns:repeat(2,1fr) !important; }
+  .dark-landing .footer-grid { grid-template-columns:1fr 1fr !important; }
+  .dark-landing .mission-grid { grid-template-columns:1fr !important; }
+  .dark-landing .team-grid { grid-template-columns:repeat(2,1fr) !important; }
+  .dark-landing .hero-unt { grid-template-columns:1fr !important; }
+  .dark-landing .how-grid { grid-template-columns:1fr !important; }
+  .dark-landing .pricing-grid { grid-template-columns:1fr !important; }
+  .dark-landing .hero-cm { grid-template-columns:1fr !important; }
+  .dark-landing .groups-grid { grid-template-columns:repeat(2,1fr) !important; }
+  .dark-landing .hero-cv { grid-template-columns:1fr !important; }
+  .dark-landing .tpl-grid { grid-template-columns:repeat(2,1fr) !important; }
+}
+@media(max-width:560px) {
+  .dark-landing .career-3 { grid-template-columns:1fr !important; }
+  .dark-landing .stats-row { grid-template-columns:repeat(2,1fr) !important; }
+  .dark-landing .stats-row .stats-cell { padding: 18px 14px !important; }
+  .dark-landing .stats-row .stats-cell:nth-child(2) { border-right: none !important; }
+  .dark-landing .stats-row .stats-cell:nth-child(1),
+  .dark-landing .stats-row .stats-cell:nth-child(2) { border-bottom: 1px solid rgba(255,255,255,.06) !important; }
+  .dark-landing .team-grid { grid-template-columns:1fr !important; }
+  .dark-landing .groups-grid { grid-template-columns:1fr !important; }
+  .dark-landing .tpl-grid { grid-template-columns:1fr !important; }
+}
+
+/* Dark nav responsive */
+@media(max-width:900px) {
+  .dark-landing .dark-nav-links { display: none !important; }
+  .dark-landing .dark-hamburger { display: flex !important; }
+  .dark-landing .dark-login-link { display: none !important; }
+}
+@media(min-width:901px) {
+  .dark-landing .dark-hamburger { display: none !important; }
+  .dark-landing .dark-mobile-menu { display: none !important; }
+}
+
+/* Newsletter + Footer on small screens */
+@media(max-width:700px) {
+  .dark-landing .newsletter-grid { grid-template-columns: 1fr !important; }
+}
+@media(max-width:560px) {
+  .dark-landing .footer-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Pricing responsive */
+@media(max-width:900px) {
+  .dark-landing .pricing-3 { grid-template-columns: 1fr !important; max-width: 420px !important; margin: 0 auto !important; }
+}
+
+/* Hero badges hide on mobile */
+@media(max-width:768px) {
+  .dark-landing .dark-hero-badge { display: none !important; }
+}
+
+/* Stats row mobile padding */
+@media(max-width:560px) {
+  .dark-landing .stats-row > div { padding: 20px 16px !important; }
+}
+
+/* DarkLandingPage hero padding on mobile */
+@media(max-width:768px) {
+  .dark-landing .bv-section-hero { padding-top: 100px !important; padding-bottom: 48px !important; }
+}
+
+/* AdvocacyMockup inner grid */
+@media(max-width:600px) {
+  .dark-landing .advo-inner-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Stats row tablet */
+@media(max-width:768px) {
+  .dark-landing .stats-row > div { padding: 22px 20px !important; }
+}
+
+/* CareerBranchLandingPage hero badge */
+@media(max-width:768px) {
+  .career-landing .cl-hero-badge { display: none !important; }
+}
+
+/* CareerBranchLandingPage footer inner grid */
+@media(max-width:640px) {
+  .career-landing .cl-footer-inner-grid { grid-template-columns: 1fr !important; }
+}
+
+/* BeVisiblle landing float labels hide on mobile */
+@media(max-width:640px) {
+  .bv-float-label { display: none !important; }
+}
+
+/* BeVisiblle network illustration responsive */
+@media(max-width:400px) {
+  .bv-card-reveal .bv-float { max-width: 280px !important; margin: 0 auto; }
+}
+
+/* Career cards mobile: smaller image area, tighter gap */
+@media(max-width:560px) {
+  .dark-landing .career-3 { gap: 12 !important; }
+  .dark-landing .career-card-image-area { height: 260px !important; min-height: 260px !important; }
+  .dark-landing .career-card-img-wrap { height: 260px !important; }
+  .dark-landing .career-card > div:last-child { padding: 16px 18px 20px !important; }
+}
+
+/* Employer logos responsive gap */
+@media(max-width:640px) {
+  .dark-landing .employer-logos-row { gap: 24px !important; }
+}
+@media(max-width:400px) {
+  .dark-landing .employer-logos-row { gap: 16px !important; }
+}
+
+/* Touch devices: disable blur on non-hovered cards (performance + no hover on touch) */
+@media (hover: none) and (pointer: coarse) {
+  .dark-landing .career-3:hover .career-card:not(:hover) { opacity: 1 !important; filter: none !important; }
+  .dark-landing .career-card:hover { transform: none !important; }
+  .dark-landing .career-card:active { transform: scale(0.98) !important; }
+}
+
 /* Mobile Touch Optimizations */
 * {
   -webkit-tap-highlight-color: transparent;
@@ -117,6 +399,69 @@
 .animate-float-slow-delayed {
   animation: float-slow-delayed 4.5s ease-in-out infinite;
   animation-delay: 1s;
+}
+
+/* BeVisiblle Landing Sections V3 Animations */
+@keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+@keyframes floatYsm { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+@keyframes fadeSlideUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+@keyframes popIn { 0%{opacity:0;transform:scale(.7)} 70%{transform:scale(1.06)} 100%{opacity:1;transform:scale(1)} }
+@keyframes typing { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
+@keyframes slideRight { from{transform:translateX(-12px);opacity:0} to{transform:translateX(0);opacity:1} }
+@keyframes slideLeft { from{transform:translateX(12px);opacity:0} to{transform:translateX(0);opacity:1} }
+@keyframes scaleIn { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes orbit { from{transform:rotate(0deg) translateX(90px) rotate(0deg)} to{transform:rotate(360deg) translateX(90px) rotate(-360deg)} }
+@keyframes pulseRing { 0%,100%{box-shadow:0 0 0 0 rgba(81,112,255,.45)} 60%{box-shadow:0 0 0 16px rgba(81,112,255,0)} }
+@keyframes drawLine { from{stroke-dashoffset:200} to{stroke-dashoffset:0} }
+
+.bv-float { animation: floatY 4s ease-in-out infinite; }
+.bv-floatsm { animation: floatYsm 5s ease-in-out infinite 1s; }
+.bv-pulse-cta { animation: pulseRing 2.6s ease-out infinite; }
+.bv-chat-bubble-1 { animation: slideRight .4s .2s both; }
+.bv-chat-bubble-2 { animation: slideLeft .4s .9s both; }
+.bv-chat-bubble-3 { animation: slideRight .4s 1.6s both; }
+.bv-chat-bubble-4 { animation: slideLeft .4s 2.3s both; }
+.bv-chat-avatar-1 { animation: scaleIn .3s .1s both; }
+.bv-chat-avatar-2 { animation: scaleIn .3s .8s both; }
+.bv-dot1 { animation: typing .9s .0s ease-in-out infinite; }
+.bv-dot2 { animation: typing .9s .15s ease-in-out infinite; }
+.bv-dot3 { animation: typing .9s .3s ease-in-out infinite; }
+.bv-step-card { transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease; }
+.bv-step-card:hover { transform: translateY(-8px) scale(1.01); box-shadow: 0 24px 60px rgba(81,112,255,.16); }
+.bv-card-reveal { animation: fadeSlideUp .55s both; }
+.bv-delay-1 { animation-delay: .1s; }
+.bv-delay-2 { animation-delay: .2s; }
+.bv-delay-3 { animation-delay: .3s; }
+.bv-shine-text {
+  background: linear-gradient(90deg, #5170ff 0%, #a78bfa 40%, #06b6d4 70%, #5170ff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 4s linear infinite;
+}
+.bv-match-badge { animation: popIn .5s 2.8s both; }
+.bv-msg-badge { animation: popIn .5s 3.4s both; }
+.bv-orbit-dot {
+  position: absolute;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  animation: orbit 8s linear infinite;
+  transform-origin: center center;
+}
+.bv-orbit-dot:nth-child(2) { animation-delay: -2.6s; }
+.bv-orbit-dot:nth-child(3) { animation-delay: -5.3s; }
+.bv-profile-line { stroke-dasharray: 200; animation: drawLine 1.2s .5s ease both; }
+.bv-progress-bar {
+  height: 6px; border-radius: 99px; background: #e8edff;
+  overflow: hidden; position: relative;
+}
+.bv-progress-fill {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, #5170ff, #a78bfa);
+  animation: slideRight .8s .6s both;
 }
 
 /* ---- Screen-Preview der Druckseite ---- */
@@ -601,5 +946,42 @@ body::-webkit-scrollbar {
 .bg-pattern-dots {
   background-image: radial-gradient(circle, hsl(214, 20%, 95%) 1px, transparent 1px);
   background-size: 20px 20px;
+}
+
+/* ═══ Career Landing – Light theme animations ═══ */
+@keyframes cl-fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes cl-floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+@keyframes cl-floatYd { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+@keyframes cl-scaleIn { from{opacity:0;transform:scale(.6)} to{opacity:1;transform:scale(1)} }
+@keyframes cl-slideMsg { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:translateX(0)} }
+@keyframes cl-blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+@keyframes cl-glowPulse { 0%,100%{box-shadow:0 4px 20px var(--cl-glow,rgba(81,112,255,.35))} 60%{box-shadow:0 4px 32px 6px var(--cl-glow,rgba(81,112,255,.2))} }
+
+.career-landing .cl-fu  { animation:cl-fadeUp .65s both; }
+.career-landing .cl-fu1 { animation:cl-fadeUp .65s .1s both; }
+.career-landing .cl-fu2 { animation:cl-fadeUp .65s .2s both; }
+.career-landing .cl-fu3 { animation:cl-fadeUp .65s .3s both; }
+.career-landing .cl-float  { animation:cl-floatY 4s ease-in-out infinite; }
+.career-landing .cl-floatd { animation:cl-floatYd 5.5s ease-in-out infinite 1.2s; }
+.career-landing .cl-si1 { animation:cl-scaleIn .35s .4s both; }
+.career-landing .cl-msg1 { animation:cl-slideMsg .4s .3s both; }
+.career-landing .cl-msg2 { animation:cl-slideMsg .4s .9s both; }
+.career-landing .cl-msg3 { animation:cl-slideMsg .4s 1.5s both; }
+.career-landing .cl-b1 { animation:cl-blink 1.3s 0s infinite; display:block; }
+.career-landing .cl-b2 { animation:cl-blink 1.3s .2s infinite; display:block; }
+.career-landing .cl-b3 { animation:cl-blink 1.3s .4s infinite; display:block; }
+.career-landing .cl-glow { animation:cl-glowPulse 3s ease-in-out infinite; }
+
+.career-landing .cl-step-line { display:block; }
+
+@media(max-width:900px) {
+  .career-landing .cl-hero-grid  { grid-template-columns:1fr !important; gap:40px !important; }
+  .career-landing .cl-proof-grid { grid-template-columns:1fr !important; }
+  .career-landing .cl-footer-grid{ grid-template-columns:1fr !important; }
+  .career-landing .cl-steps-grid { grid-template-columns:1fr !important; gap:40px !important; }
+  .career-landing .cl-step-line  { display:none !important; }
+}
+@media(max-width:640px) {
+  .career-landing footer > div > div:first-child { grid-template-columns:1fr !important; }
 }
 

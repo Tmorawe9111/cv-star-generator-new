@@ -3,7 +3,7 @@
  * Überarbeitete Version mit CareerHubHeader
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import BaseLayout from '@/components/layout/BaseLayout';
 import { SEOHead } from '@/components/seo/SEOHead';
@@ -13,6 +13,7 @@ import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import { LocalBusinessStructuredData } from '@/components/seo/StructuredData';
 import { Check, ArrowRight, Target, Zap, BarChart3, Shield, Users2, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { COMPANY_PRICING_TIERS } from '@/config/companyPricing';
 
 const features = [
   {
@@ -47,62 +48,20 @@ const features = [
   }
 ];
 
-const pricingTiers = [
-  {
-    id: 'base',
-    title: 'Base',
-    description: 'Ideal für Unternehmen die jährlich rund 20 neue Mitarbeiter suchen',
-    price: { monthly: 369, yearly: 3950 },
-    badge: undefined,
-    features: [
-      '10 Tokens pro Monat',
-      '5 Stellenanzeigen im Quartal',
-      '2 Standorte',
-      '1 Zugang',
-      'Grundlegende Analytics',
-      'Support per Mail'
-    ],
-    ctaLabel: 'Jetzt starten',
-    ctaHref: '/unternehmensregistrierung?tarif=basis'
-  },
-  {
-    id: 'pro',
-    title: 'Pro',
-    description: 'Ideal für Unternehmen die jährlich rund 50 neue Mitarbeiter suchen',
-    price: { monthly: 985, yearly: 9555 },
-    badge: 'Beliebt',
-    features: [
-      '25 Tokens pro Monat',
-      '12 Stellenanzeigen im Quartal',
-      'Mehrere Standorte',
-      '5 Zugänge',
-      'AI Matching',
-      'Matches via Email',
-      '1 zu 1 Support mit Onboarding'
-    ],
-    ctaLabel: 'Jetzt starten',
-    ctaHref: '/unternehmensregistrierung?tarif=profi'
-  },
-  {
-    id: 'enterprise',
-    title: 'Enterprise',
-    description: 'Ideal für Unternehmen mit über 250 Mitarbeiter',
-    price: { monthly: null, yearly: null },
-    badge: undefined,
-    features: [
-      'Unlimited Tokens',
-      'Unlimited Stellenanzeigen',
-      'Unlimited Zugänge',
-      'Personalisiertes AI Matching',
-      'Matches via Email und WhatsApp',
-      '1 zu 1 Support'
-    ],
-    ctaLabel: 'Kontaktiere uns',
-    ctaHref: '/support'
-  }
-];
-
 export default function Unternehmen() {
+  const [billingYearly, setBillingYearly] = useState(false);
+  useEffect(() => {
+    if (window.location.hash === '#pricing') {
+      document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+    }
+    const onHashChange = () => {
+      if (window.location.hash === '#pricing') {
+        document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
   const seoData = useSEO({
     title: 'Für Unternehmen – BeVisiblle',
     description: 'Finde passende Auszubildende und Fachkräfte durch standardisierte Profile und intelligentes Matching. Jetzt Unternehmens-Account erstellen.',
@@ -126,7 +85,7 @@ export default function Unternehmen() {
             </div>
 
             {/* Hero Section */}
-            <div className="text-center mb-20">
+            <div className="text-center mb-12">
               <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gray-900 mb-6">
                 Finde passende <span className="text-[#5170ff]">Fachkräfte</span> und <span className="text-[#5170ff]">Azubis</span>
               </h1>
@@ -141,6 +100,12 @@ export default function Unternehmen() {
                   Jetzt registrieren
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
+                <a
+                  href="#pricing"
+                  className="inline-flex items-center justify-center px-8 py-4 bg-white border-2 border-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Preise anzeigen
+                </a>
                 <Link
                   to="/support"
                   className="inline-flex items-center justify-center px-8 py-4 bg-white border-2 border-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition-colors"
@@ -150,9 +115,117 @@ export default function Unternehmen() {
               </div>
             </div>
 
+            {/* Pricing Section - direkt nach Hero, gut sichtbar */}
+            <div id="pricing" className="mb-20 rounded-3xl overflow-hidden bg-slate-900 py-16 px-4 md:px-8 scroll-mt-24">
+              <div className="mx-auto max-w-5xl">
+                <div className="text-center mb-12">
+                  <h2 className="text-3xl md:text-4xl font-bold text-white">
+                    Transparente Preise
+                  </h2>
+                  <p className="mt-2 text-slate-400">
+                    Flexibel wechseln – keine versteckten Kosten.
+                  </p>
+                  <div className="mt-6 inline-flex rounded-full bg-slate-800 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setBillingYearly(false)}
+                      className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                        !billingYearly ? 'bg-[#5170ff] text-white shadow' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Monatlich
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBillingYearly(true)}
+                      className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                        billingYearly ? 'bg-[#5170ff] text-white shadow' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Jährlich
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-3 items-stretch">
+                  {COMPANY_PRICING_TIERS.map((tier) => {
+                    const isPopular = tier.id === 'pro';
+                    const price = tier.price.monthly != null
+                      ? (billingYearly ? tier.price.yearly! : tier.price.monthly)
+                      : null;
+                    const period = billingYearly ? 'Jahr' : 'Monat';
+                    const isEnterprise = tier.id === 'enterprise';
+                    return (
+                      <div
+                        key={tier.id}
+                        className={`relative rounded-2xl border px-6 py-8 text-left transition ${
+                          isPopular
+                            ? 'bg-slate-800/80 border-[#5170ff] ring-2 ring-[#5170ff]/30'
+                            : 'bg-slate-800/50 border-slate-700'
+                        }`}
+                      >
+                        {tier.badge && (
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#5170ff] text-white text-xs font-semibold">
+                            {tier.badge}
+                          </div>
+                        )}
+                        <h3 className="text-xl font-semibold text-white">{tier.title}</h3>
+                        <div className="mt-3 text-2xl md:text-3xl font-bold text-white">
+                          {isEnterprise ? (
+                            'Individuell'
+                          ) : (
+                            <>
+                              €{price}
+                              <span className="text-base font-normal text-slate-400"> /{period}</span>
+                            </>
+                          )}
+                        </div>
+                        {tier.description && (
+                          <p className="mt-2 text-sm text-slate-400">{tier.description}</p>
+                        )}
+                        <ul className="mt-6 space-y-3 text-sm text-slate-300">
+                          {tier.features.map((feature) => (
+                            <li key={feature} className="flex items-center gap-2">
+                              <Check className={`h-4 w-4 flex-shrink-0 ${isPopular ? 'text-[#5170ff]' : 'text-slate-500'}`} />
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        {tier.ctaHref.startsWith('http') ? (
+                          <a
+                            href={tier.ctaHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition ${
+                              isPopular
+                                ? 'bg-[#5170ff] text-white hover:bg-[#3d5fe6]'
+                                : 'bg-slate-700 text-white hover:bg-slate-600'
+                            }`}
+                          >
+                            {tier.ctaLabel}
+                          </a>
+                        ) : (
+                          <Link
+                            to={tier.ctaHref.includes('unternehmensregistrierung') ? `${tier.ctaHref}&billing=${billingYearly ? 'yearly' : 'monthly'}` : tier.ctaHref}
+                            className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition ${
+                              isPopular
+                                ? 'bg-[#5170ff] text-white hover:bg-[#3d5fe6]'
+                                : 'bg-slate-700 text-white hover:bg-slate-600'
+                            }`}
+                          >
+                            {tier.ctaLabel}
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             {/* Features Grid */}
             <div className="mb-20">
-              <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
+              <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-900 mb-12">
                 Warum BeVisiblle?
               </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -178,73 +251,9 @@ export default function Unternehmen() {
               </div>
             </div>
 
-            {/* Pricing Section */}
-            <div className="mb-20">
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                  Transparente Preise
-                </h2>
-                <p className="text-gray-600">
-                  Flexibel wechseln – keine versteckten Kosten.
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-6">
-                {pricingTiers.map((tier) => {
-                  const isPopular = tier.id === 'pro';
-                  return (
-                    <div
-                      key={tier.id}
-                      className={`relative bg-white rounded-2xl border p-8 shadow-sm hover:shadow-md transition-shadow ${
-                        isPopular ? 'border-[#5170ff] ring-2 ring-[#5170ff]/20' : 'border-gray-200'
-                      }`}
-                    >
-                      {tier.badge && (
-                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#5170ff] text-white text-sm font-semibold rounded-full">
-                          {tier.badge}
-                        </div>
-                      )}
-                      <div className="text-center mb-6">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">{tier.title}</h3>
-                        {tier.price.monthly ? (
-                          <div className="text-4xl font-bold text-gray-900">
-                            €{tier.price.monthly}
-                            <span className="text-lg font-normal text-gray-500">/Monat</span>
-                          </div>
-                        ) : (
-                          <div className="text-2xl font-semibold text-gray-700">
-                            Individuell
-                          </div>
-                        )}
-                        <p className="text-sm text-gray-600 mt-2">{tier.description}</p>
-                      </div>
-                      <ul className="space-y-3 mb-8">
-                        {tier.features.map((feature, index) => (
-                          <li key={index} className="flex items-start gap-3">
-                            <Check className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isPopular ? 'text-[#5170ff]' : 'text-gray-400'}`} />
-                            <span className="text-gray-700">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <Link
-                        to={tier.ctaHref}
-                        className={`block w-full text-center px-6 py-3 rounded-full font-semibold transition-colors ${
-                          isPopular
-                            ? 'bg-[#5170ff] text-white hover:bg-[#5170ff]/90'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {tier.ctaLabel}
-                      </Link>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* CTA Section */}
-            <div className="bg-gradient-to-br from-[#5170ff] to-blue-600 rounded-2xl p-12 text-white text-center">
-              <h2 className="text-3xl font-bold mb-4">Bereit loszulegen?</h2>
+            <div className="bg-gradient-to-br from-[#5170ff] to-blue-600 rounded-2xl p-6 md:p-12 text-white text-center">
+              <h2 className="text-2xl md:text-3xl font-bold mb-4">Bereit loszulegen?</h2>
               <p className="text-blue-100 mb-8 max-w-2xl mx-auto">
                 Erstelle jetzt deinen Unternehmens-Account und finde die passenden Kandidaten für dein Team.
               </p>

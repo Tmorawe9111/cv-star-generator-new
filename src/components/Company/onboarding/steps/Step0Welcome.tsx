@@ -42,9 +42,9 @@ export function Step0Welcome({ onNext }: Step0WelcomeProps) {
       <div className="flex flex-col items-center space-y-8">
         <div className="flex items-center gap-3 mb-6">
           <img 
-            src="/assets/Logo_visiblle-2.svg" 
+            src="/assets/Logo_visiblle_transparent.png" 
             alt="BeVisiblle" 
-            className="h-14 w-14 object-contain" 
+            className="h-14 w-14 object-contain"
           />
           <span className="text-3xl font-medium tracking-tight text-gray-900">
             BeVisib<span className="text-blue-600">ll</span>e

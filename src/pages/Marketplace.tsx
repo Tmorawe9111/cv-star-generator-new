@@ -564,7 +564,7 @@ function MarketplaceDesktop() {
       const followedCompanyIds = new Set((followedCompanies || []).map(f => f.followee_id));
       
       let qy = supabase.from('posts' as any)
-        .select('id, content, image_url, user_id, created_at, author_type, author_id, company_id, post_type, job_id');
+        .select('id, content, image_url, user_id, created_at, author_type, author_id, company_id, post_type, post_meta, job_id');
       
       if (appliedQ) {
         qy = qy.ilike('content', `%${appliedQ}%`);
@@ -958,6 +958,7 @@ React.useEffect(() => {
                               share_count: post.share_count ?? 0,
                               created_at: post.created_at,
                               post_type: post.post_type ?? 'text',
+                              post_meta: post.post_meta ?? undefined,
                               job_id: post.job_id ?? null,
                               applies_enabled: post.applies_enabled ?? false,
                               cta_label: post.cta_label ?? null,

@@ -37,9 +37,9 @@ export function AccountRequiredDialog({
               {/* Logo */}
               <div className="flex items-center justify-center">
                 <img 
-                  src="/assets/Logo_visiblle-2.svg" 
+                  src="/assets/Logo_visiblle_transparent.png" 
                   alt="BeVisiblle" 
-                  className="h-16 w-16 sm:h-20 sm:w-20"
+                  className="h-16 w-16 sm:h-20 sm:w-20 object-contain"
                 />
               </div>
               

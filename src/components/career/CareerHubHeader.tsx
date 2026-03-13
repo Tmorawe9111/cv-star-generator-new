@@ -12,7 +12,7 @@ export function CareerHubHeader() {
             {/* Left: Logo */}
             <Link to="/" className="flex items-center gap-2 pl-1">
               <div className="flex items-center gap-2">
-                <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle" className="h-8 w-8" />
+                <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle" className="h-8 w-8 object-contain" />
                 <span className="text-lg font-semibold tracking-tight">
                   BeVisib<span className="text-primary">ll</span>e
                 </span>
@@ -27,8 +27,11 @@ export function CareerHubHeader() {
               <a href="#community" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
                 Community
               </a>
-              <Link to="/company" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
+              <Link to="/unternehmen" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
                 Unternehmen
+              </Link>
+              <Link to="/unternehmen#pricing" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
+                Preise
               </Link>
               <Link to="/about" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
                 Über uns
@@ -64,8 +67,11 @@ export function CareerHubHeader() {
           <a href="#community" className="block py-2 text-gray-700 hover:text-gray-900">
             Community
           </a>
-          <Link to="/company" className="block py-2 text-gray-700 hover:text-gray-900">
+          <Link to="/unternehmen" className="block py-2 text-gray-700 hover:text-gray-900">
             Unternehmen
+          </Link>
+          <Link to="/unternehmen#pricing" className="block py-2 text-gray-700 hover:text-gray-900">
+            Preise
           </Link>
           <Link to="/about" className="block py-2 text-gray-700 hover:text-gray-900">
             Über uns

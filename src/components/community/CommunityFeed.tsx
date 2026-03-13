@@ -232,6 +232,7 @@ export default function CommunityFeed({ feedHeadHeight = 0 }: CommunityFeedProps
               updated_at: post.updated_at,
               published_at: post.created_at,
               post_type: post.post_type ?? 'text',
+              post_meta: post.post_meta ?? undefined,
               job_id: post.job_id ?? null,
               applies_enabled: post.applies_enabled ?? false,
               cta_label: post.cta_label ?? null,

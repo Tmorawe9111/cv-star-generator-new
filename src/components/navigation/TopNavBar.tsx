@@ -262,7 +262,7 @@ export default function TopNavBar() {
             <div className="hidden md:flex items-center gap-3">
               <SidebarTrigger className="p-2 hover:bg-muted/40 rounded-lg transition-colors shrink-0" />
               <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/mein-bereich')}>
-                <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle Logo" className="h-8 w-8" />
+                <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle Logo" className="h-8 w-8 object-contain" />
                 <span className="font-semibold">
                   <span className="text-foreground">Be</span>
                   <span className="text-foreground">Visib</span>
@@ -331,7 +331,7 @@ export default function TopNavBar() {
                 {/* Mobile Jobs: Logo links */}
                 <div className="md:hidden shrink-0">
                   <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/mein-bereich')}>
-                    <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle Logo" className="h-8 w-8" />
+                    <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle Logo" className="h-8 w-8 object-contain" />
                   </div>
                 </div>
 
@@ -370,7 +370,7 @@ export default function TopNavBar() {
                 {/* Mobile: Logo centered */}
                 <div className="md:hidden flex-1 flex justify-center">
                   <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/mein-bereich')}>
-                    <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle Logo" className="h-8 w-8" />
+                    <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle Logo" className="h-8 w-8 object-contain" />
                   </div>
                 </div>
               </>

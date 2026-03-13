@@ -98,7 +98,7 @@ export default function AboutUs() {
           <div className="bg-white/90 backdrop-blur rounded-full shadow-sm border px-3 py-2">
             <div className="flex items-center justify-between gap-2">
               <Link to="/" className="flex items-center gap-2 pl-1">
-                <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle" className="h-8 w-8" />
+                <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle" className="h-8 w-8 object-contain" />
                 <span className="font-semibold text-base">
                   BeVisib<span className="text-primary">ll</span>e
                 </span>
@@ -376,7 +376,7 @@ export default function AboutUs() {
               <div className="grid gap-10 md:grid-cols-4">
                 <div>
                 <div className="flex items-center gap-2">
-                  <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle" className="h-8 w-8" />
+                  <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle" className="h-8 w-8 object-contain" />
                   <span className="font-semibold">
                     BeVisib<span className="text-primary">ll</span>e
                   </span>

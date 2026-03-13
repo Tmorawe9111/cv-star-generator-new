@@ -81,9 +81,9 @@ export default function Gesundheitswesen() {
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8 py-4">
           <Link to="/" className="inline-flex items-center gap-2.5">
             <img 
-              src="/assets/Logo_visiblle-2.svg" 
+              src="/assets/Logo_visiblle_transparent.png" 
               alt="BeVisiblle" 
-              className="h-6 w-6" 
+              className="h-6 w-6 object-contain"
             />
             <span className="text-[15px] font-semibold tracking-[-0.01em] text-gray-900">
               BeVisib<span className="text-[#5170ff]">ll</span>e

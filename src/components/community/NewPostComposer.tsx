@@ -13,6 +13,9 @@ import { capitalizeFirst, cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { PostTypeSelector, GuidedPostComposer } from "@/components/community/composer";
+import { getTemplateByType } from "@/config/postTemplates";
+import type { PostType, PostMeta } from "@/types/community";
 
 interface MediaFile {
   file: File;
@@ -31,6 +34,7 @@ export default function NewPostComposer() {
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPostType, setSelectedPostType] = useState<PostType | null>(null);
   const [visibility, setVisibility] = useState<"CommunityAndCompanies" | "CommunityOnly" | "ConnectionsOnly">("CommunityAndCompanies");
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -66,6 +70,7 @@ export default function NewPostComposer() {
     setContent("");
     setMedia([]);
     setDocuments([]);
+    setSelectedPostType(null);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,6 +123,69 @@ export default function NewPostComposer() {
     return publicUrl;
   };
 
+  const handleGuidedSubmit = async (
+    guidedContent: string,
+    meta: PostMeta,
+    imageUrl?: string
+  ) => {
+    if (!selectedPostType) return;
+    setIsSubmitting(true);
+    try {
+      const mediaArray = imageUrl
+        ? [{ url: imageUrl, type: "image" as const }]
+        : [];
+      const { data: newPost, error } = await supabase.from("posts").insert({
+        content: capitalizeFirst(guidedContent.trim()),
+        user_id: user!.id,
+        author_id: user!.id,
+        author_type: "user",
+        image_url: imageUrl ?? null,
+        media: mediaArray,
+        documents: [],
+        visibility:
+          visibility === "ConnectionsOnly"
+            ? "Community"
+            : visibility === "CommunityOnly"
+              ? "Community"
+              : "CommunityAndCompanies",
+        status: "published",
+        post_type: selectedPostType,
+        post_meta: meta as Record<string, unknown>,
+      });
+
+      if (error) throw error;
+
+      if (newPost && newPost[0]?.id) {
+        const { trackPostCreate } = await import("@/lib/telemetry");
+        trackPostCreate(newPost[0].id, user!.id, {
+          hasMedia: !!imageUrl,
+          hasDocuments: false,
+          visibility,
+          postType: selectedPostType,
+        });
+      }
+
+      toast({
+        title: "Beitrag erstellt",
+        description: "Dein Beitrag wurde erfolgreich veröffentlicht.",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["clean-feed"] });
+      queryClient.invalidateQueries({ queryKey: ["home-feed"] });
+
+      handleClose();
+    } catch (err) {
+      console.error("Error creating post:", err);
+      toast({
+        title: "Fehler",
+        description: "Der Beitrag konnte nicht erstellt werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!content.trim() && media.length === 0 && documents.length === 0) {
       toast({
@@ -133,40 +201,52 @@ export default function NewPostComposer() {
     try {
       // Upload media files
       const mediaUrls = await Promise.all(
-        media.map(m => uploadFile(m.file, 'post-media', 'images'))
+        media.map((m) => uploadFile(m.file, "post-media", "images"))
       );
 
       // Upload documents
       const documentUrls = await Promise.all(
-        documents.map(d => uploadFile(d.file, 'post-documents', 'docs'))
+        documents.map((d) => uploadFile(d.file, "post-documents", "docs"))
       );
 
       // Create post with auto-capitalization
       const mediaUrl = mediaUrls.length > 0 ? mediaUrls[0] : null;
-      const mediaArray = mediaUrls.length > 0 
-        ? mediaUrls.map((url, index) => ({ 
-            url, 
-            type: media[index]?.type || 'image' 
-          }))
-        : [];
-      
+      const mediaArray =
+        mediaUrls.length > 0
+          ? mediaUrls.map((url, index) => ({
+              url,
+              type: media[index]?.type || "image",
+            }))
+          : [];
+
       const { data: newPost, error } = await supabase.from("posts").insert({
         content: capitalizeFirst(content.trim()),
         user_id: user!.id,
         author_id: user!.id,
-        author_type: 'user',
+        author_type: "user",
         image_url: mediaUrl,
         media: mediaArray,
-        documents: documentUrls.map(url => ({ url, name: '', type: 'document' })),
-        visibility: visibility === "ConnectionsOnly" ? "Community" : visibility === "CommunityOnly" ? "Community" : "CommunityAndCompanies",
-        status: 'published',
+        documents: documentUrls.map((url) => ({
+          url,
+          name: "",
+          type: "document",
+        })),
+        visibility:
+          visibility === "ConnectionsOnly"
+            ? "Community"
+            : visibility === "CommunityOnly"
+              ? "Community"
+              : "CommunityAndCompanies",
+        status: "published",
+        post_type: "freitext",
+        post_meta: {},
       });
 
       if (error) throw error;
 
       // Track post creation for analytics
       if (newPost && newPost[0]?.id) {
-        const { trackPostCreate } = await import('@/lib/telemetry');
+        const { trackPostCreate } = await import("@/lib/telemetry");
         trackPostCreate(newPost[0].id, user!.id, {
           hasMedia: media.length > 0,
           hasDocuments: documents.length > 0,
@@ -184,8 +264,8 @@ export default function NewPostComposer() {
       queryClient.invalidateQueries({ queryKey: ["home-feed"] });
 
       handleClose();
-    } catch (error: any) {
-      console.error("Error creating post:", error);
+    } catch (err) {
+      console.error("Error creating post:", err);
       toast({
         title: "Fehler",
         description: "Der Beitrag konnte nicht erstellt werden.",
@@ -196,7 +276,9 @@ export default function NewPostComposer() {
     }
   };
 
-  const canPost = content.trim().length > 0 || media.length > 0 || documents.length > 0;
+  const canPost =
+    selectedPostType === null &&
+    (content.trim().length > 0 || media.length > 0 || documents.length > 0);
 
   const getVisibilityLabel = () => {
     switch (visibility) {
@@ -253,21 +335,23 @@ export default function NewPostComposer() {
           <Clock className="h-5 w-5 text-muted-foreground" />
         </button>
         
-        <Button
-          onClick={handleSubmit}
-          disabled={!canPost || isSubmitting}
-          size="sm"
-          className={cn(
-            "rounded-full px-4",
-            !canPost && "bg-muted text-muted-foreground"
-          )}
-        >
-          {isSubmitting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            "Posten"
-          )}
-        </Button>
+        {selectedPostType === null && (
+          <Button
+            onClick={handleSubmit}
+            disabled={!canPost || isSubmitting}
+            size="sm"
+            className={cn(
+              "rounded-full px-4",
+              !canPost && "bg-muted text-muted-foreground"
+            )}
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Posten"
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -321,17 +405,36 @@ export default function NewPostComposer() {
       {Header}
       
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 px-4 py-6">
-          <Textarea
-            ref={textareaRef}
-            placeholder="Was möchtest du teilen?"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="min-h-[200px] md:min-h-[300px] resize-none border-0 focus-visible:ring-0 text-base p-0"
-            autoFocus
+        <div className="px-4 pt-4 border-b border-border">
+          <PostTypeSelector
+            selectedType={selectedPostType}
+            onSelect={setSelectedPostType}
           />
+        </div>
+        <div className="flex-1 px-4 py-6 overflow-y-auto">
+          {selectedPostType !== null ? (
+            getTemplateByType(selectedPostType) && (
+              <GuidedPostComposer
+                template={getTemplateByType(selectedPostType)!}
+                onSubmit={handleGuidedSubmit}
+                onCancel={() => setSelectedPostType(null)}
+                uploadFile={uploadFile}
+                userId={user!.id}
+                isSubmitting={isSubmitting}
+              />
+            )
+          ) : (
+            <>
+              <Textarea
+                ref={textareaRef}
+                placeholder="Was möchtest du teilen?"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="min-h-[200px] md:min-h-[300px] resize-none border-0 focus-visible:ring-0 text-base p-0"
+                autoFocus
+              />
 
-          {/* Media Preview */}
+              {/* Media Preview */}
           {media.length > 0 && (
             <div className="grid grid-cols-2 gap-2 mt-4">
               {media.map((m, i) => (
@@ -378,10 +481,12 @@ export default function NewPostComposer() {
               ))}
             </div>
           )}
+            </>
+          )}
         </div>
 
         {/* Action Bar - only on mobile */}
-        {isMobile && ActionBar}
+        {isMobile && selectedPostType === null && ActionBar}
       </div>
     </>
   );
@@ -406,7 +511,8 @@ export default function NewPostComposer() {
       <DialogContent className="sm:max-w-[600px] p-0 max-h-[85vh] flex flex-col [&>button]:hidden">
         {Content}
         
-        {/* Desktop Action Buttons */}
+        {/* Desktop Action Buttons - only for freetext */}
+        {selectedPostType === null && (
         <div className="px-6 py-4 border-t border-border flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <label className="cursor-pointer">
@@ -456,6 +562,7 @@ export default function NewPostComposer() {
             </Button>
           </div>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -19,6 +19,7 @@ import CommentItem from './CommentItem';
 import { supabase } from '@/integrations/supabase/client';
 import { capitalizeFirst } from '@/lib/utils';
 import { normalizeImageUrl } from '@/lib/image-utils';
+import { getTemplateByType } from '@/config/postTemplates';
 
 interface PostCardProps {
   post: {
@@ -37,6 +38,7 @@ interface PostCardProps {
     comment_count?: number;
     share_count?: number;
     post_type?: string;
+    post_meta?: Record<string, unknown>;
     job_id?: string | null;
     applies_enabled?: boolean | null;
     cta_label?: string | null;
@@ -144,6 +146,9 @@ export default function PostCard({ post }: PostCardProps) {
 
   const isJobPost = post.post_type === 'job';
   const jobDetails = post.job || null;
+  const guidedTypes = ['projekt', 'suche', 'frage', 'erfolg', 'empfehlung'] as const;
+  const isGuidedPost = post.post_type && guidedTypes.includes(post.post_type as typeof guidedTypes[number]);
+  const guidedTemplate = isGuidedPost ? getTemplateByType(post.post_type as 'projekt' | 'suche' | 'frage' | 'erfolg' | 'empfehlung') : undefined;
   const ctaLabel = post.cta_label || 'Jetzt informieren';
   const ctaUrl = post.cta_url || (jobDetails ? `/jobs/${jobDetails.id}` : null);
   const hasContent = (post.content || '').trim().length > 0;
@@ -392,6 +397,14 @@ const authorSubtitle = useMemo(() => {
       )}
 
       <div className="px-3 py-2 sm:px-4 md:px-3 md:py-3 lg:px-4 lg:py-4 space-y-2 sm:space-y-3">
+        {/* Guided post type badge */}
+        {guidedTemplate && (
+          <div className="text-xs font-medium text-muted-foreground">
+            <span>{guidedTemplate.icon}</span>
+            <span className="ml-1">{guidedTemplate.label}</span>
+          </div>
+        )}
+
         {/* Post Header */}
         <div className="flex items-start gap-2 sm:gap-3">
           <div 
@@ -528,6 +541,16 @@ const authorSubtitle = useMemo(() => {
                 )}
               </p>
             )}
+            {post.post_type === 'suche' && post.author_id && !isOwnPost && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full mt-2"
+                onClick={() => navigate(`/community/messages?new=${post.author_id}`)}
+              >
+                Kontakt aufnehmen
+              </Button>
+            )}
           </div>
         )}
 
@@ -625,6 +648,7 @@ const authorSubtitle = useMemo(() => {
           <span className="inline-flex items-center gap-1">
             <Heart className="h-3.5 w-3.5" />
             {likesLoading ? '…' : likeCount}
+            {post.post_type === 'erfolg' && <span className="ml-0.5">🎉</span>}
           </span>
           <span className="cursor-pointer" onClick={handleOpenComments}>
             {commentsLoading ? '…' : `${commentsCount} Kommentare`}

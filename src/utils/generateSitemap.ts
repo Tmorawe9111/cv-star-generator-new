@@ -165,7 +165,7 @@ function getStaticPages(): SitemapUrl[] {
       changefreq: 'daily',
       priority: 0.8
     },
-    // Career Hubs - SEO Landing Pages
+    // Career Branch Landing Pages
     {
       loc: `${BASE_URL}/karriere/pflege`,
       lastmod: today,
@@ -173,7 +173,31 @@ function getStaticPages(): SitemapUrl[] {
       priority: 0.8
     },
     {
+      loc: `${BASE_URL}/karriere/pflege/funktionsdienste`,
+      lastmod: today,
+      changefreq: 'weekly',
+      priority: 0.8
+    },
+    {
       loc: `${BASE_URL}/karriere/handwerk`,
+      lastmod: today,
+      changefreq: 'weekly',
+      priority: 0.8
+    },
+    {
+      loc: `${BASE_URL}/karriere/industriemechaniker`,
+      lastmod: today,
+      changefreq: 'weekly',
+      priority: 0.8
+    },
+    {
+      loc: `${BASE_URL}/karriere/buromanagement`,
+      lastmod: today,
+      changefreq: 'weekly',
+      priority: 0.8
+    },
+    {
+      loc: `${BASE_URL}/karriere/ausbildung`,
       lastmod: today,
       changefreq: 'weekly',
       priority: 0.8

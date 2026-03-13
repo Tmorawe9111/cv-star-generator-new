@@ -24,9 +24,10 @@ function CompanySignup() {
   const [allowUpdates, setAllowUpdates] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Get plan from URL parameter
+  // Get plan and billing from URL (plan/tarif, billing für Monatlich/Jährlich)
   const urlParams = new URLSearchParams(window.location.search);
-  const selectedPlan = urlParams.get('plan') || 'free';
+  const selectedPlan = urlParams.get('plan') || urlParams.get('tarif') || 'free';
+  const billingCycle = (urlParams.get('billing') === 'yearly' ? 'yearly' : 'monthly') as 'monthly' | 'yearly';
 
   // Form state
   const [form, setForm] = useState({
@@ -162,25 +163,27 @@ function CompanySignup() {
             // Fire-and-forget Slack notification (never block signup UX)
             try {
               const { error: slackErr } = await supabase.functions.invoke('slack-signup-notify', {
-                body: {
-                  kind: 'company',
-                  test: false,
-                  source: 'CompanySignup.password',
-                  company: {
-                    companyName: form.companyName,
-                    industry: form.industry,
-                    zip: null,
-                    city: form.city,
-                    employeeCount: form.size,
-                    website: form.website || null,
-                    contactPerson: {
-                      firstName: form.adminFirst,
-                      lastName: form.adminLast,
-                      email: form.email,
-                      phone: form.phone,
-                    },
+              body: {
+                kind: 'company',
+                test: false,
+                source: 'CompanySignup.password',
+                company: {
+                  companyName: form.companyName,
+                  industry: form.industry,
+                  zip: null,
+                  city: form.city,
+                  employeeCount: form.size,
+                  website: form.website || null,
+                  selectedPlan,
+                  billingCycle,
+                  contactPerson: {
+                    firstName: form.adminFirst,
+                    lastName: form.adminLast,
+                    email: form.email,
+                    phone: form.phone,
                   },
                 },
+              },
               });
               // If email-confirmation is enabled, signUp might not create a session yet → Slack call is unauthenticated.
               // In that case, store payload and re-send once the user is authenticated in CompanyLayout.
@@ -198,6 +201,8 @@ function CompanySignup() {
                       city: form.city,
                       employeeCount: form.size,
                       website: form.website || null,
+                      selectedPlan,
+                      billingCycle,
                       contactPerson: {
                         firstName: form.adminFirst,
                         lastName: form.adminLast,
@@ -246,7 +251,8 @@ function CompanySignup() {
           website: form.website,
           phone: form.phone,
           contactPerson: `${form.adminFirst} ${form.adminLast}`,
-          selectedPlan: selectedPlan
+          selectedPlan,
+          billingCycle,
         }));
 
         const { error } = await supabase.auth.signInWithOtp({
@@ -297,7 +303,7 @@ function CompanySignup() {
           <div className="bg-white/90 backdrop-blur rounded-full shadow-sm border px-3 py-2 h-14">
             <div className="flex items-center justify-between gap-2 h-full">
               <Link to="/" className="flex items-center gap-2 pl-1">
-                <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle" className="h-8 w-8" />
+                <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle" className="h-8 w-8 object-contain" />
                 <span className="font-semibold text-base">
                   BeVisib<span className="text-primary">ll</span>e
                 </span>

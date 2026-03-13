@@ -46,7 +46,7 @@ export default function Header({ variant }: HeaderProps) {
       <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/assets/Logo_visiblle-2.svg" alt="bevisiblle Logo" className="h-8 w-8" />
+            <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle" className="h-8 w-8 object-contain" />
             <span className="font-semibold hidden sm:inline">
               BeVisib<span className="text-primary">ll</span>e
             </span>

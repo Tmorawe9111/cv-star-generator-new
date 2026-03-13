@@ -16,7 +16,7 @@ export function LandingHeader() {
             {/* Left: Logo */}
             <Link to="/" className="flex items-center gap-2 pl-1">
               <div className="flex items-center gap-2">
-                <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle" className="h-8 w-8" />
+                <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle" className="h-8 w-8 object-contain" />
                 <span className="text-lg font-semibold tracking-tight">
                   BeVisib<span className="text-primary">ll</span>e
                 </span>

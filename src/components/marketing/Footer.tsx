@@ -8,8 +8,8 @@ export default function Footer() {
         <div>
           <div className="flex items-center gap-3 justify-center md:justify-start">
             <img 
-              src="/assets/Logo_visiblle-2.svg" 
-              alt="bevisiblle Logo" 
+              src="/assets/Logo_visiblle_transparent.png" 
+              alt="BeVisiblle" 
               className="h-8 w-8 object-contain" 
               width="32" 
               height="32"

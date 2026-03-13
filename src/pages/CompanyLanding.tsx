@@ -4,6 +4,7 @@ import SmartInteractions from '@/components/landing/SmartInteractions';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Check } from 'lucide-react';
 import { trackCalendlyClick, trackPageView } from '@/lib/telemetry';
+import { COMPANY_PRICING_TIERS } from '@/config/companyPricing';
 
 type CalendlyWidget = {
   initPopupWidget: (options: { url: string }) => void;
@@ -16,67 +17,6 @@ declare global {
 }
 
 type BillingCycle = 'monthly' | 'yearly';
-
-const pricingTiers = [
-  {
-    id: 'base',
-    title: 'Base',
-    description: 'Ideal für Unternehmen die jährlich rund 20 neue Mitarbeiter suchen',
-    price: { monthly: 369, yearly: 3950 },
-    badgeMonthly: undefined,
-    badgeYearly: undefined,
-    features: [
-      '10 Tokens pro Monat um vollständige Profile freizuschalten',
-      '5 Stellenanzeigen im Quartal',
-      '2 Standorte',
-      '1 Zugang',
-      'Grundlegende Analytics',
-      'Support per Mail'
-    ],
-    ctaLabelMonthly: 'Jetzt starten',
-    ctaLabelYearly: 'Jetzt starten',
-    ctaHref: '/unternehmensregistrierung?tarif=basis'
-  },
-  {
-    id: 'pro',
-    title: 'Pro',
-    description: 'Ideal für Unternehmen die jährlich rund 50 neue Mitarbeiter suchen',
-    price: { monthly: 985, yearly: 9555 },
-    badgeMonthly: 'Beliebt',
-    badgeYearly: 'Beliebt',
-    features: [
-      '25 Tokens pro Monat um vollständige Profile freizuschalten',
-      '12 Stellenanzeigen im Quartal',
-      'Mehrere Standorte',
-      '5 Zugänge',
-      'AI Matching',
-      'Matches via Email (wöchentlich/monatlich)',
-      '1 zu 1 Support mit Onboarding'
-    ],
-    ctaLabelMonthly: 'Jetzt starten',
-    ctaLabelYearly: 'Jetzt starten',
-    ctaHref: '/unternehmensregistrierung?tarif=profi'
-  },
-  {
-    id: 'enterprise',
-    title: 'Enterprise',
-    description: 'Ideal für Unternehmen mit über 250 Mitarbeiter die gegen den Fachkräftemangel agieren wollen',
-    price: { monthly: null, yearly: null },
-    badgeMonthly: undefined,
-    badgeYearly: undefined,
-    features: [
-      'Unlimited Tokens',
-      'Unlimited Stellenanzeigen',
-      'Unlimited Zugänge',
-      'Personalisiertes AI Matching',
-      'Matches via Email und WhatsApp (wöchentlich/monatlich)',
-      '1 zu 1 Support'
-    ],
-    ctaLabelMonthly: 'Kontaktiere uns',
-    ctaLabelYearly: 'Kontaktiere uns',
-    ctaHref: 'https://calendly.com/todd-bevisiblle/gettoknowbeviviblle'
-  }
-];
 
 const faqs = [
   {
@@ -137,6 +77,18 @@ export default function CompanyLanding() {
     };
   }, []);
 
+  // Scroll to pricing when hash is #pricing (on mount or hash change)
+  useEffect(() => {
+    const scrollToPricing = () => {
+      if (window.location.hash === '#pricing') {
+        document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+    scrollToPricing();
+    window.addEventListener('hashchange', scrollToPricing);
+    return () => window.removeEventListener('hashchange', scrollToPricing);
+  }, []);
+
   return (
     <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen">
       <header className="fixed top-4 left-0 right-0 z-50">
@@ -144,7 +96,7 @@ export default function CompanyLanding() {
           <div className="bg-white/90 backdrop-blur rounded-full shadow-sm border px-3 py-2 h-14">
             <div className="flex items-center justify-between gap-2 h-full">
               <Link to="/" className="flex items-center gap-2 pl-1">
-                <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle" className="h-8 w-8" />
+                <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle" className="h-8 w-8 object-contain" />
                 <span className="font-semibold text-base">
                   BeVisib<span className="text-primary">ll</span>e
                 </span>
@@ -156,6 +108,9 @@ export default function CompanyLanding() {
                 </Link>
                 <Link to="/company" className="rounded-md px-3 py-2 text-sm font-medium text-[#5170ff] hover:bg-blue-50">
                   Unternehmen
+                </Link>
+                <Link to="/company#pricing" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
+                  Preise
                 </Link>
                 <Link to="/unternehmensregistrierung" className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
                   Registrieren
@@ -193,6 +148,9 @@ export default function CompanyLanding() {
             </Link>
             <Link to="/company" className="block py-2 font-semibold text-[#5170ff]">
               Unternehmen
+            </Link>
+            <Link to="/company#pricing" className="block py-2 text-gray-700 hover:text-gray-900">
+              Preise
             </Link>
             <Link to="/about" className="block py-2 text-gray-700 hover:text-gray-900">
               Über uns
@@ -242,7 +200,7 @@ export default function CompanyLanding() {
         </div>
       </section>
 
-      <section className="relative -mt-8 z-10 flex justify-center gap-6">
+      <section className="relative -mt-8 z-10 flex justify-center gap-6 flex-wrap px-4">
         <button
           onClick={() => openCalendly('Demo buchen (CTA)')}
           className="inline-flex items-center rounded-full px-8 py-4 text-base font-semibold text-white shadow-xl transition-all duration-300 hover:scale-105"
@@ -320,68 +278,75 @@ export default function CompanyLanding() {
           />
       </section>
 
-      <section className="mt-20">
-        <div className="mx-auto max-w-5xl px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-semibold text-slate-900">Simple, transparente Preise</h2>
-          <p className="mt-2 text-sm text-slate-500">Flexibel wechseln – keine versteckten Kosten.</p>
+      <section id="pricing" className="mt-20 scroll-mt-24 rounded-3xl overflow-hidden bg-slate-900 py-16 px-4 md:px-8">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-white">Simple, transparente Preise</h2>
+          <p className="mt-2 text-slate-400">Flexibel wechseln – keine versteckten Kosten.</p>
 
-          <div className="mt-6 inline-flex rounded-full bg-white/80 shadow border border-slate-200 p-1">
-            <button
-              onClick={() => setBillingCycle('monthly')}
-              className={`px-5 py-2 text-sm font-medium rounded-full transition ${
-                billingCycle === 'monthly' ? 'bg-[#5170ff] text-white shadow' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Monatlich
-            </button>
-            <button
-              onClick={() => setBillingCycle('yearly')}
-              className={`px-5 py-2 text-sm font-medium rounded-full transition ${
-                billingCycle === 'yearly' ? 'bg-[#5170ff] text-white shadow' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Jährlich
-            </button>
+            <div className="mt-6 inline-flex rounded-full bg-slate-800 p-1">
+              <button
+                type="button"
+                onClick={() => setBillingCycle('monthly')}
+                className={`px-5 py-2 text-sm font-medium rounded-full transition ${
+                  billingCycle === 'monthly' ? 'bg-[#5170ff] text-white shadow' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Monatlich
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingCycle('yearly')}
+                className={`px-5 py-2 text-sm font-medium rounded-full transition ${
+                  billingCycle === 'yearly' ? 'bg-[#5170ff] text-white shadow' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Jährlich
+              </button>
+            </div>
           </div>
 
-          <div className="mt-10 grid gap-6 md:grid-cols-3 items-stretch">
-            {pricingTiers.map((tier) => {
+          <div className="grid gap-6 md:grid-cols-3 items-stretch">
+            {COMPANY_PRICING_TIERS.map((tier) => {
               const isPopular = tier.id === 'pro';
-              const price = billingCycle === 'monthly' ? tier.price.monthly : tier.price.yearly;
-              const period = billingCycle === 'monthly' ? 'Monat' : 'Jahr';
-              const badge = billingCycle === 'monthly' ? tier.badgeMonthly : tier.badgeYearly;
+              const price = tier.price.monthly != null
+                ? (billingCycle === 'yearly' ? tier.price.yearly! : tier.price.monthly)
+                : null;
+              const period = billingCycle === 'yearly' ? 'Jahr' : 'Monat';
               const isEnterprise = tier.id === 'enterprise';
               return (
                 <div
                   key={tier.id}
-                  className={`relative rounded-[28px] border bg-white/90 backdrop-blur px-6 py-8 shadow-[0_18px_45px_rgba(81,112,255,0.18)] text-left transition ${
-                    isPopular ? 'border-[#5170ff] ring-4 ring-[#5170ff]/15 translate-y-[-6px]' : 'border-slate-200'
+                  className={`relative rounded-2xl border px-6 py-8 text-left transition ${
+                    isPopular
+                      ? 'bg-slate-800/80 border-[#5170ff] ring-2 ring-[#5170ff]/30'
+                      : 'bg-slate-800/50 border-slate-700'
                   }`}
                 >
-                  {badge && (
-                    <div className={`absolute -top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-xs font-semibold ${
-                      isPopular ? 'bg-[#5170ff] text-white shadow-lg' : 'bg-white text-slate-600 border'
-                    }`}>
-                      {badge}
+                  {tier.badge && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#5170ff] text-white text-xs font-semibold">
+                      {tier.badge}
                     </div>
                   )}
-                  <div className="text-3xl font-semibold text-slate-900">
+                  <h3 className="text-xl font-semibold text-white">{tier.title}</h3>
+                  <div className="mt-3 text-2xl md:text-3xl font-bold text-white">
                     {isEnterprise ? (
-                      billingCycle === 'monthly' ? tier.ctaLabelMonthly : tier.ctaLabelYearly
+                      'Kontaktiere uns'
                     ) : (
                       <>
                         €{price}
-                        <span className="text-sm font-normal text-slate-500"> /{period}</span>
+                        <span className="text-base font-normal text-slate-400"> /{period}</span>
                       </>
                     )}
                   </div>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-900">{tier.title}</h3>
-                  <p className="mt-2 text-sm text-slate-500">{tier.description}</p>
+                  {tier.description && (
+                    <p className="mt-2 text-sm text-slate-400">{tier.description}</p>
+                  )}
 
-                  <ul className="mt-6 space-y-3 text-sm text-slate-600">
+                  <ul className="mt-6 space-y-3 text-sm text-slate-300">
                     {tier.features.map((feature) => (
                       <li key={feature} className="flex items-center gap-2">
-                        <Check className={`h-4 w-4 ${isPopular ? 'text-[#5170ff]' : 'text-slate-400'}`} />
+                        <Check className={`h-4 w-4 flex-shrink-0 ${isPopular ? 'text-[#5170ff]' : 'text-slate-500'}`} />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -389,25 +354,25 @@ export default function CompanyLanding() {
 
                   {tier.ctaHref.startsWith('http') ? (
                     <button
-                      onClick={() => openCalendly(`${tier.title} Plan - ${billingCycle === 'monthly' ? tier.ctaLabelMonthly : tier.ctaLabelYearly}`)}
-                      className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition ${
+                      onClick={() => openCalendly(`${tier.title} - ${tier.ctaLabel}`)}
+                      className={`mt-8 w-full rounded-full px-5 py-3 text-sm font-semibold transition ${
                         isPopular
-                          ? 'bg-[#5170ff] text-white shadow hover:opacity-90'
-                          : 'border border-slate-200 text-slate-700 hover:border-[#5170ff]/50'
+                          ? 'bg-[#5170ff] text-white hover:bg-[#3d5fe6]'
+                          : 'bg-slate-700 text-white hover:bg-slate-600'
                       }`}
                     >
-                      {billingCycle === 'monthly' ? tier.ctaLabelMonthly : tier.ctaLabelYearly}
+                      {tier.ctaLabel}
                     </button>
                   ) : (
                     <Link
-                      to={`${tier.ctaHref}&billing=${billingCycle}`}
+                      to={tier.ctaHref.includes('unternehmensregistrierung') ? `${tier.ctaHref}&billing=${billingCycle}` : tier.ctaHref}
                       className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition ${
                         isPopular
-                          ? 'bg-[#5170ff] text-white shadow hover:opacity-90'
-                          : 'border border-slate-200 text-slate-700 hover:border-[#5170ff]/50'
+                          ? 'bg-[#5170ff] text-white hover:bg-[#3d5fe6]'
+                          : 'bg-slate-700 text-white hover:bg-slate-600'
                       }`}
                     >
-                      {billingCycle === 'monthly' ? tier.ctaLabelMonthly : tier.ctaLabelYearly}
+                      {tier.ctaLabel}
                     </Link>
                   )}
                 </div>
@@ -448,7 +413,7 @@ export default function CompanyLanding() {
                   Updates zu Community, neuen Funktionen & passenden Jobs – direkt in dein Postfach.
                 </p>
               </div>
-              <form className="flex w-full items-center gap-3" onSubmit={handleNewsletterSubmit}>
+              <form className="flex flex-wrap w-full items-center gap-3" onSubmit={handleNewsletterSubmit}>
                 <input
                   type="email"
                   required
@@ -476,7 +441,7 @@ export default function CompanyLanding() {
             <div className="grid gap-10 md:grid-cols-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle" className="h-8 w-8" />
+                <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle" className="h-8 w-8 object-contain" />
                   <span className="font-semibold">
                     BeVisib<span className="text-primary">ll</span>e
                   </span>

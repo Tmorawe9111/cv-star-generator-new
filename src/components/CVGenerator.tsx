@@ -224,6 +224,8 @@ const CVGeneratorContent = ({ onComplete, skipWelcomeStep = false }: CVGenerator
     
     if (isLayoutEditMode) {
       navigate('/profile');
+    } else if (returnTo) {
+      navigate(decodeURIComponent(returnTo));
     } else {
       navigate('/');
     }

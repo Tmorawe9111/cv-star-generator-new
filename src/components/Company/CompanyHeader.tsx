@@ -86,7 +86,7 @@ export function CompanyHeader({ collapsed, onToggleSidebar }: CompanyHeaderProps
         >
           <ToggleIcon className="h-4 w-4" />
         </button>
-        <img src="/assets/Logo_visiblle-2.svg" alt="BeVisiblle" className="h-8 w-8" />
+        <img src="/assets/Logo_visiblle_transparent.png" alt="BeVisiblle" className="h-8 w-8 object-contain" />
         <span className="text-lg font-semibold text-gray-900">
           BeVisib<span className="text-primary">ll</span>e Recruiter
         </span>

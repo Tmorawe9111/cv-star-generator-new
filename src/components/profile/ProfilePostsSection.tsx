@@ -335,6 +335,7 @@ export function ProfilePostsSection({
                 share_count: post.share_count ?? 0,
                 created_at: post.created_at,
                 post_type: post.post_type ?? 'text',
+                post_meta: post.post_meta ?? undefined,
                 job_id: post.job_id ?? null,
                 applies_enabled: post.applies_enabled ?? false,
                 cta_label: post.cta_label ?? null,
