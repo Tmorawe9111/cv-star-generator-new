@@ -1,11 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* Geist font for DarkLandingPage - fallback to Inter if not loaded */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
 @import url('https://cdn.jsdelivr.net/npm/@fontsource/geist@5.0.8/index.min.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* BeVisiblle Landing – Dark theme */
 .dark-landing {

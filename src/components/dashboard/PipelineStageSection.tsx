@@ -1,5 +1,5 @@
 import { StageSection } from "./StageSection";
-import { CandidateList } from "./CandidateList";
+import { CandidateList } from "@/components/recruiter-dashboard/CandidateList";
 import type { CandidateListItem } from "@/components/recruiter-dashboard/CandidateList";
 import type { DashboardTab } from "@/types/dashboard";
 import type { ListState } from "@/types/dashboard";
